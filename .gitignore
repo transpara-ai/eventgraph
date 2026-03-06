@@ -1,0 +1,48 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Go
+go/bin/
+go/vendor/
+
+# Rust
+rust/target/
+
+# Python
+python/__pycache__/
+python/*.pyc
+python/.venv/
+python/dist/
+python/*.egg-info/
+
+# .NET
+dotnet/bin/
+dotnet/obj/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+*.out
+coverage/
+
+# Environment
+.env
+.env.local
+
+# Secrets — never commit these
+*.pem
+*.key
+*.p12
