@@ -84,7 +84,7 @@ The reference implementation exists in [mind-zero-five](https://github.com/mattx
 
 ### Primitive Framework — NEEDED
 
-The architecture for primitives — the 200 agents that form the cognitive layers.
+The architecture for primitives — the 201 agents that form the cognitive layers.
 
 - [ ] `go/pkg/primitive/primitive.go` — Primitive interface, Mutation types, Registry
 - [ ] `go/pkg/primitive/lifecycle.go` — Lifecycle state machine (dormant→active→processing→emitting)
@@ -121,7 +121,7 @@ The mechanical-to-intelligent continuum.
 
 ## Phase 2: Layer 0 Primitives
 
-The 44 foundation primitives in 11 groups. Each primitive needs: implementation, tests, documentation.
+The 45 foundation primitives in 11 groups. Each primitive needs: implementation, tests, documentation.
 
 ### Group 0 — Core
 - [ ] Event primitive

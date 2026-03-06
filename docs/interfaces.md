@@ -1,4 +1,4 @@
-# Core Interfaces
+# Type System and Interfaces
 
 ## Design Philosophy
 
@@ -9,6 +9,17 @@ SOLID throughout. Always-valid domain models. No magic values. No bare strings. 
 - **L** — Any implementation of an interface is substitutable. The conformance test suite guarantees this.
 - **I** — Small, focused interfaces. `IActor` doesn't know about trust. `ITrustModel` doesn't know about persistence.
 - **D** — Primitives depend on abstractions (`IActor`, `ITrustModel`), never concrete types. The tick engine calls interfaces, not implementations.
+
+### Extensibility Points
+
+A small number of fields use `map[string]any` as deliberate extensibility points for product layers. These are the **only** exceptions to the "no bare maps" rule:
+
+- `PrimitiveState.State` — Each primitive defines its own internal state schema. The type system cannot anticipate all primitive domains.
+- `DecisionInput.Context` — Product layers provide domain-specific decision context (e.g., a social network passes post content; a marketplace passes transaction details).
+- `AuthorityRequest.Context` / `AuthorityRequestPayload.Context` — Domain-specific context for human approvers to evaluate.
+- `IActor.Metadata()` / `ActorUpdate.Metadata` — Product layers attach domain-specific actor data (e.g., profile, preferences, roles).
+
+All other fields must use typed structures. If you find yourself reaching for `map[string]any` outside these extension points, define a typed struct instead.
 
 ### No Magic Values
 
@@ -298,7 +309,7 @@ EGIP is an anti-corruption layer between sovereign systems. Each system has its 
 
 ### Facade (Top-Level API)
 
-`graph.Evaluate()`, `graph.Record()`, `graph.Query()` are facades — simple entry points that hide the 200 primitives, tick engine, trust model, and authority chain behind a four-line API. See the Top-Level API section below.
+`graph.Evaluate()`, `graph.Record()`, `graph.Query()` are facades — simple entry points that hide the 201 primitives, tick engine, trust model, and authority chain behind a four-line API. See the Top-Level API section below.
 
 ### Decorator (Store Wrapping)
 
@@ -423,6 +434,16 @@ Tick            // int constrained to [0, ∞).
 
 Layer           // int constrained to [0, 13].
                 // Construction: rejects values outside range.
+
+Duration        // int64 nanoseconds. Non-negative.
+                // Construction: rejects negative values.
+                // Serialisation: decimal string of nanoseconds in canonical form.
+                // Used for: tick intervals, timeouts, elapsed time, decay periods.
+
+FieldPath       // Dot-separated path into a data structure (e.g., "context.actor.status").
+                // Construction: validates non-empty, dot-separated segments, each segment is [a-zA-Z_][a-zA-Z0-9_]*.
+                // Used for: decision tree conditions, subgraph queries.
+                // No traversal attacks — validated segments prevent injection.
 ```
 
 ### Lifecycle State Machine
@@ -731,7 +752,7 @@ Every event type has a corresponding content struct. No `map[string]any` — the
 "chain.verified" → ChainVerifiedContent {
     Valid:     bool
     Length:    int
-    Duration:  duration
+    Duration:  Duration
 }
 
 "chain.broken" → ChainBrokenContent {
@@ -751,7 +772,7 @@ Every event type has a corresponding content struct. No `map[string]any` — the
 "clock.tick" → ClockTickContent {
     Tick:      Tick
     Timestamp: time
-    Elapsed:   duration
+    Elapsed:   Duration
 }
 
 // Health events
@@ -791,7 +812,7 @@ Every event type has a corresponding content struct. No `map[string]any` — the
 "authority.timeout" → AuthorityTimeoutContent {
     RequestID:  EventID
     Level:      AuthorityLevel           // Recommended — the only level that times out
-    Duration:   duration
+    Duration:   Duration
 }
 
 // Decision tree evolution events
@@ -1085,7 +1106,7 @@ PrimitiveState {
     Lifecycle:   LifecycleState
     Activation:  Activation
     Cadence:     Cadence
-    State:       map[string]any                        // primitive-internal state (read-only view)
+    State:       map[string]any                        // extensibility point — primitive-internal state (see Extensibility Points)
     LastTick:    Tick                                   // last tick this primitive was invoked
 }
 ```
@@ -1152,7 +1173,7 @@ LeafNode {
 }
 
 Condition {
-    Field:      string                  // dot-path into DecisionInput context
+    Field:      FieldPath               // dot-path into DecisionInput context (validated, no injection)
     Operator:   ConditionOperator
     Threshold:  Option<Score>           // for numeric and Semantic comparisons
     Prompt:     Option<string>          // only for Semantic — what to ask IIntelligence
@@ -1164,6 +1185,8 @@ MatchValue {
     Boolean:    Option<bool>
     EventType:  Option<EventType>
 }
+// Construction: exactly one field must be Some. All-None is rejected.
+// This is a tagged union — the Some field determines the comparison type.
 
 PathStep {
     Condition:  Condition
@@ -1214,7 +1237,7 @@ AuthorityRequest {
     Level:          AuthorityLevel
     Justification:  string
     Causes:         NonEmpty<EventID>
-    Context:        map[string]any      // domain-specific context for the approver
+    Context:        map[string]any      // extensibility point (see Extensibility Points)
     CreatedAt:      time
     ExpiresAt:      Option<time>        // only for Recommended (timeout)
 }
@@ -1246,7 +1269,7 @@ TickResult {
     Tick:       Tick
     Waves:      int                     // how many waves before quiescence
     Mutations:  int                     // total mutations applied
-    Duration:   duration                // wall-clock time
+    Duration:   Duration                // wall-clock time
     Quiesced:   bool                    // true if terminated naturally, false if hit wave limit
 }
 ```
@@ -1326,13 +1349,17 @@ TreatyPayload {
     Reason:             Option<string>  // for Suspend and Terminate
 }
 
+// AuthorityRequestPayload is the EGIP wire format — sent between systems.
+// Compare with AuthorityRequest (local workflow): AuthorityRequest has Causes
+// and timestamps for graph recording; AuthorityRequestPayload has TreatyID
+// for inter-system governance context. They serve different purposes.
 AuthorityRequestPayload {
     Action:             string
     Actor:              ActorID
     Level:              AuthorityLevel
     Justification:      string
-    Context:            map[string]any
-    TreatyID:           Option<TreatyID>
+    Context:            map[string]any       // extensibility point (see Extensibility Points)
+    TreatyID:           Option<TreatyID>     // which treaty governs this request
 }
 
 DiscoverPayload {
@@ -1353,15 +1380,7 @@ DiscoverResult {
 }
 ```
 
-`ProofData` is a discriminated union of `ChainSegmentProof`, `EventExistenceProof`, and `ChainSummaryProof`. Use the Visitor pattern for exhaustive dispatch:
-
-```
-ProofDataVisitor {
-    VisitChainSegment(ChainSegmentProof)
-    VisitEventExistence(EventExistenceProof)
-    VisitChainSummary(ChainSummaryProof)
-}
-```
+`ProofData` is a discriminated union of `ChainSegmentProof`, `EventExistenceProof`, and `ChainSummaryProof`. Use the `ProofDataVisitor` (defined in the Visitor section above) for exhaustive dispatch.
 
 ---
 
@@ -1379,7 +1398,7 @@ IActor {
     PublicKey() → PublicKey
     DisplayName() → string
     Type() → ActorType             // Human, AI, System, Committee, RulesEngine — for TRANSPARENT invariant
-    Metadata() → map[string]any    // extension point — product layers attach domain-specific data
+    Metadata() → map[string]any    // extensibility point (see Extensibility Points)
     CreatedAt() → time
     Status() → ActorStatus         // Active, Suspended, Memorial
 }
@@ -1404,7 +1423,7 @@ IActorStore {
 
 ActorUpdate {
     DisplayName: Option<string>
-    Metadata:    Option<map[string]any>      // extension point — merged with existing if Some
+    Metadata:    Option<map[string]any>      // extensibility point — shallow-merged with existing if Some (see Extensibility Points)
 }
 
 ActorFilter {
@@ -1491,7 +1510,7 @@ IDecisionMaker {
 DecisionInput {
     Action:     string
     Actor:      IActor
-    Context:    map[string]any              // extension point — domain-specific decision context from product layer
+    Context:    map[string]any              // extensibility point — domain-specific decision context (see Extensibility Points)
     Causes:     NonEmpty<EventID>         // decisions must reference what caused them
 }
 ```
@@ -1523,7 +1542,7 @@ ITrustModel {
     Score(context, actor IActor) → Result<TrustMetrics, StoreError>
     ScoreInDomain(context, actor IActor, domain DomainScope) → Result<TrustMetrics, StoreError>
     Update(context, actor IActor, evidence Event) → Result<TrustMetrics, StoreError>
-    Decay(context, actor IActor, elapsed duration) → Result<TrustMetrics, StoreError>
+    Decay(context, actor IActor, elapsed Duration) → Result<TrustMetrics, StoreError>
     Between(context, from IActor, to IActor) → Result<TrustMetrics, StoreError>
 }
 ```
@@ -1689,7 +1708,9 @@ Treaty {
 
 TreatyTerm {
     Scope:     DomainScope
-    Policy:    string               // treaty policy text — genuinely freeform legal/governance language
+    Policy:    string               // deliberate exception: treaty policies are natural-language governance
+                                    // text agreed between systems. Machine enforcement is via the Scope
+                                    // and trust thresholds, not by parsing this field.
     Symmetric: bool
 }
 ```
@@ -1726,7 +1747,7 @@ The tick engine uses the bus internally to distribute events to primitives. Exte
 
 ## Top-Level API
 
-The facade — four lines to make any system auditable. Hides the 200 primitives, tick engine, trust model, and authority chain.
+The facade — four lines to make any system auditable. Hides the 201 primitives, tick engine, trust model, and authority chain.
 
 ```
 IGraph {
@@ -1806,12 +1827,13 @@ Where:
 ```
 
 **Content JSON rules:**
+- Keys use **camelCase** — spec field names are PascalCase but JSON serialisation uses camelCase (e.g., `ActorID` → `"actorID"`, `ChainGenesis` → `"chainGenesis"`, `EdgeType` → `"edgeType"`). This is the standard JSON convention and is conformance-critical for hash computation.
 - Keys sorted lexicographically (Unicode code point order)
 - No whitespace between tokens
 - Numbers: no trailing zeros, no leading zeros (except `0.x`), no `+` prefix
 - Strings: minimal escaping (only `"`, `\`, control characters)
 - UTF-8 normalised to NFC
-- Null fields omitted entirely (not `"field": null`)
+- Null/None fields omitted entirely (not `"field": null`)
 
 **Hash computation:**
 ```
@@ -1903,10 +1925,10 @@ System behaviour is controlled by a configuration type — no magic numbers buri
 GraphConfig {
     // Tick engine
     MaxWavesPerTick:     int              // max ripple waves before forced quiescence (default: 10)
-    TickInterval:        duration         // time between ticks (default: 100ms)
+    TickInterval:        Duration         // time between ticks (default: 100ms)
 
     // Authority
-    RecommendedTimeout:  duration         // auto-approve timeout for Recommended level (default: 15min)
+    RecommendedTimeout:  Duration         // auto-approve timeout for Recommended level (default: 15min)
 
     // Bus
     SubscriberBufferSize: int             // per-subscriber event buffer (default: 1000)

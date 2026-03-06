@@ -1,13 +1,13 @@
 # Primitives
 
-200 cognitive primitives across 14 layers. Each primitive is a software agent for a specific domain of intelligence, implementing the `Primitive` interface.
+201 cognitive primitives across 14 layers. Each primitive is a software agent for a specific domain of intelligence, implementing the `Primitive` interface.
 
 ## Structure
 
-- **Layer 0 (Foundation):** 44 primitives in 11 groups of 4 (plus 1 group of 5)
+- **Layer 0 (Foundation):** 45 primitives in 11 groups (Group 0 has 5, Groups 1-10 have 4 each)
 - **Layers 1-13:** 12 primitives each in 3 groups of 4
 
-Total: 44 + (13 x 12) = **200 primitives**
+Total: 45 + (13 × 12) = **201 primitives**
 
 Each layer derives from a **gap** in the layer below — something the lower layer can represent but cannot reason about. Layer N activates only when Layer N-1 is stable.
 
@@ -34,7 +34,7 @@ See `docs/interfaces.md` for all referenced types.
 
 ## Layer 0: Foundation
 
-44 primitives in 11 groups. The irreducible computational foundations.
+45 primitives in 11 groups. The irreducible computational foundations.
 
 **Full specification:** [`docs/layers/00-foundation.md`](layers/00-foundation.md)
 
@@ -2240,4 +2240,4 @@ The final primitive. It looks at everything the system does and asks: *why?*
 | 11 | Culture | Living → Seeing | Reflection, Expression, Transmission | 12 |
 | 12 | Emergence | Content → Architecture | Pattern, Evolution, Coherence | 12 |
 | 13 | Existence | Everything → The Fact of Everything | Being, Boundary, Wonder | 12 |
-| | | | **Total** | **200** |
+| | | | **Total** | **201** |

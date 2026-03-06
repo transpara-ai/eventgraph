@@ -14,7 +14,7 @@ EventGraph is a hash-chained, append-only, causal event graph. Decision governan
 │     Task Management)                        │
 ├─────────────────────────────────────────────┤
 │         Cognitive Primitives                 │
-│    (200 across 14 layers, tick engine)       │
+│    (201 across 14 layers, tick engine)       │
 ├─────────────────────────────────────────────┤
 │           Communication                      │
 │    (listen/say, routing, EGIP)              │
@@ -29,7 +29,7 @@ EventGraph is a hash-chained, append-only, causal event graph. Decision governan
 
 ## Two API Levels
 
-**Top level** — four lines to make any system auditable. Developers describe what their system wants to do, the graph evaluates it through the ontology, and returns a decision with a cryptographic receipt. They don't need to understand the 200 primitives.
+**Top level** — four lines to make any system auditable. Developers describe what their system wants to do, the graph evaluates it through the ontology, and returns a decision with a cryptographic receipt. They don't need to understand the 201 primitives.
 
 **Primitive level** — for power users building AI agent frameworks, compliance platforms, or their own implementations. Every primitive is an interface with sensible defaults. Override with domain-specific logic. Custom trust decay, custom authority chains, custom confidence models.
 
@@ -39,6 +39,7 @@ The fundamental unit. Every significant action is an event.
 
 ```
 Event {
+    Version:        int             // schema version for this event type (starts at 1)
     ID:             EventID         // UUID v7 (time-ordered)
     Type:           EventType       // validated against EventTypeRegistry (e.g., "trust.updated")
     Timestamp:      time            // nanosecond precision
@@ -175,7 +176,7 @@ Requests and resolutions are events on the graph. See `authority.md`.
 
 14 layers, each derived from a gap in the layer below:
 
-- Layer 0: Foundation (44 primitives, 11 groups)
+- Layer 0: Foundation (45 primitives, 11 groups)
 - Layers 1-13: 12 primitives each (3 groups of 4)
 
 Layer N activates only when Layer N-1 is stable. See `docs/layers/` for per-layer specifications.
@@ -217,4 +218,4 @@ Product layers are built *on* the event graph, not part of it:
 - **Social Grammar** — 15 operations (see `grammar.md`)
 - **Governance** — Authority chains, voting, delegation
 - **Exchange / Market** — Bilateral negotiation, consent, escrow
-- **Task Management** — Hierarchical decomposition, model-tier routing (see `task-management.md`)
+- **Task Management** — Hierarchical decomposition, model-tier routing (see `docs/task-management.md`)

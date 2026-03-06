@@ -22,6 +22,7 @@ The fundamental unit. Every significant action is an event:
 
 ```
 Event {
+    Version:        int             // schema version for this event type (starts at 1)
     ID:             EventID         // UUID v7 (time-ordered)
     Type:           EventType       // validated against EventTypeRegistry (e.g., "trust.updated")
     Timestamp:      time            // nanosecond precision
@@ -50,7 +51,7 @@ These are the extension points. Implement them to plug in your own infrastructur
 
 ### Primitives
 
-A primitive is a software agent that embodies a specific domain of intelligence. 200 primitives across 14 layers, from foundational (Event, Hash, Clock) to existential (Being, Wonder, Mystery).
+A primitive is a software agent that embodies a specific domain of intelligence. 201 primitives across 14 layers, from foundational (Event, Hash, Clock) to existential (Being, Wonder, Mystery).
 
 Each primitive has:
 - **Name** and **Layer** (`Layer` type, constrained 0-13) — position in the ontological hierarchy
@@ -273,7 +274,7 @@ These are non-negotiable. Every contribution must maintain them:
 
 - `docs/architecture.md` — System architecture
 - `docs/interfaces.md` — Core interfaces specification (THE central spec document)
-- `docs/primitives.md` — All 200 primitives across 14 layers
+- `docs/primitives.md` — All 201 primitives across 14 layers
 - `docs/tick-engine.md` — Ripple-wave processing
 - `docs/decision-trees.md` — Mechanical-to-intelligent continuum
 - `docs/trust.md` — Trust model and dynamics

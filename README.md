@@ -98,7 +98,7 @@ Top-Level API (graph.Evaluate / Record / Query)
     ↕
 Product Layers (social, governance, exchange — built on, not in)
     ↕
-Primitives (200 across 14 layers, each an overridable interface)
+Primitives (201 across 14 layers, each an overridable interface)
     ↕
 Tick Engine (ripple-wave processing until quiescence)
     ↕
@@ -117,7 +117,7 @@ See `docs/architecture.md` for the full picture.
 
 | Layer | Name | What it adds |
 |-------|------|-------------|
-| 0 | Foundation | 44 primitives: events, hash chains, identity, trust, causality |
+| 0 | Foundation | 45 primitives: events, hash chains, identity, trust, causality |
 | 1 | Agency | Observer becomes participant — action and communication |
 | 2 | Exchange | Individual becomes dyad — negotiated interaction |
 | 3 | Society | Dyad becomes group — collective behaviour |
@@ -141,7 +141,7 @@ Everything is pluggable. The graph defines the sockets; you provide the implemen
 - **`Store`** — Event persistence. Memory, SQLite, Postgres, or your own.
 - **`IDecisionMaker`** — Anything that makes decisions. AI agents, humans, committees, rules engines. The graph records what was decided, not how.
 - **`IIntelligence`** — Reasoning. Any model, local or cloud, or deterministic logic.
-- **Primitives** — 200 cognitive agents, each an interface with sensible defaults. Override with domain-specific logic.
+- **Primitives** — 201 cognitive agents, each an interface with sensible defaults. Override with domain-specific logic.
 
 Every decision returns epistemic context: not just "permitted" but "permitted with 0.87 confidence through this authority chain with these trust weights." Trust isn't binary — it's 0.73 and decaying. Authority isn't binary — it's strong here, weak there, contextual.
 

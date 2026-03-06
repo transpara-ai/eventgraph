@@ -2,7 +2,7 @@
 
 ## Overview
 
-44 primitives in 11 groups. The irreducible computational foundations — everything above is derived from gaps in this layer.
+45 primitives in 11 groups (Group 0 has 5, Groups 1-10 have 4 each). The irreducible computational foundations — everything above is derived from gaps in this layer.
 
 Every primitive below declares:
 - **Subscribes to** — event type prefixes it listens for

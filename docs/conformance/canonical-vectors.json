@@ -1,5 +1,5 @@
 {
-  "_comment": "Language-agnostic conformance test vectors for EventGraph. All implementations must produce identical outputs for these inputs.",
+  "_comment": "Language-agnostic conformance test vectors for EventGraph. All implementations must produce identical outputs for these inputs. Content JSON keys use camelCase (spec uses PascalCase for type definitions, but JSON wire format uses camelCase per standard convention).",
   "_version": 1,
 
   "canonical_form": {

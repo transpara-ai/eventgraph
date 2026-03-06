@@ -286,5 +286,5 @@ The engine manages `Active → Processing → Emitting → Active` transitions a
 ## Reference
 
 - `docs/interfaces.md` — Primitive interface, Mutation types, Snapshot, GraphConfig
-- `docs/primitives.md` — The 200 primitives that the tick engine processes
+- `docs/primitives.md` — The 201 primitives that the tick engine processes
 - `ROADMAP.md` Phase 1 (Tick Engine) — Implementation status
