@@ -22,6 +22,8 @@ Closes #
 - [ ] Docs updated (if interfaces changed)
 - [ ] No secrets or credentials committed
 - [ ] Commit messages follow conventional format
+- [ ] No breaking interface changes (or RFC approved)
+- [ ] No new dependencies (or justified in PR description)
 
 ## Self-Audit Notes
 

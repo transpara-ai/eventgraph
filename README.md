@@ -1,12 +1,16 @@
 # EventGraph
 
+> **Status: Pre-release.** Documentation and specifications are in place. Core packages are being implemented. Contributions welcome — see `ROADMAP.md`.
+
 A hash-chained, append-only, causal event graph. The foundation for building systems where every action is signed, auditable, and causally linked.
 
 ## What This Is
 
-EventGraph is infrastructure, not a product. It provides the substrate for building accountable systems — social networks, governance platforms, marketplaces, identity systems — where every action is an event, every event has a cause, and the full history is cryptographically verifiable.
+EventGraph is infrastructure, not a product. A standard with packages. Published to every major ecosystem — Go, Rust, Python, .NET — so developers can make any system auditable in four lines of code.
 
-200 cognitive primitives across 14 layers. A tick engine that processes events through primitives in ripple waves. A decision tree engine that migrates expensive AI reasoning to cheap deterministic rules over time. An inter-system protocol for sovereign systems to communicate without shared infrastructure.
+The graph doesn't take an "agent" as input. It takes an `IDecisionMaker` — anything that makes decisions. An AI agent implements it. A human with a UI implements it. A committee vote implements it. A rules engine implements it. The graph doesn't know or care what's deciding. It records *what* was decided, *by what*, with *what confidence*, under *what authority*, and links it causally to everything that led there.
+
+This makes EventGraph **decision governance**, not AI governance — applicable to any system where decisions matter and accountability is required.
 
 ## Soul Statement
 
@@ -14,9 +18,39 @@ EventGraph is infrastructure, not a product. It provides the substrate for build
 
 Every design decision serves this.
 
-## Quick Start
+## Two Levels of API
 
-### Go
+**Top level** — what most developers hit. Four lines to make any system auditable:
+
+```go
+graph := eventgraph.New(store.Memory())     // or Postgres, SQLite, your own
+result, _ := graph.Evaluate(ctx, action)     // evaluate through the ontology
+receipt := result.Receipt()                  // cryptographic proof of decision
+graph.Record(ctx, result)                    // append to the hash chain
+```
+
+**Power user level** — for building AI agent frameworks, compliance platforms, or custom governance. Every primitive is an interface with sensible defaults. Override what you need:
+
+```go
+// Custom trust decay for your domain
+type MyTrustDecay struct { primitives.TrustDecay }
+func (t *MyTrustDecay) Process(tick, events, snapshot) []Mutation {
+    // domain-specific trust logic
+}
+graph.Register(&MyTrustDecay{})
+```
+
+**Persistence is a plugin:**
+
+```go
+graph := eventgraph.New(store.Memory())      // dev/testing
+graph := eventgraph.New(store.SQLite(path))   // single app
+graph := eventgraph.New(store.Postgres(dsn))  // production
+```
+
+> **Note:** These packages are not yet published. See `ROADMAP.md` Phase 1 for implementation status. The API shown above reflects the target design.
+
+## Quick Start (Go)
 
 ```bash
 go get github.com/lovyou-ai/eventgraph/go
@@ -27,46 +61,54 @@ package main
 
 import (
     "context"
-    "github.com/lovyou-ai/eventgraph/go/pkg/event"
+    "fmt"
+
+    eg "github.com/lovyou-ai/eventgraph/go/pkg/graph"
     "github.com/lovyou-ai/eventgraph/go/pkg/store"
 )
 
 func main() {
     ctx := context.Background()
 
-    // Create an in-memory store
-    s := store.NewMemory()
-    s.Init(ctx)
+    // Create a graph with an in-memory store
+    graph, _ := eg.New(store.NewMemory())
+    graph.Start()
+    defer graph.Close()
 
-    // Emit an event
-    e, _ := s.Append(ctx, "hello.world", "me", map[string]any{
-        "message": "first event",
-    }, nil, "")
+    // Record an event (factory validates, hashes, signs, then store persists)
+    e, _ := graph.Record(ctx, "hello.world", systemActor, HelloContent{
+        Message: "first event",
+    }, causes, conversationID)
 
-    // Every event is hash-chained
-    fmt.Println(e.Hash)     // SHA-256
-    fmt.Println(e.PrevHash) // links to previous
+    // Every event is hash-chained and signed
+    fmt.Println(e.Hash)      // SHA-256 of canonical form
+    fmt.Println(e.PrevHash)  // links to previous event
+    fmt.Println(e.Signature) // Ed25519 signature
 
     // Causal traversal
-    ancestors, _ := s.Ancestors(ctx, e.ID, 10)
-    descendants, _ := s.Descendants(ctx, e.ID, 10)
+    ancestors, _ := graph.Query().Events().Ancestors(e.ID, 10)
+    fmt.Println(len(ancestors))
 }
 ```
 
 ## Architecture
 
 ```
-Event Graph (hash-chained, append-only, causal)
+Top-Level API (graph.Evaluate / Record / Query)
     ↕
-Primitives (200 across 14 layers, each with lifecycle + state + subscriptions)
+Product Layers (social, governance, exchange — built on, not in)
+    ↕
+Primitives (200 across 14 layers, each an overridable interface)
     ↕
 Tick Engine (ripple-wave processing until quiescence)
     ↕
 Decision Trees (mechanical-to-intelligent continuum, evolving)
     ↕
-Authority (three-tier approval: required / recommended / notification)
+Authority (three-tier: required / recommended / notification)
     ↕
-EGIP (inter-system protocol: sovereign, bilateral, trust-accumulating)
+Event Graph (hash-chained, append-only, causal DAG)
+    ↕
+Store (plugin: Memory, SQLite, Postgres, your own)
 ```
 
 See `docs/architecture.md` for the full picture.
@@ -94,11 +136,14 @@ Each layer is derived from a gap in the layer below — something the lower laye
 
 ## Key Interfaces
 
-Everything is pluggable:
+Everything is pluggable. The graph defines the sockets; you provide the implementations:
 
-- **`Store`** — Event persistence. Implement for your database.
-- **`IIntelligence`** — Reasoning. Implement with any model or deterministic logic.
-- **`IDecisionMaker`** — Decision routing. Deterministic branches with AI fallthrough.
+- **`Store`** — Event persistence. Memory, SQLite, Postgres, or your own.
+- **`IDecisionMaker`** — Anything that makes decisions. AI agents, humans, committees, rules engines. The graph records what was decided, not how.
+- **`IIntelligence`** — Reasoning. Any model, local or cloud, or deterministic logic.
+- **Primitives** — 200 cognitive agents, each an interface with sensible defaults. Override with domain-specific logic.
+
+Every decision returns epistemic context: not just "permitted" but "permitted with 0.87 confidence through this authority chain with these trust weights." Trust isn't binary — it's 0.73 and decaying. Authority isn't binary — it's strong here, weak there, contextual.
 
 See `docs/interfaces.md` for specifications.
 
@@ -110,20 +155,22 @@ See `CONTRIBUTING.md` for process. See `ROADMAP.md` for what needs building.
 
 ## Language Support
 
-| Language | Status | Path |
-|----------|--------|------|
-| Go | Reference implementation | `go/` |
-| Rust | Community — help wanted | `rust/` |
-| Python | Community — help wanted | `python/` |
-| .NET | Community — help wanted | `dotnet/` |
+Published to every ecosystem developers already work in:
 
-All implementations must pass the language-agnostic conformance test suite.
+| Language | Package | Status | Path |
+|----------|---------|--------|------|
+| Go | `go get github.com/lovyou-ai/eventgraph/go` | Reference implementation | `go/` |
+| Rust | `cargo add eventgraph` | Community — help wanted | `rust/` |
+| Python | `pip install eventgraph` | Community — help wanted | `python/` |
+| .NET | `dotnet add package EventGraph` | Community — help wanted | `dotnet/` |
+
+All implementations must pass the language-agnostic conformance test suite. Each implements the same interfaces — `Store`, `IDecisionMaker`, `IIntelligence`, `Primitive`. Same spec, native to each ecosystem.
 
 ## License
 
 [Business Source License 1.1](LICENSE) converting to [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) on 26 February 2030.
 
-Free and open source implementations are always protected under the [Defensive Patent Pledge](patent/defensive_patent_pledge.pdf).
+The packages are free. The spec is free. The ideas are free (deed poll). Run it yourself and owe nothing. Non-commercial use, research, and education are always free. Free and open source implementations are always protected under the [Defensive Patent Pledge](patent/defensive_patent_pledge.pdf).
 
 ## Links
 

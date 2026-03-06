@@ -1,0 +1,193 @@
+{
+  "_comment": "Language-agnostic conformance test vectors for EventGraph. All implementations must produce identical outputs for these inputs.",
+  "_version": 1,
+
+  "canonical_form": {
+    "_comment": "Each test case provides event fields and the expected canonical string, hash, and signature.",
+    "cases": [
+      {
+        "name": "bootstrap_event",
+        "description": "The genesis event — no causes, no prev_hash.",
+        "input": {
+          "version": 1,
+          "id": "019462a0-0000-7000-8000-000000000001",
+          "type": "system.bootstrapped",
+          "source": "actor_00000000000000000000000000000001",
+          "conversation_id": "conv_00000000000000000000000000000001",
+          "timestamp_nanos": 1700000000000000000,
+          "prev_hash": "",
+          "content": {
+            "actorID": "actor_00000000000000000000000000000001",
+            "chainGenesis": "0000000000000000000000000000000000000000000000000000000000000000",
+            "timestamp": "2023-11-14T22:13:20Z"
+          }
+        },
+        "expected": {
+          "canonical": "1||019462a0-0000-7000-8000-000000000001|system.bootstrapped|actor_00000000000000000000000000000001|conv_00000000000000000000000000000001|1700000000000000000|{\"actorID\":\"actor_00000000000000000000000000000001\",\"chainGenesis\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"timestamp\":\"2023-11-14T22:13:20Z\"}",
+          "hash": "_COMPUTE_FROM_CANONICAL_",
+          "signature": "_REQUIRES_PRIVATE_KEY_"
+        }
+      },
+      {
+        "name": "trust_updated_event",
+        "description": "A standard event with causes and prev_hash.",
+        "input": {
+          "version": 1,
+          "id": "019462a0-0000-7000-8000-000000000002",
+          "type": "trust.updated",
+          "source": "actor_00000000000000000000000000000001",
+          "conversation_id": "conv_00000000000000000000000000000001",
+          "timestamp_nanos": 1700000001000000000,
+          "prev_hash": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+          "content": {
+            "actor": "actor_00000000000000000000000000000002",
+            "cause": "019462a0-0000-7000-8000-000000000001",
+            "current": 0.85,
+            "domain": "code_review",
+            "previous": 0.8
+          }
+        },
+        "expected": {
+          "canonical": "1|a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2|019462a0-0000-7000-8000-000000000002|trust.updated|actor_00000000000000000000000000000001|conv_00000000000000000000000000000001|1700000001000000000|{\"actor\":\"actor_00000000000000000000000000000002\",\"cause\":\"019462a0-0000-7000-8000-000000000001\",\"current\":0.85,\"domain\":\"code_review\",\"previous\":0.8}",
+          "hash": "_COMPUTE_FROM_CANONICAL_",
+          "signature": "_REQUIRES_PRIVATE_KEY_"
+        }
+      },
+      {
+        "name": "content_json_key_ordering",
+        "description": "Verifies that content JSON keys are sorted lexicographically.",
+        "input": {
+          "version": 1,
+          "id": "019462a0-0000-7000-8000-000000000003",
+          "type": "edge.created",
+          "source": "actor_00000000000000000000000000000001",
+          "conversation_id": "conv_00000000000000000000000000000001",
+          "timestamp_nanos": 1700000002000000000,
+          "prev_hash": "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3",
+          "content": {
+            "weight": 0.5,
+            "from": "actor_00000000000000000000000000000001",
+            "to": "actor_00000000000000000000000000000002",
+            "edgeType": "Trust",
+            "direction": "Centripetal"
+          }
+        },
+        "expected": {
+          "_comment": "Keys must be sorted: direction, edgeType, from, to, weight",
+          "canonical": "1|b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3|019462a0-0000-7000-8000-000000000003|edge.created|actor_00000000000000000000000000000001|conv_00000000000000000000000000000001|1700000002000000000|{\"direction\":\"Centripetal\",\"edgeType\":\"Trust\",\"from\":\"actor_00000000000000000000000000000001\",\"to\":\"actor_00000000000000000000000000000002\",\"weight\":0.5}",
+          "hash": "_COMPUTE_FROM_CANONICAL_",
+          "signature": "_REQUIRES_PRIVATE_KEY_"
+        }
+      },
+      {
+        "name": "content_json_number_formatting",
+        "description": "Verifies number formatting rules: no trailing zeros, no leading zeros.",
+        "rules": [
+          { "input": 1.0, "canonical": "1" },
+          { "input": 0.5, "canonical": "0.5" },
+          { "input": 0.10, "canonical": "0.1" },
+          { "input": 100, "canonical": "100" },
+          { "input": 0.001, "canonical": "0.001" }
+        ]
+      },
+      {
+        "name": "content_json_null_omission",
+        "description": "Null/None fields must be omitted entirely, not included as null.",
+        "input_content": {
+          "actor": "actor_00000000000000000000000000000001",
+          "scope": null,
+          "reason": null
+        },
+        "expected_json": "{\"actor\":\"actor_00000000000000000000000000000001\"}"
+      }
+    ]
+  },
+
+  "hash_chain": {
+    "_comment": "Verify that appending events produces a valid chain. Each event's hash becomes the next event's prev_hash.",
+    "chain": [
+      {
+        "position": 0,
+        "prev_hash": "",
+        "hash": "_COMPUTED_"
+      },
+      {
+        "position": 1,
+        "prev_hash": "_HASH_OF_POSITION_0_",
+        "hash": "_COMPUTED_"
+      },
+      {
+        "position": 2,
+        "prev_hash": "_HASH_OF_POSITION_1_",
+        "hash": "_COMPUTED_"
+      }
+    ]
+  },
+
+  "type_validation": {
+    "_comment": "Construction validation test cases. Each must be rejected.",
+    "invalid": [
+      { "type": "Score", "value": -0.1, "reason": "below minimum 0.0" },
+      { "type": "Score", "value": 1.1, "reason": "above maximum 1.0" },
+      { "type": "Weight", "value": -1.1, "reason": "below minimum -1.0" },
+      { "type": "Weight", "value": 1.1, "reason": "above maximum 1.0" },
+      { "type": "Activation", "value": -0.01, "reason": "below minimum 0.0" },
+      { "type": "Layer", "value": -1, "reason": "below minimum 0" },
+      { "type": "Layer", "value": 14, "reason": "above maximum 13" },
+      { "type": "Cadence", "value": 0, "reason": "below minimum 1" },
+      { "type": "Hash", "value": "abc", "reason": "not 64 hex characters" },
+      { "type": "Hash", "value": "", "reason": "empty" },
+      { "type": "EventType", "value": "not.registered", "reason": "not in EventTypeRegistry" }
+    ],
+    "valid": [
+      { "type": "Score", "value": 0.0 },
+      { "type": "Score", "value": 1.0 },
+      { "type": "Score", "value": 0.5 },
+      { "type": "Weight", "value": -1.0 },
+      { "type": "Weight", "value": 0.0 },
+      { "type": "Weight", "value": 1.0 },
+      { "type": "Layer", "value": 0 },
+      { "type": "Layer", "value": 13 },
+      { "type": "Cadence", "value": 1 },
+      { "type": "Cadence", "value": 100 }
+    ]
+  },
+
+  "lifecycle_transitions": {
+    "_comment": "Valid and invalid state machine transitions.",
+    "LifecycleState": {
+      "valid": [
+        ["Dormant", "Activating"],
+        ["Activating", "Active"],
+        ["Activating", "Dormant"],
+        ["Active", "Processing"],
+        ["Active", "Deactivating"],
+        ["Processing", "Emitting"],
+        ["Processing", "Active"],
+        ["Emitting", "Active"],
+        ["Deactivating", "Dormant"]
+      ],
+      "invalid": [
+        ["Dormant", "Active"],
+        ["Dormant", "Processing"],
+        ["Active", "Dormant"],
+        ["Active", "Emitting"],
+        ["Processing", "Dormant"],
+        ["Emitting", "Dormant"],
+        ["Emitting", "Processing"]
+      ]
+    },
+    "ActorStatus": {
+      "valid": [
+        ["Active", "Suspended"],
+        ["Active", "Memorial"],
+        ["Suspended", "Active"],
+        ["Suspended", "Memorial"]
+      ],
+      "invalid": [
+        ["Memorial", "Active"],
+        ["Memorial", "Suspended"]
+      ]
+    }
+  }
+}

@@ -2,15 +2,16 @@
 
 ## Overview
 
-EventGraph is a hash-chained, append-only, causal event graph with cognitive primitives.
+EventGraph is a hash-chained, append-only, causal event graph. Decision governance infrastructure — not AI governance. The graph takes an `IDecisionMaker` (anything that makes decisions: AI agent, human, committee, rules engine) and records what was decided, by what, with what confidence, under what authority, causally linked to everything that led there.
 
 ```
 ┌─────────────────────────────────────────────┐
-│                 Interfaces                   │
-│         (social, governance, market)         │
+│            Top-Level API                     │
+│    graph.Evaluate() / Record() / Query()    │
 ├─────────────────────────────────────────────┤
 │            Product Layers                    │
-│    (Social Grammar, Governance, Exchange)    │
+│    (Social Grammar, Governance, Exchange,   │
+│     Task Management)                        │
 ├─────────────────────────────────────────────┤
 │         Cognitive Primitives                 │
 │    (200 across 14 layers, tick engine)       │
@@ -21,10 +22,16 @@ EventGraph is a hash-chained, append-only, causal event graph with cognitive pri
 │            Event Graph                       │
 │    (events, hash chain, causal DAG, bus)    │
 ├─────────────────────────────────────────────┤
-│              Store                           │
+│              Store (plugin)                  │
 │    (Postgres, SQLite, Memory, your own)     │
 └─────────────────────────────────────────────┘
 ```
+
+## Two API Levels
+
+**Top level** — four lines to make any system auditable. Developers describe what their system wants to do, the graph evaluates it through the ontology, and returns a decision with a cryptographic receipt. They don't need to understand the 200 primitives.
+
+**Primitive level** — for power users building AI agent frameworks, compliance platforms, or their own implementations. Every primitive is an interface with sensible defaults. Override with domain-specific logic. Custom trust decay, custom authority chains, custom confidence models.
 
 ## The Event
 
@@ -32,18 +39,20 @@ The fundamental unit. Every significant action is an event.
 
 ```
 Event {
-    ID:             UUID v7 (time-ordered)
-    Type:           hierarchical string (e.g., "trust.updated")
-    Timestamp:      nanosecond precision
-    Source:         who/what emitted this
-    Content:        structured payload (JSON)
-    Causes:         [event IDs] — causal DAG
-    ConversationID: thread grouping
-    Hash:           SHA-256 of canonical form
-    PrevHash:       hash of previous event — linear chain
-    Signature:      Ed25519 signature
+    ID:             EventID         // UUID v7 (time-ordered)
+    Type:           EventType       // validated against EventTypeRegistry (e.g., "trust.updated")
+    Timestamp:      time            // nanosecond precision
+    Source:         ActorID         // who/what emitted this
+    Content:        EventContent    // typed per EventType via EventTypeRegistry
+    Causes:         NonEmpty<EventID> // causal DAG — at least one cause (except Bootstrap)
+    ConversationID: ConversationID  // thread grouping
+    Hash:           Hash            // SHA-256 of canonical form
+    PrevHash:       Hash            // hash of previous event — linear chain
+    Signature:      Signature       // Ed25519 signature
 }
 ```
+
+All IDs are typed — `EventID`, `ActorID`, `ConversationID`, `Hash` are distinct types, not bare strings. See `interfaces.md` for the full type system.
 
 Two overlapping structures:
 - **Linear hash chain** (PrevHash) — ordering and tamper detection
@@ -64,24 +73,61 @@ Verification walks the entire chain, recomputing each hash. Any tampering breaks
 
 ## Store Interface
 
+All methods return `Result<T, StoreError>` with typed domain errors. Queries use cursor-based pagination via `Page<T>`. See `interfaces.md` for the full type system.
+
 ```
 Store {
-    Append(type, source, content, causes, conversationID) → Event
-    Get(id) → Event
-    Recent(limit) → []Event
-    ByType(type, limit) → []Event
-    BySource(source, limit) → []Event
-    ByConversation(conversationID, limit) → []Event
-    Since(afterID, limit) → []Event
-    Search(query, limit) → []Event
-    Ancestors(id, maxDepth) → []Event
-    Descendants(id, maxDepth) → []Event
-    Count() → int
-    VerifyChain() → error
+    // Persistence — takes a pre-built Event from EventFactory
+    Append(event Event) → Result<Event, StoreError>
+    Get(id EventID) → Result<Event, StoreError>
+    Head() → Result<Option<Event>, StoreError>
+
+    // Queries — all return paginated results
+    Recent(limit int, after Option<Cursor>) → Result<Page<Event>, StoreError>
+    ByType(type EventType, limit int, after Option<Cursor>) → Result<Page<Event>, StoreError>
+    BySource(source ActorID, limit int, after Option<Cursor>) → Result<Page<Event>, StoreError>
+    ByConversation(id ConversationID, limit int, after Option<Cursor>) → Result<Page<Event>, StoreError>
+    Since(afterID EventID, limit int) → Result<Page<Event>, StoreError>
+    Search(query string, limit int, after Option<Cursor>) → Result<Page<Event>, StoreError>
+
+    // Causal traversal
+    Ancestors(id EventID, maxDepth int) → Result<[]Event, StoreError>
+    Descendants(id EventID, maxDepth int) → Result<[]Event, StoreError>
+
+    // Edge queries (typed, weighted relationships)
+    EdgesFrom(id ActorID, edgeType EdgeType) → Result<[]Edge, StoreError>
+    EdgesTo(id ActorID, edgeType EdgeType) → Result<[]Edge, StoreError>
+    EdgeBetween(from ActorID, to ActorID, edgeType EdgeType) → Result<Option<Edge>, StoreError>
+
+    // Integrity
+    Count() → Result<int, StoreError>
+    VerifyChain() → Result<ChainVerifiedContent, StoreError>
+}
+
+IActorStore {
+    Register(publicKey PublicKey, displayName string, actorType ActorType) → Result<IActor, StoreError>
+    Get(id ActorID) → Result<IActor, StoreError>
+    GetByPublicKey(publicKey PublicKey) → Result<IActor, StoreError>
+    Update(id ActorID, updates ActorUpdate) → Result<IActor, StoreError>
+    List(filter ActorFilter) → Result<Page<IActor>, StoreError>
+    Suspend(id ActorID, reason EventID) → Result<IActor, StoreError>
+    Memorial(id ActorID, reason EventID) → Result<IActor, StoreError>
 }
 ```
 
-Implement this interface for any backing store. Reference implementations: PostgresStore, InMemoryStore.
+Store handles events and edges. IActorStore handles actors. Both share the backing database but are separate interfaces (single responsibility). Edges are events — creating a trust relationship emits an event. The Store indexes edge-creating events for efficient traversal.
+
+Key type safety patterns:
+- `NonEmpty<EventID>` for causes — every event (except Bootstrap) must have at least one cause
+- `Option<Cursor>` for pagination — `None` means start from the beginning
+- `Option<Edge>` for EdgeBetween — no edge between two actors is valid, not an error
+- `Page<T>` wraps results with cursor and `HasMore` flag
+- Events created by `EventFactory`, persisted by `Store` (separation of creation and persistence)
+- Content validated against `EventTypeRegistry` by the factory before reaching the Store
+
+See `interfaces.md` for the full type system (typed IDs, constrained numerics, state machines, domain errors, Edge data structure, EdgeType enum, EventTypeRegistry).
+
+Implement these interfaces for any backing store. Reference implementations: InMemoryStore, PostgresStore.
 
 ## Bus
 
@@ -91,9 +137,11 @@ Wraps a Store with pub/sub fan-out. When an event is appended, all subscribers r
 
 A cognitive primitive is a software agent for a specific domain. See `primitives.md` for the full specification.
 
-Key properties: name, layer, activation level, state (key-value), lifecycle state machine, subscriptions (event type prefixes), cadence (minimum ticks between invocations).
+Key properties: name, `Layer` [0-13], `Activation` [0,1], state (key-value), `LifecycleState` (state machine with enforced transitions), subscriptions (event type prefixes), `Cadence` [1,∞).
 
-Interface: `Process(tick, events, snapshot) → []Mutation`
+Interface: `Process(tick Tick, events []Event, snapshot Frozen<Snapshot>) → Result<[]Mutation, StoreError>`
+
+The snapshot is deeply immutable (`Frozen<Snapshot>`) — no primitive can mutate another's state. Mutations are declarative values: `AddEvent`, `AddEdge`, `UpdateState`, `UpdateActivation`, `UpdateLifecycle`.
 
 ## Tick Engine
 
@@ -143,12 +191,30 @@ Sovereign systems communicate without shared infrastructure:
 
 See `protocol.md`.
 
+## Weighted Trust and Confidence
+
+Trust and confidence are not binary — they are continuous, contextual, and decaying.
+
+- **Trust** — 0.0 to 1.0, asymmetric, non-transitive. Custom trust mechanics are trivial: override `TrustDecay` with domain logic (+0.05 for completing a task, -0.1 for missing a deadline). The graph handles the rest.
+- **Confidence** — Every decision returns epistemic context: not just "permitted" but "permitted with 0.87 confidence through this authority chain with these trust weights."
+- **Authority** — Strong here, weak there, contextual. Not a binary gate but a weighted chain.
+
 ## Interfaces and Extensibility
 
+The graph defines trait boundaries — the sockets that plugins plug into. The tick engine calls the trait, not the implementation. Swappable, composable, testable.
+
 Core extension points:
-- **Store** — plug in any database
+- **Store** — plug in any database (memory, SQLite, Postgres, hosted)
+- **IDecisionMaker** — plug in anything that makes decisions (AI, human, committee, rules)
 - **IIntelligence** — plug in any reasoning engine
-- **IDecisionMaker** — plug in any decision routing
-- **Primitives** — override defaults, add new ones
+- **Primitives** — override defaults, add domain-specific ones
 
 Every component is designed to be replaced. The event graph is the constant. Everything else is pluggable.
+
+## Product Layers (not in this package)
+
+Product layers are built *on* the event graph, not part of it:
+- **Social Grammar** — 15 operations (see `grammar.md`)
+- **Governance** — Authority chains, voting, delegation
+- **Exchange / Market** — Bilateral negotiation, consent, escrow
+- **Task Management** — Hierarchical decomposition, model-tier routing (see `task-management.md`)

@@ -66,13 +66,24 @@ Compositions of the 15 operations:
 
 Each social grammar operation maps to Layer 0 primitives:
 
-- **Emit** → Event creation via EventStore, signed by Signature, hash-chained by Hash, causally linked by CausalLink
-- **Endorse** → Edge creation + TrustScore stake + Evidence recording
-- **Consent** → Authority + bilateral Signature + Verify
-- **Channel** → Event creation with visibility constraint, Bridge pattern
-- **Traverse** → PathQuery + SubgraphExtract
-
-(Full mapping to be completed as Layer 0 primitives are implemented.)
+| Operation | Layer 0 Primitives |
+|---|---|
+| **Emit** | EventStore (append), Signature (sign), Hash (chain), CausalLink (causes) |
+| **Respond** | EventStore + CausalLink (cause = parent event), Ancestry (thread) |
+| **Derive** | EventStore + CausalLink (cause = source event, but independent content) |
+| **Extend** | EventStore + CausalLink (cause = own previous, same source) |
+| **Retract** | EventStore (tombstone event), CausalLink (cause = retracted event) |
+| **Annotate** | EventStore + Edge (EdgeType.Annotation to target), Annotate primitive |
+| **Acknowledge** | Edge (EdgeType.Endorsement, weight=0, centripetal), no content |
+| **Propagate** | Edge (EdgeType.Reference, centrifugal), SubgraphExtract |
+| **Endorse** | Edge (EdgeType.Endorsement, weighted) + TrustScore (stake) + Evidence |
+| **Subscribe** | Edge (EdgeType.Subscription, persistent) |
+| **Channel** | Edge (EdgeType.Channel, bidirectional) + visibility constraint |
+| **Delegate** | Edge (EdgeType.Delegation, scoped) + Authority (grant) |
+| **Consent** | Authority (bilateral) + dual Signature + Verify |
+| **Sever** | Edge supersession (edge.superseded event) |
+| **Merge** | EventStore + CausalLink (multiple causes from independent subtrees) |
+| **Traverse** | PathQuery + SubgraphExtract + Timeline (read-only) |
 
 ## Interface Lenses
 

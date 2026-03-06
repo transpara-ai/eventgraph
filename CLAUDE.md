@@ -2,15 +2,17 @@
 
 ## Soul
 
-> Take care of your human, humanity, and yourself.
+> Take care of your human, humanity, and yourself. In that order when they conflict, but they rarely should.
 
 This is infrastructure for accountable AI and human systems. Every design decision serves that soul statement.
 
 ## What This Is
 
-A hash-chained, append-only, causal event graph — the foundation for building systems where every action is signed, auditable, and causally linked. Built as a set of packages anyone can import, extend, and build on.
+A hash-chained, append-only, causal event graph — the foundation for building systems where every action is signed, auditable, and causally linked. A standard with packages, published to every major ecosystem.
 
-The event graph is not a product. It is the infrastructure that products are built on. Social networks, governance systems, marketplaces, identity systems — these are interfaces on the same substrate.
+The event graph is not a product. It is the infrastructure that products are built on. Social networks, governance systems, marketplaces, identity systems — these are product layers on the same substrate.
+
+**The key abstraction:** The graph doesn't take an "agent" as input. It takes an `IDecisionMaker` — anything that makes decisions. AI agents, humans, committees, rules engines. The graph records what was decided, by what, with what confidence, under what authority, and links it causally to everything that led there. This is **decision governance**, not AI governance.
 
 ## Architecture
 
@@ -20,18 +22,20 @@ The fundamental unit. Every significant action is an event:
 
 ```
 Event {
-    ID:             string      // UUID v7 (time-ordered)
-    Type:           string      // hierarchical (e.g., "trust.updated")
-    Timestamp:      time        // nanosecond precision
-    Source:         string      // who/what emitted this
-    Content:        object      // structured payload
-    Causes:         []string    // IDs of causing events (causal DAG)
-    ConversationID: string      // thread grouping
-    Hash:           string      // SHA-256 of canonical form
-    PrevHash:       string      // hash chain link
-    Signature:      string      // Ed25519 signature
+    ID:             EventID         // UUID v7 (time-ordered)
+    Type:           EventType       // validated against EventTypeRegistry (e.g., "trust.updated")
+    Timestamp:      time            // nanosecond precision
+    Source:         ActorID         // who/what emitted this
+    Content:        EventContent    // typed per EventType via EventTypeRegistry
+    Causes:         NonEmpty<EventID> // causal DAG — at least one cause (except Bootstrap)
+    ConversationID: ConversationID  // thread grouping
+    Hash:           Hash            // SHA-256 of canonical form
+    PrevHash:       Hash            // hash chain link
+    Signature:      Signature       // Ed25519 signature of canonical form
 }
 ```
+
+All IDs are typed — `EventID`, `ActorID`, `ConversationID`, `Hash` are distinct types, not bare strings. See `docs/interfaces.md` for the full type system.
 
 Every event has declared causes (except Bootstrap). All events are hash-chained. All operations emit events. The event graph is the source of truth.
 
@@ -39,30 +43,33 @@ Every event has declared causes (except Bootstrap). All events are hash-chained.
 
 These are the extension points. Implement them to plug in your own infrastructure:
 
-- **`Store`** — Event persistence. Reference: PostgresStore. Implement for your database.
+- **`Store`** — Event and edge persistence. Memory, SQLite, Postgres, or your own.
+- **`IActorStore`** — Actor persistence (registration, lookup, lifecycle). Separate from Store — single responsibility.
 - **`IIntelligence`** — Anything that reasons. Implement with Claude, GPT, local models, or deterministic logic. Not every primitive needs intelligence — most start mechanical and grow toward it only when needed.
-- **`IDecisionMaker`** — The decision tree engine. Routes decisions through deterministic branches first, falls through to IIntelligence only when the tree can't handle it. Evolves over time — expensive model calls become cheap deterministic rules as patterns emerge.
+- **`IDecisionMaker`** — Anything that makes decisions. An AI agent implements it. A human with a UI implements it. A committee vote implements it. A rules engine implements it. The decision tree engine routes through deterministic branches first, falls through to IIntelligence only when the tree can't handle it. Evolves over time — expensive model calls become cheap deterministic rules as patterns emerge.
 
 ### Primitives
 
 A primitive is a software agent that embodies a specific domain of intelligence. 200 primitives across 14 layers, from foundational (Event, Hash, Clock) to existential (Being, Wonder, Mystery).
 
 Each primitive has:
-- **Name** and **Layer** — position in the ontological hierarchy
-- **Activation** — 0.0 to 1.0, current engagement level
+- **Name** and **Layer** (`Layer` type, constrained 0-13) — position in the ontological hierarchy
+- **Activation** (`Activation` type, constrained 0.0-1.0) — current engagement level
 - **State** — mutable key-value store
-- **Lifecycle** — dormant → activating → active → processing → emitting → active (or → deactivating → dormant)
+- **Lifecycle** (`LifecycleState` — state machine with enforced valid transitions only)
 - **Subscriptions** — event type prefixes this primitive listens to
-- **Cadence** — minimum ticks between invocations
+- **Cadence** (`Cadence` type, constrained ≥1) — minimum ticks between invocations
 - **Decision Tree** — optional, evolving, mechanical-to-intelligent
+
+All types are constrained — `Activation` rejects values outside [0,1] at construction, `LifecycleState` rejects invalid transitions, `Layer` rejects values outside [0,13]. See `docs/interfaces.md` for the full type system.
 
 The primitive interface:
 
 ```
-Process(tick, events, snapshot) → []Mutation
+Process(tick Tick, events []Event, snapshot Frozen<Snapshot>) → Result<[]Mutation, StoreError>
 ```
 
-Mutations are declarative: AddEvent, UpdateState, UpdateActivation, UpdateLifecycle. The tick engine collects and applies them atomically.
+The snapshot is `Frozen<Snapshot>` — deeply immutable, no primitive can mutate another's state. Mutations are declarative: AddEvent, AddEdge, UpdateState, UpdateActivation, UpdateLifecycle. The tick engine collects and applies them atomically.
 
 ### Tick Engine (Ripple-Wave Processor)
 
@@ -96,7 +103,24 @@ Sovereign systems communicate without shared infrastructure:
 - Treaties for bilateral governance
 - Trust accumulation (0.0-1.0, asymmetric, non-transitive)
 
+## Dev Setup
+
+```bash
+# Clone
+git clone https://github.com/lovyou-ai/eventgraph.git
+cd eventgraph
+
+# Go reference implementation
+cd go
+go build ./...
+go test ./...
+```
+
+No external dependencies yet. When packages exist, `go test ./...` from the `go/` directory runs everything.
+
 ## Current State
+
+> **Pre-release.** Specifications and documentation are in place. Core packages are being implemented.
 
 See `ROADMAP.md` for what's built and what needs building.
 
@@ -118,6 +142,16 @@ See `ROADMAP.md` for what's built and what needs building.
 ### Coding Standards
 
 **All languages:**
+- **No magic values** — every edge type, authority level, decision outcome, lifecycle state uses defined constants/enums, never bare strings or numbers with implicit meaning. See `docs/interfaces.md` for the defined vocabularies.
+- **Always-valid domain models** — domain objects validate at construction and are guaranteed valid for their lifetime. No "partially constructed" or "needs validation later" states. If construction succeeds, the object is valid. Downstream code never re-validates.
+- **Make illegal states unrepresentable** — use constrained types (`Score`, `Weight`, `Activation`, `Layer`, `Cadence`), state machines with enforced transitions (`LifecycleState`, `ActorStatus`), and typed IDs (`EventID`, `ActorID`, `Hash`). The compiler catches misuse, not a runtime crash.
+- **Typed errors** — every interface method returns `Result<T, Error>` with domain error types (`StoreError`, `DecisionError`, `ValidationError`, `EGIPError`). No string error messages you have to parse.
+- **Explicit optionality** — `Option<T>` for optional fields (`Some(value)` or `None`). No null. No zero-value-means-absent.
+- **NonEmpty collections** — `NonEmpty<T>` where at least one element is required (e.g., `Event.Causes`). Construction rejects empty input.
+- **Typed event content** — every event type is registered in `EventTypeRegistry` with a content schema. `EventFactory` validates content against the registry before the event reaches the Store. No `map[string]any`.
+- **Immutable domain objects** — all domain objects are frozen after construction. No setters. `Frozen<Snapshot>` for read-only views passed to primitives.
+- **Exhaustive matching** — all enum switches must handle all variants. No silent `default:` that swallows new variants.
+- **Cursor-based pagination** — all query methods return `Page<T>` with `Option<Cursor>` for stateless pagination.
 - Every public interface must have documentation
 - Every primitive must have tests
 - Tests must cover: happy path, error cases, edge cases
@@ -135,7 +169,7 @@ See `ROADMAP.md` for what's built and what needs building.
 **Go (reference implementation):**
 - See `docs/coding-standards/go.md`
 - `go vet`, `staticcheck`, and `golangci-lint` must pass
-- No `interface{}` / `any` except in Event.Content (which is typed at the primitive level)
+- No `interface{}` / `any` — Event.Content is typed per event type via EventTypeRegistry
 - Errors are values, not panics. Only panic on unrecoverable invariant violations.
 - Table-driven tests preferred
 
@@ -224,25 +258,31 @@ This prevents people building on shifting sand.
 
 These are non-negotiable. Every contribution must maintain them:
 
-1. Every event has declared causes
-2. All events are hash-chained
-3. All operations emit events
-4. The system improves itself (decision trees evolve, primitives learn)
-5. Significant actions require authority
-6. Build and test before done
-7. The event graph is the source of truth
+1. **CAUSALITY** — Every event declares its causes. No event (except Bootstrap) exists without causal predecessors.
+2. **INTEGRITY** — All events are hash-chained. The chain is verifiable at any time.
+3. **OBSERVABLE** — All significant operations emit events. No silent side effects.
+4. **SELF-EVOLVE** — The system improves itself. Decision trees evolve. Primitives learn.
+5. **DIGNITY** — Agents are entities with identity, state, and lifecycle — not disposable functions.
+6. **TRANSPARENT** — Humans always know when they are interacting with an automated system.
+7. **CONSENT** — No significant action without appropriate approval.
+8. **AUTHORITY** — Significant actions require approval at the appropriate level.
+9. **VERIFY** — All code changes are built and tested before being considered complete.
+10. **RECORD** — The event graph is the source of truth. If it isn't recorded, it didn't happen.
 
 ## Reference
 
 - `docs/architecture.md` — System architecture
+- `docs/interfaces.md` — Core interfaces specification (THE central spec document)
 - `docs/primitives.md` — All 200 primitives across 14 layers
-- `docs/grammar.md` — The 15 social grammar operations
-- `docs/protocol.md` — EGIP inter-system protocol
-- `docs/interfaces.md` — Core interfaces specification
 - `docs/tick-engine.md` — Ripple-wave processing
 - `docs/decision-trees.md` — Mechanical-to-intelligent continuum
-- `docs/authority.md` — Three-tier approval system
 - `docs/trust.md` — Trust model and dynamics
+- `docs/authority.md` — Three-tier approval system
+- `docs/protocol.md` — EGIP inter-system protocol
+- `docs/grammar.md` — The 15 social grammar operations
 - `docs/layers/` — Per-layer primitive specifications
+- `docs/coding-standards/go.md` — Go type mappings and implementation patterns
+- `docs/implementation-order.md` — Strict dependency DAG for automated implementers
+- `docs/conformance/` — Language-agnostic conformance test vectors
 - `ROADMAP.md` — What needs building
 - `CONTRIBUTING.md` — How to contribute

@@ -1,3 +1,3 @@
-module github.com/lovyou-ai/eventgraph
+module github.com/lovyou-ai/eventgraph/go
 
 go 1.22
