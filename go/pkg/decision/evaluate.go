@@ -149,12 +149,11 @@ func evaluateSemanticFromSnapshot(ctx context.Context, snap semanticSnapshot, in
 		return returnDefault()
 	}
 
-	// Check if response confidence meets threshold.
+	// Route to branch[0] if the LLM response meets the threshold (or no threshold is set).
 	// Current limitation: semantic nodes are binary (confident → branch[0], else → default).
 	// Future: match resp.Content() against branch match values for multi-way semantic routing.
-	if snap.condition.Threshold.IsSome() {
-		threshold := snap.condition.Threshold.Unwrap()
-		if resp.Confidence().Value() >= threshold.Value() && len(snap.branches) > 0 {
+	if len(snap.branches) > 0 {
+		if !snap.condition.Threshold.IsSome() || resp.Confidence().Value() >= snap.condition.Threshold.Unwrap().Value() {
 			branch := snap.branches[0]
 			step := event.PathStep{Condition: snap.condition, Branch: branch.Match}
 			return branch.Child, step, nil

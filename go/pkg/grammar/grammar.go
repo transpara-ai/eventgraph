@@ -314,6 +314,9 @@ func (g *Grammar) Sever(
 	conversationID types.ConversationID,
 	signer event.Signer,
 ) (event.Event, error) {
+	if cause.IsZero() {
+		return event.Event{}, fmt.Errorf("sever: cause must not be zero")
+	}
 	// Verify the edge exists and the actor is a party to it
 	edgeEventID, err := types.NewEventID(previousEdge.Value())
 	if err != nil {
@@ -326,6 +329,15 @@ func (g *Grammar) Sever(
 	ec, ok := edgeEv.Content().(event.EdgeCreatedContent)
 	if !ok {
 		return event.Event{}, fmt.Errorf("sever: event %s is not an edge.created event", previousEdge.Value())
+	}
+	// Only subscriptions, channels, and delegations are severable.
+	// Other edge types (endorsements, trust, acknowledgements, etc.) are
+	// permanent records that cannot be removed via Sever.
+	switch ec.EdgeType {
+	case event.EdgeTypeSubscription, event.EdgeTypeChannel, event.EdgeTypeDelegation:
+		// severable
+	default:
+		return event.Event{}, fmt.Errorf("sever: edge type %s is not severable (only subscription, channel, delegation)", ec.EdgeType)
 	}
 	if ec.From != source && ec.To != source {
 		return event.Event{}, fmt.Errorf("sever: actor %s is not a party to edge %s (from=%s, to=%s)", source.Value(), previousEdge.Value(), ec.From.Value(), ec.To.Value())

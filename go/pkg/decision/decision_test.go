@@ -957,7 +957,7 @@ func TestSemanticNoPrompt(t *testing.T) {
 }
 
 func TestSemanticNoThreshold(t *testing.T) {
-	// Semantic condition with no threshold — should take default
+	// Semantic condition with no threshold — LLM success routes to branch[0]
 	tree := decision.NewDecisionTree(&decision.InternalNode{
 		Condition: event.Condition{
 			Field:    types.MustFieldPath("context.tone"),
@@ -983,8 +983,8 @@ func TestSemanticNoThreshold(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Evaluate: %v", err)
 	}
-	// No threshold set, so threshold check is skipped, goes to default
-	if result.Outcome != event.DecisionOutcomePermit {
-		t.Errorf("Outcome = %v, want Permit (no threshold)", result.Outcome)
+	// No threshold set means no gate — LLM result routes to branch[0] unconditionally
+	if result.Outcome != event.DecisionOutcomeDeny {
+		t.Errorf("Outcome = %v, want Deny (no threshold = no gate, routes to branch[0])", result.Outcome)
 	}
 }
