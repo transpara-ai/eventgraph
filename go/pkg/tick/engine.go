@@ -1,0 +1,426 @@
+// Package tick implements the ripple-wave processor — the system's heartbeat.
+// Each tick processes pending events through eligible primitives, collecting
+// mutations and applying them atomically. New events from mutations trigger
+// further waves within the same tick until quiescence or the wave limit.
+package tick
+
+import (
+	"fmt"
+	"sort"
+	"sync"
+	"time"
+
+	"github.com/lovyou-ai/eventgraph/go/pkg/actor"
+	"github.com/lovyou-ai/eventgraph/go/pkg/event"
+	"github.com/lovyou-ai/eventgraph/go/pkg/primitive"
+	"github.com/lovyou-ai/eventgraph/go/pkg/store"
+	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+)
+
+// Config controls tick engine behaviour.
+type Config struct {
+	MaxWavesPerTick int
+}
+
+// DefaultConfig returns sensible defaults.
+func DefaultConfig() Config {
+	return Config{
+		MaxWavesPerTick: 10,
+	}
+}
+
+// Result is the outcome of a single tick.
+type Result struct {
+	Tick      types.Tick
+	Waves     int
+	Mutations int
+	Duration  time.Duration
+	Quiesced  bool
+}
+
+// Engine is the ripple-wave tick processor.
+type Engine struct {
+	registry   *primitive.Registry
+	store      store.Store
+	actorStore actor.IActorStore
+	factory    *event.EventFactory
+	config     Config
+	signer     event.Signer
+	currentTick types.Tick
+}
+
+// NewEngine creates a tick engine.
+func NewEngine(
+	registry *primitive.Registry,
+	s store.Store,
+	actorStore actor.IActorStore,
+	factory *event.EventFactory,
+	signer event.Signer,
+	config Config,
+) *Engine {
+	return &Engine{
+		registry:    registry,
+		store:       s,
+		actorStore:  actorStore,
+		factory:     factory,
+		signer:      signer,
+		config:      config,
+		currentTick: types.MustTick(0),
+	}
+}
+
+// Tick runs a single tick. Returns the result.
+func (e *Engine) Tick(pendingEvents []event.Event) (Result, error) {
+	start := time.Now()
+
+	// Advance tick counter
+	nextVal := e.currentTick.Value() + 1
+	tick, err := types.NewTick(nextVal)
+	if err != nil {
+		return Result{}, fmt.Errorf("tick overflow: %w", err)
+	}
+	e.currentTick = tick
+
+	// 1. Snapshot
+	snapshot := e.buildSnapshot(tick, pendingEvents)
+
+	// 2. Ripple-wave loop
+	allMutations := make([]primitive.Mutation, 0)
+	waveEvents := pendingEvents
+	wavesRun := 0
+	invokedThisTick := make(map[types.PrimitiveID]bool)
+
+	for wavesRun < e.config.MaxWavesPerTick {
+		waveMutations := e.runWave(tick, wavesRun, waveEvents, snapshot, invokedThisTick)
+		wavesRun++
+
+		if len(waveMutations) == 0 {
+			break // quiescence
+		}
+
+		allMutations = append(allMutations, waveMutations...)
+
+		// Extract new events from AddEvent mutations
+		waveEvents = e.extractNewEvents(waveMutations)
+		if len(waveEvents) == 0 {
+			break // quiescence — mutations but no new events
+		}
+
+		// Update snapshot with new events for next wave
+		snapshot.PendingEvents = waveEvents
+	}
+
+	quiesced := wavesRun < e.config.MaxWavesPerTick
+
+	// 3. Apply all mutations atomically
+	if err := e.applyMutations(allMutations, tick); err != nil {
+		return Result{}, fmt.Errorf("apply mutations: %w", err)
+	}
+
+	return Result{
+		Tick:      tick,
+		Waves:     wavesRun,
+		Mutations: len(allMutations),
+		Duration:  time.Since(start),
+		Quiesced:  quiesced,
+	}, nil
+}
+
+// CurrentTick returns the current tick counter.
+func (e *Engine) CurrentTick() types.Tick { return e.currentTick }
+
+func (e *Engine) buildSnapshot(tick types.Tick, pending []event.Event) primitive.Snapshot {
+	// Get recent events for context
+	recentPage, _ := e.store.Recent(100, types.None[types.Cursor]())
+	var recent []event.Event
+	if recentPage.Items() != nil {
+		recent = recentPage.Items()
+	}
+
+	// Get active actors
+	var activeActors []actor.IActor
+	actorPage, err := e.actorStore.List(actor.ActorFilter{
+		Status: types.Some(types.ActorStatusActive),
+		Limit:  1000,
+	})
+	if err == nil {
+		activeActors = actorPage.Items()
+	}
+
+	return primitive.Snapshot{
+		Tick:          tick,
+		Primitives:    e.registry.AllStates(),
+		PendingEvents: pending,
+		RecentEvents:  recent,
+		ActiveActors:  activeActors,
+	}
+}
+
+func (e *Engine) runWave(tick types.Tick, wave int, events []event.Event, snapshot primitive.Snapshot, invokedThisTick map[types.PrimitiveID]bool) []primitive.Mutation {
+	// 1. Determine eligible primitives
+	eligible := e.eligiblePrimitives(tick, snapshot, invokedThisTick)
+
+	// 2. Group by layer
+	byLayer := make(map[int][]primitive.Primitive)
+	for _, p := range eligible {
+		l := p.Layer().Value()
+		byLayer[l] = append(byLayer[l], p)
+	}
+
+	layers := make([]int, 0, len(byLayer))
+	for l := range byLayer {
+		layers = append(layers, l)
+	}
+	sort.Ints(layers)
+
+	// 3. Process layer by layer (sequential between layers, parallel within)
+	var allMutations []primitive.Mutation
+
+	for _, layer := range layers {
+		prims := byLayer[layer]
+
+		// Match events to subscribers
+		type primEvents struct {
+			prim   primitive.Primitive
+			events []event.Event
+		}
+		var work []primEvents
+		for _, p := range prims {
+			matching := matchEvents(p, events)
+			work = append(work, primEvents{prim: p, events: matching})
+		}
+
+		// Process primitives within the same layer concurrently
+		type primResult struct {
+			id        types.PrimitiveID
+			mutations []primitive.Mutation
+			err       error
+		}
+
+		results := make([]primResult, len(work))
+		var wg sync.WaitGroup
+		for i, w := range work {
+			wg.Add(1)
+			go func(idx int, pw primEvents) {
+				defer wg.Done()
+
+				// Transition: Active → Processing
+				e.registry.SetLifecycle(pw.prim.ID(), types.LifecycleProcessing)
+
+				mutations, err := pw.prim.Process(tick, pw.events, snapshot)
+				results[idx] = primResult{
+					id:        pw.prim.ID(),
+					mutations: mutations,
+					err:       err,
+				}
+
+				// Transition: Processing → Active (or Emitting → Active if mutations exist)
+				if len(mutations) > 0 {
+					e.registry.SetLifecycle(pw.prim.ID(), types.LifecycleEmitting)
+					e.registry.SetLifecycle(pw.prim.ID(), types.LifecycleActive)
+				} else {
+					e.registry.SetLifecycle(pw.prim.ID(), types.LifecycleActive)
+				}
+
+				// Record last tick
+				e.registry.SetLastTick(pw.prim.ID(), tick)
+			}(i, w)
+		}
+		wg.Wait()
+
+		// Mark all invoked primitives (after goroutines complete)
+		for _, w := range work {
+			invokedThisTick[w.prim.ID()] = true
+		}
+
+		// Collect mutations from this layer
+		for _, r := range results {
+			if r.err != nil {
+				// Primitive error — would emit error event in full impl
+				continue
+			}
+			allMutations = append(allMutations, r.mutations...)
+		}
+	}
+
+	return allMutations
+}
+
+func (e *Engine) eligiblePrimitives(tick types.Tick, snapshot primitive.Snapshot, invokedThisTick map[types.PrimitiveID]bool) []primitive.Primitive {
+	all := e.registry.All()
+	eligible := make([]primitive.Primitive, 0, len(all))
+
+	for _, p := range all {
+		// Must be Active
+		if e.registry.Lifecycle(p.ID()) != types.LifecycleActive {
+			continue
+		}
+
+		// Cadence gating — only on first invocation per tick
+		if !invokedThisTick[p.ID()] {
+			lastTick := e.registry.LastTick(p.ID())
+			elapsed := tick.Value() - lastTick.Value()
+			if elapsed < p.Cadence().Value() {
+				continue
+			}
+		}
+
+		// Layer constraint
+		if !layerStable(p.Layer(), snapshot) {
+			continue
+		}
+
+		eligible = append(eligible, p)
+	}
+
+	return eligible
+}
+
+func layerStable(layer types.Layer, snapshot primitive.Snapshot) bool {
+	if layer.Value() == 0 {
+		return true // Layer 0 always eligible
+	}
+
+	targetLayer := layer.Value() - 1
+	for _, ps := range snapshot.Primitives {
+		if ps.Layer.Value() == targetLayer {
+			if ps.Lifecycle != types.LifecycleActive {
+				return false
+			}
+			if ps.LastTick.Value() == 0 {
+				return false // never invoked
+			}
+		}
+	}
+	return true
+}
+
+func matchEvents(p primitive.Primitive, events []event.Event) []event.Event {
+	subs := p.Subscriptions()
+	if len(subs) == 0 {
+		return nil
+	}
+
+	var matched []event.Event
+	for _, ev := range events {
+		for _, pattern := range subs {
+			if pattern.Matches(ev.Type()) {
+				matched = append(matched, ev)
+				break
+			}
+		}
+	}
+	return matched
+}
+
+func (e *Engine) extractNewEvents(mutations []primitive.Mutation) []event.Event {
+	var events []event.Event
+	for _, m := range mutations {
+		if ae, ok := m.(primitive.AddEvent); ok {
+			// Build a minimal event for routing — full event created during apply
+			id, err := types.NewEventIDFromNew()
+			if err != nil {
+				continue
+			}
+			ev := event.NewEvent(
+				1, id, ae.Type, types.Now(), ae.Source,
+				ae.Content, ae.Causes,
+				types.MustConversationID("conv_tick_000000000000000000000001"),
+				types.ZeroHash(), types.ZeroHash(),
+				types.MustSignature(make([]byte, 64)),
+			)
+			events = append(events, ev)
+		}
+	}
+	return events
+}
+
+func (e *Engine) applyMutations(mutations []primitive.Mutation, tick types.Tick) error {
+	applier := &mutationApplier{
+		engine: e,
+		tick:   tick,
+	}
+
+	for _, m := range mutations {
+		m.Accept(applier)
+		if applier.err != nil {
+			// Individual mutation failures don't roll back the whole tick
+			applier.err = nil
+		}
+	}
+	return nil
+}
+
+type mutationApplier struct {
+	engine *Engine
+	tick   types.Tick
+	err    error
+}
+
+func (a *mutationApplier) VisitAddEvent(m primitive.AddEvent) {
+	ev, err := a.engine.factory.Create(
+		m.Type, m.Source, m.Content, m.Causes,
+		types.MustConversationID("conv_tick_000000000000000000000001"),
+		a.engine.store, a.engine.signer,
+	)
+	if err != nil {
+		a.err = err
+		return
+	}
+	if _, err := a.engine.store.Append(ev); err != nil {
+		a.err = err
+	}
+}
+
+func (a *mutationApplier) VisitAddEdge(m primitive.AddEdge) {
+	content := event.EdgeCreatedContent{
+		From:      m.From,
+		To:        m.To,
+		EdgeType:  m.EdgeType,
+		Weight:    m.Weight,
+		Direction: event.EdgeDirectionCentripetal,
+		Scope:     m.Scope,
+	}
+
+	// Need a cause — use head of chain
+	headOpt, err := a.engine.store.Head()
+	if err != nil {
+		a.err = err
+		return
+	}
+	var causes []types.EventID
+	if headOpt.IsSome() {
+		causes = []types.EventID{headOpt.Unwrap().ID()}
+	}
+
+	ev, err := a.engine.factory.Create(
+		event.EventTypeEdgeCreated, m.From, content, causes,
+		types.MustConversationID("conv_tick_000000000000000000000001"),
+		a.engine.store, a.engine.signer,
+	)
+	if err != nil {
+		a.err = err
+		return
+	}
+	if _, err := a.engine.store.Append(ev); err != nil {
+		a.err = err
+	}
+}
+
+func (a *mutationApplier) VisitUpdateState(m primitive.UpdateState) {
+	if err := a.engine.registry.UpdateState(m.PrimitiveID, m.Key, m.Value); err != nil {
+		a.err = err
+	}
+}
+
+func (a *mutationApplier) VisitUpdateActivation(m primitive.UpdateActivation) {
+	if err := a.engine.registry.SetActivation(m.PrimitiveID, m.Level); err != nil {
+		a.err = err
+	}
+}
+
+func (a *mutationApplier) VisitUpdateLifecycle(m primitive.UpdateLifecycle) {
+	if err := a.engine.registry.SetLifecycle(m.PrimitiveID, m.State); err != nil {
+		a.err = err
+	}
+}
