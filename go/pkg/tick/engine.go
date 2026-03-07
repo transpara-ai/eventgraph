@@ -270,11 +270,24 @@ func (e *Engine) runWave(tick types.Tick, wave int, events []event.Event, snapsh
 					return
 				}
 
-				mutations, err := pw.prim.Process(tick, pw.events, snapshot)
+				// Recover panics from Process() — restore lifecycle and record the error.
+				// Without this, a panicking primitive would crash the process and leave
+				// the primitive permanently stuck in Processing.
+				var mutations []primitive.Mutation
+				var processErr error
+				func() {
+					defer func() {
+						if r := recover(); r != nil {
+							processErr = fmt.Errorf("primitive %s panicked: %v", pid.Value(), r)
+						}
+					}()
+					mutations, processErr = pw.prim.Process(tick, pw.events, snapshot)
+				}()
+
 				results[idx] = primResult{
 					id:        pid,
 					mutations: mutations,
-					err:       err,
+					err:       processErr,
 				}
 
 				// Transition: Processing → Active (or Emitting → Active if mutations exist)

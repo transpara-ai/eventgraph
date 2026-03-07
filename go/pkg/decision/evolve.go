@@ -100,13 +100,16 @@ func Evolve(tree *DecisionTree, config EvolutionConfig) EvolutionResult {
 		return EvolutionResult{}
 	}
 
+	// Read LLMHits before evolveNode to maintain lock order: tree.mu > statsMu > leaf.mu.
+	// evolveNode acquires leaf.mu, so statsMu must be acquired before it.
+	tree.statsMu.Lock()
+	llmHits := tree.Stats.LLMHits
+	tree.statsMu.Unlock()
+
 	evolved := evolveNode(&tree.Root, config)
 	if evolved.Evolved {
 		tree.Version++
 		evolved.NewVersion = tree.Version
-		tree.statsMu.Lock()
-		llmHits := tree.Stats.LLMHits
-		tree.statsMu.Unlock()
 		if llmHits > 0 {
 			evolved.CostReduction = evolved.Pattern.Frequency
 		}

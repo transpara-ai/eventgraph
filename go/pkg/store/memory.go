@@ -369,7 +369,7 @@ func (s *InMemoryStore) paginateReverse(indices []int, limit int, after types.Op
 		}
 		if !found {
 			return types.NewPage[event.Event](nil, types.None[types.Cursor](), false),
-				fmt.Errorf("invalid cursor: event %q not found", cursor.Value())
+				&InvalidCursorError{Cursor: cursor.Value()}
 		}
 	}
 

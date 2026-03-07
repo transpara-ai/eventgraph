@@ -1,6 +1,7 @@
 package event
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"sync"
@@ -281,9 +282,60 @@ func (c ClockTickContent) Accept(v EventContentVisitor) { v.VisitClockTick(c) }
 type HealthReportContent struct {
 	Overall         types.Score                       `json:"Overall"`
 	ChainIntegrity  bool                              `json:"ChainIntegrity"`
-	PrimitiveHealth map[types.PrimitiveID]types.Score `json:"PrimitiveHealth,omitempty"`
+	primitiveHealth map[types.PrimitiveID]types.Score
 	ActiveActors    int                               `json:"ActiveActors"`
 	EventRate       float64                           `json:"EventRate"`
+}
+
+// PrimitiveHealth returns a defensive copy of the primitive health map.
+func (c HealthReportContent) PrimitiveHealth() map[types.PrimitiveID]types.Score {
+	if c.primitiveHealth == nil {
+		return nil
+	}
+	cp := make(map[types.PrimitiveID]types.Score, len(c.primitiveHealth))
+	for k, v := range c.primitiveHealth {
+		cp[k] = v
+	}
+	return cp
+}
+
+// MarshalJSON implements json.Marshaler, including the unexported primitiveHealth field.
+func (c HealthReportContent) MarshalJSON() ([]byte, error) {
+	type alias struct {
+		Overall         types.Score                       `json:"Overall"`
+		ChainIntegrity  bool                              `json:"ChainIntegrity"`
+		PrimitiveHealth map[types.PrimitiveID]types.Score `json:"PrimitiveHealth,omitempty"`
+		ActiveActors    int                               `json:"ActiveActors"`
+		EventRate       float64                           `json:"EventRate"`
+	}
+	return json.Marshal(alias{
+		Overall:         c.Overall,
+		ChainIntegrity:  c.ChainIntegrity,
+		PrimitiveHealth: c.primitiveHealth,
+		ActiveActors:    c.ActiveActors,
+		EventRate:       c.EventRate,
+	})
+}
+
+// UnmarshalJSON implements json.Unmarshaler, populating the unexported primitiveHealth field.
+func (c *HealthReportContent) UnmarshalJSON(data []byte) error {
+	type alias struct {
+		Overall         types.Score                       `json:"Overall"`
+		ChainIntegrity  bool                              `json:"ChainIntegrity"`
+		PrimitiveHealth map[types.PrimitiveID]types.Score `json:"PrimitiveHealth,omitempty"`
+		ActiveActors    int                               `json:"ActiveActors"`
+		EventRate       float64                           `json:"EventRate"`
+	}
+	var a alias
+	if err := json.Unmarshal(data, &a); err != nil {
+		return err
+	}
+	c.Overall = a.Overall
+	c.ChainIntegrity = a.ChainIntegrity
+	c.primitiveHealth = a.PrimitiveHealth
+	c.ActiveActors = a.ActiveActors
+	c.EventRate = a.EventRate
+	return nil
 }
 
 // NewHealthReportContent creates a HealthReportContent with a defensive copy of the health map.
@@ -298,7 +350,7 @@ func NewHealthReportContent(overall types.Score, chainIntegrity bool, primitiveH
 	return HealthReportContent{
 		Overall:         overall,
 		ChainIntegrity:  chainIntegrity,
-		PrimitiveHealth: ph,
+		primitiveHealth: ph,
 		ActiveActors:    activeActors,
 		EventRate:       eventRate,
 	}

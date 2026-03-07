@@ -23,9 +23,11 @@ type ITrustModel interface {
 
 // DefaultConfig holds default trust model parameters.
 type DefaultConfig struct {
-	InitialTrust  types.Score  // default: 0.0
-	DecayRate     types.Score  // per day, default: 0.01
-	MaxAdjustment types.Weight // single event max, default: 0.1
+	InitialTrust       types.Score  // default: 0.0
+	DecayRate          types.Score  // per day, default: 0.01
+	MaxAdjustment      types.Weight // single event max, default: 0.1
+	ObservedEventDelta float64      // trust boost for any non-trust event, default: 0.01
+	TrendDecayRate     float64      // trend decay per day toward zero, default: 0.01
 }
 
 // DefaultTrustModel implements ITrustModel with linear decay and equal weighting.
@@ -61,9 +63,11 @@ type trustState struct {
 func NewDefaultTrustModel() *DefaultTrustModel {
 	return &DefaultTrustModel{
 		config: DefaultConfig{
-			InitialTrust:  types.MustScore(0.0),
-			DecayRate:     types.MustScore(0.01),
-			MaxAdjustment: types.MustWeight(0.1),
+			InitialTrust:       types.MustScore(0.0),
+			DecayRate:          types.MustScore(0.01),
+			MaxAdjustment:      types.MustWeight(0.1),
+			ObservedEventDelta: 0.01,
+			TrendDecayRate:     0.01,
 		},
 		scores:   make(map[trustKey]*trustState),
 		directed: make(map[directedTrustKey]*trustState),
@@ -71,7 +75,14 @@ func NewDefaultTrustModel() *DefaultTrustModel {
 }
 
 // NewDefaultTrustModelWithConfig creates a DefaultTrustModel with custom config.
+// Zero values for ObservedEventDelta and TrendDecayRate default to 0.01.
 func NewDefaultTrustModelWithConfig(config DefaultConfig) *DefaultTrustModel {
+	if config.ObservedEventDelta == 0 {
+		config.ObservedEventDelta = 0.01
+	}
+	if config.TrendDecayRate == 0 {
+		config.TrendDecayRate = 0.01
+	}
 	return &DefaultTrustModel{
 		config:   config,
 		scores:   make(map[trustKey]*trustState),
@@ -151,6 +162,13 @@ func (m *DefaultTrustModel) Update(_ context.Context, a actor.IActor, evidence e
 
 	state := m.getOrCreate(a.ID())
 
+	// Deduplicate: if this evidence was already applied, return current metrics unchanged.
+	for _, id := range state.evidence {
+		if id == evidence.ID() {
+			return m.buildMetrics(a.ID(), state), nil
+		}
+	}
+
 	// Extract trust delta from the evidence event
 	delta := m.extractDelta(evidence)
 
@@ -186,19 +204,10 @@ func (m *DefaultTrustModel) Update(_ context.Context, a actor.IActor, evidence e
 		state.trend = types.MustWeight(math.Max(-1, state.trend.Value()-0.1))
 	}
 
-	// Track evidence (deduplicate)
-	alreadyTracked := false
-	for _, id := range state.evidence {
-		if id == evidence.ID() {
-			alreadyTracked = true
-			break
-		}
-	}
-	if !alreadyTracked {
-		state.evidence = append(state.evidence, evidence.ID())
-		if len(state.evidence) > 100 {
-			state.evidence = state.evidence[len(state.evidence)-100:]
-		}
+	// Track evidence
+	state.evidence = append(state.evidence, evidence.ID())
+	if len(state.evidence) > 100 {
+		state.evidence = state.evidence[len(state.evidence)-100:]
 	}
 
 	state.lastUpdated = types.Now()
@@ -223,6 +232,13 @@ func (m *DefaultTrustModel) UpdateBetween(_ context.Context, from actor.IActor, 
 		m.directed[key] = state
 	}
 
+	// Deduplicate: if this evidence was already applied, return current metrics unchanged.
+	for _, id := range state.evidence {
+		if id == evidence.ID() {
+			return m.buildMetrics(to.ID(), state), nil
+		}
+	}
+
 	delta := m.extractDelta(evidence)
 
 	maxAdj := m.config.MaxAdjustment.Value()
@@ -243,19 +259,10 @@ func (m *DefaultTrustModel) UpdateBetween(_ context.Context, from actor.IActor, 
 		state.trend = types.MustWeight(math.Max(-1, state.trend.Value()-0.1))
 	}
 
-	// Track evidence (deduplicate)
-	alreadyTracked := false
-	for _, id := range state.evidence {
-		if id == evidence.ID() {
-			alreadyTracked = true
-			break
-		}
-	}
-	if !alreadyTracked {
-		state.evidence = append(state.evidence, evidence.ID())
-		if len(state.evidence) > 100 {
-			state.evidence = state.evidence[len(state.evidence)-100:]
-		}
+	// Track evidence
+	state.evidence = append(state.evidence, evidence.ID())
+	if len(state.evidence) > 100 {
+		state.evidence = state.evidence[len(state.evidence)-100:]
 	}
 
 	state.lastUpdated = types.Now()
@@ -291,10 +298,11 @@ func (m *DefaultTrustModel) Decay(_ context.Context, a actor.IActor, elapsed tim
 	}
 
 	// Decay trend toward zero
+	trendDecay := m.config.TrendDecayRate * days
 	if state.trend.Value() > 0 {
-		state.trend = types.MustWeight(math.Max(0, state.trend.Value()-0.01*days))
+		state.trend = types.MustWeight(math.Max(0, state.trend.Value()-trendDecay))
 	} else if state.trend.Value() < 0 {
-		state.trend = types.MustWeight(math.Min(0, state.trend.Value()+0.01*days))
+		state.trend = types.MustWeight(math.Min(0, state.trend.Value()+trendDecay))
 	}
 
 	state.lastUpdated = types.Now()
@@ -362,6 +370,6 @@ func (m *DefaultTrustModel) extractDelta(ev event.Event) float64 {
 	if tc, ok := ev.Content().(event.TrustUpdatedContent); ok {
 		return tc.Current.Value() - tc.Previous.Value()
 	}
-	// Default small positive for any observed event
-	return 0.01
+	// Small positive trust boost for any observed (non-trust) event
+	return m.config.ObservedEventDelta
 }

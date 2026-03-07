@@ -135,6 +135,8 @@ func (g *Graph) Close() error {
 }
 
 // Record creates and persists an event, then notifies the bus.
+// Uses exclusive lock to serialize event creation + append, ensuring hash chain
+// integrity (each event's PrevHash must reference the immediately preceding event).
 func (g *Graph) Record(
 	eventType types.EventType,
 	source types.ActorID,
@@ -143,8 +145,8 @@ func (g *Graph) Record(
 	conversationID types.ConversationID,
 	signer event.Signer,
 ) (event.Event, error) {
-	g.mu.RLock()
-	defer g.mu.RUnlock()
+	g.mu.Lock()
+	defer g.mu.Unlock()
 
 	if g.closed {
 		return event.Event{}, fmt.Errorf("graph is closed")

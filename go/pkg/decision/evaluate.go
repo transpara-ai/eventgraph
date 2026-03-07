@@ -68,7 +68,11 @@ func evaluateMechanical(n *InternalNode, input EvaluateInput) (DecisionNode, eve
 	value := extractField(input, n.Condition.Field)
 
 	for _, branch := range n.Branches {
-		if testCondition(value, n.Condition.Operator, branch.Match) {
+		matched, err := testCondition(value, n.Condition.Operator, branch.Match)
+		if err != nil {
+			return nil, event.PathStep{}, err
+		}
+		if matched {
 			step := event.PathStep{Condition: n.Condition, Branch: branch.Match}
 			return branch.Child, step, nil
 		}
@@ -154,11 +158,7 @@ func evaluateLeaf(ctx context.Context, leaf *LeafNode, input EvaluateInput, path
 
 	// Needs LLM
 	if !intelligence.IsSome() {
-		return TreeResult{}, &InsufficientAuthorityError{
-			Actor:    input.Actor,
-			Action:   input.Action,
-			Required: event.AuthorityLevelRequired,
-		}
+		return TreeResult{}, &IntelligenceUnavailableError{}
 	}
 
 	tree.statsMu.Lock()
@@ -224,30 +224,29 @@ func extractField(input EvaluateInput, field types.FieldPath) any {
 }
 
 // testCondition evaluates a condition operator against a value and match.
-func testCondition(value any, op event.ConditionOperator, match event.MatchValue) bool {
+func testCondition(value any, op event.ConditionOperator, match event.MatchValue) (bool, error) {
 	switch op {
 	case event.ConditionOperatorEquals:
-		return equalsMatch(value, match)
+		return equalsMatch(value, match), nil
 	case event.ConditionOperatorGreaterThan:
-		return numericCompare(value, match, func(a, b float64) bool { return a > b })
+		return numericCompare(value, match, func(a, b float64) bool { return a > b }), nil
 	case event.ConditionOperatorLessThan:
-		return numericCompare(value, match, func(a, b float64) bool { return a < b })
+		return numericCompare(value, match, func(a, b float64) bool { return a < b }), nil
 	case event.ConditionOperatorExists:
 		exists := value != nil
 		// If Match.Boolean is set, respect it: false means "does not exist"
 		if match.Boolean.IsSome() {
-			return exists == match.Boolean.Unwrap()
+			return exists == match.Boolean.Unwrap(), nil
 		}
-		return exists
+		return exists, nil
 	case event.ConditionOperatorMatches:
-		return patternMatch(value, match)
+		return patternMatch(value, match), nil
 	case event.ConditionOperatorSemantic:
 		// Semantic operators are handled by evaluateSemantic before reaching here.
-		return false
+		return false, nil
+	default:
+		return false, fmt.Errorf("unhandled ConditionOperator: %s", op)
 	}
-	// No default — exhaustive matching per CLAUDE.md.
-	// New ConditionOperator variants must be handled explicitly above.
-	panic(fmt.Sprintf("unhandled ConditionOperator: %s", op))
 }
 
 func equalsMatch(value any, match event.MatchValue) bool {

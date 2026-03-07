@@ -266,9 +266,9 @@ func TestEvaluateLLMLeafNoIntelligence(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error when LLM leaf reached without intelligence")
 	}
-	var insuffAuth *decision.InsufficientAuthorityError
-	if !errors.As(err, &insuffAuth) {
-		t.Errorf("expected InsufficientAuthorityError, got %T: %v", err, err)
+	var unavailable *decision.IntelligenceUnavailableError
+	if !errors.As(err, &unavailable) {
+		t.Errorf("expected IntelligenceUnavailableError, got %T: %v", err, err)
 	}
 }
 

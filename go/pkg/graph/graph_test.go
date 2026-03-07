@@ -32,7 +32,9 @@ func newTestGraph(t *testing.T) (*graph.Graph, types.ActorID) {
 	s := store.NewInMemoryStore()
 	as := actor.NewInMemoryActorStore()
 	g := graph.New(s, as)
-	g.Start()
+	if err := g.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
 
 	actorID := types.MustActorID("actor_system0000000000000000000001")
 	return g, actorID

@@ -192,6 +192,9 @@ func (r *Registry) Count() int {
 // deepCopyState creates a deep copy of a state map.
 // Handles nested maps and slices; scalar values (string, int, float64, bool) are copied directly.
 func deepCopyState(state map[string]any) map[string]any {
+	if state == nil {
+		return nil
+	}
 	if len(state) == 0 {
 		return make(map[string]any)
 	}

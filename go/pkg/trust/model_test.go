@@ -36,9 +36,11 @@ func testTrustEvent(actorID types.ActorID, prev, curr float64) event.Event {
 		Cause:    types.MustEventID("019462a0-0000-7000-8000-000000000001"),
 	}
 	sig := make([]byte, 64)
+	// Each call generates a unique EventID so deduplication doesn't suppress distinct evidence.
+	evID, _ := types.NewEventIDFromNew()
 	return event.NewEvent(
 		1,
-		types.MustEventID("019462a0-0000-7000-8000-000000000002"),
+		evID,
 		event.EventTypeTrustUpdated,
 		types.Now(),
 		actorID,

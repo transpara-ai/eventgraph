@@ -25,7 +25,9 @@ func newTestGrammar(t *testing.T) (*grammar.Grammar, *graph.Graph, types.ActorID
 	s := store.NewInMemoryStore()
 	as := actor.NewInMemoryActorStore()
 	g := graph.New(s, as)
-	g.Start()
+	if err := g.Start(); err != nil {
+		t.Fatalf("Start: %v", err)
+	}
 
 	actorID := types.MustActorID("actor_test00000000000000000000001")
 	bootstrap, err := g.Bootstrap(actorID, testSigner{})

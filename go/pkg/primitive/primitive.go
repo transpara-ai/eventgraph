@@ -35,10 +35,8 @@ type PrimitiveState struct {
 }
 
 // State returns a deep defensive copy of the primitive's key-value state.
+// Returns nil if the state is nil, preserving nil/empty distinction.
 func (ps PrimitiveState) State() map[string]any {
-	if ps.state == nil {
-		return nil
-	}
 	return deepCopyState(ps.state)
 }
 
