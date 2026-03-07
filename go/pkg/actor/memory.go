@@ -187,6 +187,24 @@ func (s *InMemoryActorStore) Suspend(id types.ActorID, reason types.EventID) (IA
 	return updated, nil
 }
 
+func (s *InMemoryActorStore) Reactivate(id types.ActorID, reason types.EventID) (IActor, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	a, ok := s.actors[id]
+	if !ok {
+		return nil, &store.ActorNotFoundError{ID: id}
+	}
+	newStatus, err := a.Status().TransitionTo(types.ActorStatusActive)
+	if err != nil {
+		return nil, err
+	}
+	updated := a.withStatus(newStatus)
+	s.actors[id] = updated
+	_ = reason // recorded on the event graph, not stored here
+	return updated, nil
+}
+
 func (s *InMemoryActorStore) Memorial(id types.ActorID, reason types.EventID) (IActor, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

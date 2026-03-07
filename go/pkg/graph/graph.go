@@ -149,6 +149,9 @@ func (g *Graph) Record(
 	if g.closed {
 		return event.Event{}, fmt.Errorf("graph is closed")
 	}
+	if !g.started {
+		return event.Event{}, fmt.Errorf("graph is not started (call Start first)")
+	}
 
 	ev, err := g.factory.Create(eventType, source, content, causes, conversationID, g.store, signer)
 	if err != nil {
@@ -170,6 +173,9 @@ func (g *Graph) Bootstrap(systemActor types.ActorID, signer event.Signer) (event
 	defer g.mu.RUnlock()
 	if g.closed {
 		return event.Event{}, fmt.Errorf("graph is closed")
+	}
+	if !g.started {
+		return event.Event{}, fmt.Errorf("graph is not started (call Start first)")
 	}
 
 	bf := event.NewBootstrapFactory(g.registry)
@@ -195,6 +201,9 @@ func (g *Graph) Evaluate(ctx context.Context, a actor.IActor, action string, eva
 
 	if g.closed {
 		return authority.AuthorityResult{}, fmt.Errorf("graph is closed")
+	}
+	if !g.started {
+		return authority.AuthorityResult{}, fmt.Errorf("graph is not started (call Start first)")
 	}
 
 	return g.authChain.Evaluate(ctx, a, action)

@@ -1,8 +1,8 @@
 package event
 
 import (
-	"encoding/json"
 	"fmt"
+	"sort"
 	"sync"
 
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
@@ -277,12 +277,13 @@ func (c ClockTickContent) EventTypeName() string    { return "clock.tick" }
 func (c ClockTickContent) Accept(v EventContentVisitor) { v.VisitClockTick(c) }
 
 // HealthReportContent is emitted for health checks.
+// Use NewHealthReportContent to ensure defensive copying of PrimitiveHealth.
 type HealthReportContent struct {
-	Overall         types.Score
-	ChainIntegrity  bool
-	primitiveHealth map[types.PrimitiveID]types.Score
-	ActiveActors    int
-	EventRate       float64
+	Overall         types.Score                       `json:"Overall"`
+	ChainIntegrity  bool                              `json:"ChainIntegrity"`
+	PrimitiveHealth map[types.PrimitiveID]types.Score `json:"PrimitiveHealth,omitempty"`
+	ActiveActors    int                               `json:"ActiveActors"`
+	EventRate       float64                           `json:"EventRate"`
 }
 
 // NewHealthReportContent creates a HealthReportContent with a defensive copy of the health map.
@@ -297,62 +298,10 @@ func NewHealthReportContent(overall types.Score, chainIntegrity bool, primitiveH
 	return HealthReportContent{
 		Overall:         overall,
 		ChainIntegrity:  chainIntegrity,
-		primitiveHealth: ph,
+		PrimitiveHealth: ph,
 		ActiveActors:    activeActors,
 		EventRate:       eventRate,
 	}
-}
-
-// PrimitiveHealth returns a defensive copy of the primitive health map.
-func (c HealthReportContent) PrimitiveHealth() map[types.PrimitiveID]types.Score {
-	if c.primitiveHealth == nil {
-		return nil
-	}
-	cp := make(map[types.PrimitiveID]types.Score, len(c.primitiveHealth))
-	for k, v := range c.primitiveHealth {
-		cp[k] = v
-	}
-	return cp
-}
-
-// MarshalJSON includes the unexported primitiveHealth field in JSON output
-// so it is captured by the canonical form and hash.
-func (c HealthReportContent) MarshalJSON() ([]byte, error) {
-	type alias struct {
-		Overall         types.Score                        `json:"Overall"`
-		ChainIntegrity  bool                               `json:"ChainIntegrity"`
-		PrimitiveHealth map[types.PrimitiveID]types.Score  `json:"PrimitiveHealth,omitempty"`
-		ActiveActors    int                                `json:"ActiveActors"`
-		EventRate       float64                            `json:"EventRate"`
-	}
-	return json.Marshal(alias{
-		Overall:         c.Overall,
-		ChainIntegrity:  c.ChainIntegrity,
-		PrimitiveHealth: c.primitiveHealth,
-		ActiveActors:    c.ActiveActors,
-		EventRate:       c.EventRate,
-	})
-}
-
-// UnmarshalJSON restores the unexported primitiveHealth field from JSON.
-func (c *HealthReportContent) UnmarshalJSON(data []byte) error {
-	type alias struct {
-		Overall         types.Score                        `json:"Overall"`
-		ChainIntegrity  bool                               `json:"ChainIntegrity"`
-		PrimitiveHealth map[types.PrimitiveID]types.Score  `json:"PrimitiveHealth,omitempty"`
-		ActiveActors    int                                `json:"ActiveActors"`
-		EventRate       float64                            `json:"EventRate"`
-	}
-	var a alias
-	if err := json.Unmarshal(data, &a); err != nil {
-		return err
-	}
-	c.Overall = a.Overall
-	c.ChainIntegrity = a.ChainIntegrity
-	c.primitiveHealth = a.PrimitiveHealth
-	c.ActiveActors = a.ActiveActors
-	c.EventRate = a.EventRate
-	return nil
 }
 
 func (c HealthReportContent) EventTypeName() string    { return "health.report" }
@@ -479,9 +428,23 @@ func (c GrammarAnnotateContent) EventTypeName() string        { return "grammar.
 func (c GrammarAnnotateContent) Accept(v EventContentVisitor) { v.VisitGrammarAnnotate(c) }
 
 // GrammarMergeContent is emitted when two or more independent subtrees are joined.
+// Sources are sorted lexicographically for deterministic hashing.
+// Use NewGrammarMergeContent to ensure sorting.
 type GrammarMergeContent struct {
 	Body    string
 	Sources []types.EventID
+}
+
+// NewGrammarMergeContent creates a GrammarMergeContent with Sources sorted
+// lexicographically. This ensures semantically equivalent merges produce
+// identical hashes regardless of the order Sources are provided.
+func NewGrammarMergeContent(body string, sources []types.EventID) GrammarMergeContent {
+	sorted := make([]types.EventID, len(sources))
+	copy(sorted, sources)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Value() < sorted[j].Value()
+	})
+	return GrammarMergeContent{Body: body, Sources: sorted}
 }
 
 func (c GrammarMergeContent) EventTypeName() string        { return "grammar.merge" }

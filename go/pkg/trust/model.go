@@ -146,6 +146,15 @@ func (m *DefaultTrustModel) Update(_ context.Context, a actor.IActor, evidence e
 	newScore = math.Max(0, math.Min(1, newScore))
 	state.score = types.MustScore(newScore)
 
+	// Update domain-specific score if evidence carries a domain
+	if tc, ok := evidence.Content().(event.TrustUpdatedContent); ok {
+		domainScore := math.Max(0, math.Min(1, state.score.Value()))
+		if existing, has := state.byDomain[tc.Domain]; has {
+			domainScore = math.Max(0, math.Min(1, existing.Value()+delta))
+		}
+		state.byDomain[tc.Domain] = types.MustScore(domainScore)
+	}
+
 	// Update trend
 	if delta > 0 {
 		state.trend = types.MustWeight(math.Min(1, state.trend.Value()+0.1))

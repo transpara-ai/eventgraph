@@ -132,5 +132,6 @@ type IActorStore interface {
 	Update(id types.ActorID, updates ActorUpdate) (IActor, error)
 	List(filter ActorFilter) (types.Page[IActor], error)
 	Suspend(id types.ActorID, reason types.EventID) (IActor, error)
+	Reactivate(id types.ActorID, reason types.EventID) (IActor, error)
 	Memorial(id types.ActorID, reason types.EventID) (IActor, error)
 }

@@ -66,6 +66,7 @@ func NewEvent(
 
 // NewBootstrapEvent creates the genesis event with no causes and zero PrevHash.
 // Only valid for bootstrap — normal events must use NewEvent with NonEmpty causes.
+// Panics if eventType is not EventTypeSystemBootstrapped.
 func NewBootstrapEvent(
 	version int,
 	id types.EventID,
@@ -77,6 +78,9 @@ func NewBootstrapEvent(
 	hash types.Hash,
 	signature types.Signature,
 ) Event {
+	if eventType != EventTypeSystemBootstrapped {
+		panic(fmt.Sprintf("NewBootstrapEvent: eventType must be %s, got %s", EventTypeSystemBootstrapped.Value(), eventType.Value()))
+	}
 	return Event{
 		version:        version,
 		id:             id,

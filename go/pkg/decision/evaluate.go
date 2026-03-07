@@ -227,7 +227,12 @@ func testCondition(value any, op event.ConditionOperator, match event.MatchValue
 	case event.ConditionOperatorLessThan:
 		return numericCompare(value, match, func(a, b float64) bool { return a < b })
 	case event.ConditionOperatorExists:
-		return value != nil
+		exists := value != nil
+		// If Match.Boolean is set, respect it: false means "does not exist"
+		if match.Boolean.IsSome() {
+			return exists == match.Boolean.Unwrap()
+		}
+		return exists
 	case event.ConditionOperatorMatches:
 		return patternMatch(value, match)
 	default:
