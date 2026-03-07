@@ -47,8 +47,8 @@ The reference implementation exists in [mind-zero-five](https://github.com/mattx
 - [x] `go/pkg/store/memory.go` — InMemoryStore implementation (chain locking, edge indexing, concurrent-safe)
 - [x] `go/pkg/store/storetest/suite.go` — Shared conformance test suite (importable by any store implementation)
 - [x] `go/pkg/store/store_test.go` — Runs conformance suite + memory-specific tests
-- [ ] `go/pkg/store/postgres.go` — PostgresStore implementation — NEEDED
-- [ ] `go/pkg/store/postgres_test.go` — Runs conformance suite (requires test DB) — NEEDED
+- [x] `go/pkg/store/pgstore/pgstore.go` — PostgresStore implementation (pgx/v5, advisory lock serialization, recursive CTE traversal)
+- [x] `go/pkg/store/pgstore/pgstore_test.go` — Runs conformance suite (set `EVENTGRAPH_POSTGRES_URL` to enable)
 - [x] `go/pkg/actor/actor.go` — IActor, Actor, IActorStore, ActorUpdate, ActorFilter
 - [x] `go/pkg/actor/memory.go` — InMemoryActorStore
 - [x] `go/pkg/actor/actor_test.go` — Registration, lookup, lifecycle, pagination

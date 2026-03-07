@@ -1,6 +1,6 @@
 # EventGraph
 
-> **Status: Pre-release.** Documentation and specifications are in place. Core packages are being implemented. Contributions welcome — see `ROADMAP.md`.
+> **Status: Phase 1 complete.** The Go reference implementation is fully built — event graph core, decision trees, trust model, authority chains, tick engine, social grammar, and both in-memory and PostgreSQL stores pass all conformance tests. See `ROADMAP.md` for what's next.
 
 A hash-chained, append-only, causal event graph. The foundation for building systems where every action is signed, auditable, and causally linked.
 
@@ -43,12 +43,9 @@ graph.Register(&MyTrustDecay{})
 **Persistence is a plugin:**
 
 ```go
-graph := eventgraph.New(store.Memory())      // dev/testing
-graph := eventgraph.New(store.SQLite(path))   // single app
-graph := eventgraph.New(store.Postgres(dsn))  // production
+graph := eventgraph.New(store.Memory())              // dev/testing
+graph := eventgraph.New(store.Postgres(connString))   // production
 ```
-
-> **Note:** These packages are not yet published. See `ROADMAP.md` Phase 1 for implementation status. The API shown above reflects the target design.
 
 ## Quick Start (Go)
 
@@ -65,31 +62,77 @@ import (
 
     eg "github.com/lovyou-ai/eventgraph/go/pkg/graph"
     "github.com/lovyou-ai/eventgraph/go/pkg/store"
+    "github.com/lovyou-ai/eventgraph/go/pkg/types"
 )
 
 func main() {
     ctx := context.Background()
 
-    // Create a graph with an in-memory store
-    graph, _ := eg.New(store.NewMemory())
-    graph.Start()
+    // Create a graph with in-memory store
+    s := store.NewInMemoryStore()
+    graph, _ := eg.NewGraph(s, nil, nil, nil, nil)
+    graph.Bootstrap(ctx, types.MustActorID("actor_system"), signer)
     defer graph.Close()
 
-    // Record an event (factory validates, hashes, signs, then store persists)
-    e, _ := graph.Record(ctx, "hello.world", systemActor, HelloContent{
-        Message: "first event",
-    }, causes, conversationID)
-
     // Every event is hash-chained and signed
-    fmt.Println(e.Hash)      // SHA-256 of canonical form
-    fmt.Println(e.PrevHash)  // links to previous event
-    fmt.Println(e.Signature) // Ed25519 signature
+    ev, _ := graph.Record(ctx, "trust.updated", actor, content, causes, convID)
+    fmt.Println(ev.Hash())      // SHA-256 of canonical form
+    fmt.Println(ev.PrevHash())  // links to previous event
+    fmt.Println(ev.Signature()) // Ed25519 signature
 
     // Causal traversal
-    ancestors, _ := graph.Query().Events().Ancestors(e.ID, 10)
+    ancestors, _ := graph.Query().Ancestors(ev.ID(), 10)
     fmt.Println(len(ancestors))
 }
 ```
+
+For PostgreSQL persistence:
+
+```go
+import "github.com/lovyou-ai/eventgraph/go/pkg/store/pgstore"
+
+s, _ := pgstore.NewPostgresStore(ctx, "postgres://user:pass@localhost:5432/mydb")
+defer s.Close()
+graph, _ := eg.NewGraph(s, nil, nil, nil, nil)
+```
+
+## What's Built
+
+### Phase 1: Foundation — Complete
+
+The full Go reference implementation:
+
+| Package | What | Lines |
+|---------|------|-------|
+| `types` | Value objects, constrained numerics, state machines, Option/NonEmpty/Page | ~900 |
+| `event` | Event, Edge, 40+ content types, canonical form, hash computation, factories | ~1200 |
+| `store` | Store interface, InMemoryStore, conformance test suite | ~700 |
+| `store/pgstore` | PostgresStore (pgx/v5, advisory lock serialization, recursive CTE traversal) | ~550 |
+| `bus` | EventBus with non-blocking fan-out, overflow handling, panic recovery | ~200 |
+| `decision` | Decision trees, evaluation, evolution (mechanical→intelligent), IIntelligence | ~600 |
+| `trust` | Trust model (continuous 0.0-1.0, asymmetric, decaying, domain-scoped) | ~200 |
+| `authority` | Authority chains, delegation, weight propagation, three-tier approval | ~400 |
+| `primitive` | Primitive interface, registry, test harness | ~400 |
+| `tick` | Tick engine, ripple-wave processing, layer ordering, quiescence detection | ~300 |
+| `graph` | Top-level facade (IGraph), query interface | ~400 |
+| `grammar` | 15 social grammar operations + 3 named functions | ~300 |
+| `actor` | Actor registration, lifecycle, in-memory actor store | ~300 |
+
+All packages pass tests with the Go race detector. Both store implementations pass the shared conformance suite (25 tests covering append, get, query, pagination, causal traversal, hash chain verification, edge indexing, concurrent access).
+
+### Roadmap
+
+| Phase | What | Status |
+|-------|------|--------|
+| 1 | Foundation (event graph core, stores, decision trees, trust, authority, tick engine) | **Done** |
+| 2 | Layer 0 Primitives (45 foundation primitives in 11 groups) | Next |
+| 3 | Communication Protocol (inter-primitive messaging, semantic routing) | Planned |
+| 4 | EGIP (inter-system protocol — sovereign systems communicating across graph boundaries) | Planned |
+| 5 | Layers 1-13 (156 primitives across 13 cognitive layers) | Planned |
+| 6 | Language Packages (Rust, Python, .NET — conformance-tested) | Planned |
+| 7 | Documentation & Examples | Planned |
+
+See `ROADMAP.md` for the full breakdown.
 
 ## Architecture
 
@@ -108,7 +151,7 @@ Authority (three-tier: required / recommended / notification)
     ↕
 Event Graph (hash-chained, append-only, causal DAG)
     ↕
-Store (plugin: Memory, SQLite, Postgres, your own)
+Store (plugin: Memory / Postgres / your own)
 ```
 
 See `docs/architecture.md` for the full picture.
@@ -138,7 +181,7 @@ Each layer is derived from a gap in the layer below — something the lower laye
 
 Everything is pluggable. The graph defines the sockets; you provide the implementations:
 
-- **`Store`** — Event persistence. Memory, SQLite, Postgres, or your own.
+- **`Store`** — Event persistence. Memory, Postgres, or your own. Any implementation that passes the conformance suite is valid.
 - **`IDecisionMaker`** — Anything that makes decisions. AI agents, humans, committees, rules engines. The graph records what was decided, not how.
 - **`IIntelligence`** — Reasoning. Any model, local or cloud, or deterministic logic.
 - **Primitives** — 201 cognitive agents, each an interface with sensible defaults. Override with domain-specific logic.
@@ -159,7 +202,7 @@ Published to every ecosystem developers already work in:
 
 | Language | Package | Status | Path |
 |----------|---------|--------|------|
-| Go | `go get github.com/lovyou-ai/eventgraph/go` | Reference implementation | `go/` |
+| Go | `go get github.com/lovyou-ai/eventgraph/go` | Reference implementation — Phase 1 complete | `go/` |
 | Rust | `cargo add eventgraph` | Community — help wanted | `rust/` |
 | Python | `pip install eventgraph` | Community — help wanted | `python/` |
 | .NET | `dotnet add package EventGraph` | Community — help wanted | `dotnet/` |
