@@ -3,289 +3,199 @@ package compositions_test
 import (
 	"testing"
 
+	"github.com/lovyou-ai/eventgraph/go/pkg/compositions"
 	"github.com/lovyou-ai/eventgraph/go/pkg/event"
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
 )
 
-// TestWorkGrammar exercises the Work Grammar (Layer 1: Agency).
-// Operations: Intend, Decompose, Assign, Claim, Prioritize, Block/Unblock,
-// Progress, Complete, Handoff, Scope, Review.
-// Named functions: Sprint, Delegate-and-Verify, Escalate.
 func TestWorkGrammar(t *testing.T) {
 	t.Run("Intend", func(t *testing.T) {
 		env := newTestEnv(t)
-		alice := env.actor("Alice", 1, event.ActorTypeHuman)
+		work := compositions.NewWorkGrammar(env.grammar)
+		dev := env.actor("Dev", 1, event.ActorTypeHuman)
 
-		goal, err := env.grammar.Emit(env.ctx, alice.ID(),
-			"goal: increase test coverage to 90% across all packages",
-			env.convID, []types.EventID{env.boot.ID()}, signer)
+		goal, err := work.Intend(env.ctx, dev.ID(),
+			"review all pending PRs before release",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
 		if err != nil {
-			t.Fatalf("Emit goal: %v", err)
+			t.Fatalf("Intend: %v", err)
 		}
-		if goal.Type().Value() != "grammar.emit" {
-			t.Errorf("type = %s, want grammar.emit", goal.Type().Value())
+		if goal.Source() != dev.ID() {
+			t.Error("goal source should be dev")
 		}
-		if goal.Source() != alice.ID() {
-			t.Error("goal source should be Alice")
-		}
+		env.verifyChain()
 	})
 
 	t.Run("Decompose", func(t *testing.T) {
 		env := newTestEnv(t)
-		alice := env.actor("Alice", 1, event.ActorTypeHuman)
+		work := compositions.NewWorkGrammar(env.grammar)
+		dev := env.actor("Dev", 1, event.ActorTypeHuman)
 
-		goal, _ := env.grammar.Emit(env.ctx, alice.ID(),
-			"goal: ship v2.0", env.convID, []types.EventID{env.boot.ID()}, signer)
+		goal, _ := work.Intend(env.ctx, dev.ID(), "ship v2.0",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
 
-		plan, _ := env.grammar.Derive(env.ctx, alice.ID(),
-			"plan: 3 steps required", goal.ID(), env.convID, signer)
+		sub1, _ := work.Decompose(env.ctx, dev.ID(), "update auth module", goal.ID(), env.convID, signer)
+		sub2, _ := work.Decompose(env.ctx, dev.ID(), "write migration guide", goal.ID(), env.convID, signer)
 
-		step1, _ := env.grammar.Extend(env.ctx, alice.ID(),
-			"step 1: implement auth module", plan.ID(), env.convID, signer)
-		step2, _ := env.grammar.Extend(env.ctx, alice.ID(),
-			"step 2: add API endpoints", step1.ID(), env.convID, signer)
-		step3, _ := env.grammar.Extend(env.ctx, alice.ID(),
-			"step 3: write integration tests", step2.ID(), env.convID, signer)
-
-		// Steps chain back to goal
-		ancestors := env.ancestors(step3.ID(), 10)
+		ancestors := env.ancestors(sub1.ID(), 5)
 		if !containsEvent(ancestors, goal.ID()) {
-			t.Error("step3 should trace back to goal")
+			t.Error("subtask should trace to goal")
 		}
+		_ = sub2
 		env.verifyChain()
 	})
 
-	t.Run("Assign", func(t *testing.T) {
+	t.Run("AssignAndClaim", func(t *testing.T) {
 		env := newTestEnv(t)
-		alice := env.actor("Alice", 1, event.ActorTypeHuman)
-		bob := env.actor("Bob", 2, event.ActorTypeHuman)
+		work := compositions.NewWorkGrammar(env.grammar)
+		lead := env.actor("Lead", 1, event.ActorTypeHuman)
+		dev := env.actor("Dev", 2, event.ActorTypeHuman)
 
-		task, _ := env.grammar.Emit(env.ctx, alice.ID(),
-			"task: implement auth module", env.convID, []types.EventID{env.boot.ID()}, signer)
+		goal, _ := work.Intend(env.ctx, lead.ID(), "fix auth bug",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
 
-		delegation, err := env.grammar.Delegate(env.ctx, alice.ID(), bob.ID(),
-			types.MustDomainScope("auth_module"), types.MustWeight(0.8),
-			task.ID(), env.convID, signer)
-		if err != nil {
-			t.Fatalf("Delegate: %v", err)
-		}
+		assign, _ := work.Assign(env.ctx, lead.ID(), dev.ID(),
+			types.MustDomainScope("auth"), types.MustWeight(0.5),
+			goal.ID(), env.convID, signer)
 
-		content := delegation.Content().(event.EdgeCreatedContent)
-		if content.EdgeType != event.EdgeTypeDelegation {
-			t.Errorf("edge type = %s, want delegation", content.EdgeType)
-		}
-		if content.To != bob.ID() {
-			t.Error("delegation target should be Bob")
-		}
+		claim, _ := work.Claim(env.ctx, dev.ID(), "taking auth bug fix",
+			[]types.EventID{assign.ID()}, env.convID, signer)
+
+		_ = claim
 		env.verifyChain()
-	})
-
-	t.Run("Claim", func(t *testing.T) {
-		env := newTestEnv(t)
-		bob := env.actor("Bob", 2, event.ActorTypeHuman)
-
-		// Unassigned task on the board
-		task, _ := env.grammar.Emit(env.ctx, env.system,
-			"task: fix login bug (unassigned)", env.convID, []types.EventID{env.boot.ID()}, signer)
-
-		// Bob claims it (initiative)
-		claim, err := env.grammar.Derive(env.ctx, bob.ID(),
-			"claimed: taking ownership of login bug fix",
-			task.ID(), env.convID, signer)
-		if err != nil {
-			t.Fatalf("Derive claim: %v", err)
-		}
-
-		ancestors := env.ancestors(claim.ID(), 5)
-		if !containsEvent(ancestors, task.ID()) {
-			t.Error("claim should trace to task")
-		}
 	})
 
 	t.Run("BlockAndUnblock", func(t *testing.T) {
 		env := newTestEnv(t)
-		alice := env.actor("Alice", 1, event.ActorTypeHuman)
+		work := compositions.NewWorkGrammar(env.grammar)
+		dev := env.actor("Dev", 1, event.ActorTypeHuman)
 
-		task, _ := env.grammar.Emit(env.ctx, alice.ID(),
-			"task: deploy service", env.convID, []types.EventID{env.boot.ID()}, signer)
+		task, _ := work.Intend(env.ctx, dev.ID(), "deploy to staging",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
 
-		block, _ := env.grammar.Annotate(env.ctx, alice.ID(),
-			task.ID(), "blocked", "waiting for DNS propagation",
-			env.convID, signer)
+		block, _ := work.Block(env.ctx, dev.ID(), task.ID(),
+			"CI pipeline broken", env.convID, signer)
 
-		unblock, _ := env.grammar.Annotate(env.ctx, alice.ID(),
-			task.ID(), "unblocked", "DNS propagated, ready to proceed",
-			env.convID, signer)
+		unblock, _ := work.Unblock(env.ctx, dev.ID(), "CI pipeline fixed",
+			[]types.EventID{block.ID()}, env.convID, signer)
 
-		// Both annotations reference the task
-		blockAnc := env.ancestors(block.ID(), 5)
-		if !containsEvent(blockAnc, task.ID()) {
-			t.Error("block should trace to task")
-		}
-		unblockAnc := env.ancestors(unblock.ID(), 5)
-		if !containsEvent(unblockAnc, task.ID()) {
-			t.Error("unblock should trace to task")
+		ancestors := env.ancestors(unblock.ID(), 10)
+		if !containsEvent(ancestors, task.ID()) {
+			t.Error("unblock should trace to original task")
 		}
 		env.verifyChain()
 	})
 
 	t.Run("ProgressAndComplete", func(t *testing.T) {
 		env := newTestEnv(t)
-		alice := env.actor("Alice", 1, event.ActorTypeHuman)
+		work := compositions.NewWorkGrammar(env.grammar)
+		dev := env.actor("Dev", 1, event.ActorTypeHuman)
 
-		task, _ := env.grammar.Emit(env.ctx, alice.ID(),
-			"task: write tests", env.convID, []types.EventID{env.boot.ID()}, signer)
+		task, _ := work.Intend(env.ctx, dev.ID(), "implement search",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
 
-		p1, _ := env.grammar.Extend(env.ctx, alice.ID(),
-			"progress: 5/15 tests written (33%)", task.ID(), env.convID, signer)
-		p2, _ := env.grammar.Extend(env.ctx, alice.ID(),
-			"progress: 15/15 tests written (100%)", p1.ID(), env.convID, signer)
+		p1, _ := work.Progress(env.ctx, dev.ID(), "basic search working", task.ID(), env.convID, signer)
+		p2, _ := work.Progress(env.ctx, dev.ID(), "added fuzzy matching", p1.ID(), env.convID, signer)
 
-		complete, _ := env.grammar.Derive(env.ctx, alice.ID(),
-			"complete: all 15 tests passing, coverage 92%", p2.ID(), env.convID, signer)
+		complete, _ := work.Complete(env.ctx, dev.ID(), "search with fuzzy matching",
+			[]types.EventID{p2.ID()}, env.convID, signer)
 
 		ancestors := env.ancestors(complete.ID(), 10)
 		if !containsEvent(ancestors, task.ID()) {
-			t.Error("completion should trace to original task")
-		}
-		env.verifyChain()
-	})
-
-	t.Run("Handoff", func(t *testing.T) {
-		env := newTestEnv(t)
-		alice := env.actor("Alice", 1, event.ActorTypeHuman)
-		carol := env.actor("Carol", 3, event.ActorTypeHuman)
-
-		task, _ := env.grammar.Emit(env.ctx, alice.ID(),
-			"task: maintain auth module", env.convID, []types.EventID{env.boot.ID()}, signer)
-
-		handoff, err := env.grammar.Consent(env.ctx, alice.ID(), carol.ID(),
-			"handoff: Carol takes ownership of auth module maintenance",
-			types.MustDomainScope("auth_module"),
-			task.ID(), env.convID, signer)
-		if err != nil {
-			t.Fatalf("Consent handoff: %v", err)
-		}
-
-		content := handoff.Content().(event.GrammarConsentContent)
-		if content.Agreement == "" {
-			t.Error("handoff should have agreement text")
+			t.Error("completion should trace to task")
 		}
 		env.verifyChain()
 	})
 
 	t.Run("Review", func(t *testing.T) {
 		env := newTestEnv(t)
-		alice := env.actor("Alice", 1, event.ActorTypeHuman)
-		bob := env.actor("Bob", 2, event.ActorTypeHuman)
+		work := compositions.NewWorkGrammar(env.grammar)
+		dev := env.actor("Dev", 1, event.ActorTypeHuman)
+		reviewer := env.actor("Reviewer", 2, event.ActorTypeHuman)
 
-		work, _ := env.grammar.Emit(env.ctx, alice.ID(),
-			"completed: auth module implementation", env.convID, []types.EventID{env.boot.ID()}, signer)
+		complete, _ := work.Complete(env.ctx, dev.ID(), "auth module done",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
 
-		review, err := env.grammar.Respond(env.ctx, bob.ID(),
-			"review: code quality good, tests comprehensive, approved",
-			work.ID(), env.convID, signer)
-		if err != nil {
-			t.Fatalf("Respond review: %v", err)
-		}
+		review, _ := work.Review(env.ctx, reviewer.ID(), "approved, clean implementation",
+			complete.ID(), env.convID, signer)
 
 		ancestors := env.ancestors(review.ID(), 5)
-		if !containsEvent(ancestors, work.ID()) {
-			t.Error("review should trace to work")
+		if !containsEvent(ancestors, complete.ID()) {
+			t.Error("review should trace to completion")
 		}
 		env.verifyChain()
 	})
 
 	t.Run("Sprint", func(t *testing.T) {
 		env := newTestEnv(t)
-		alice := env.actor("Alice", 1, event.ActorTypeHuman)
-		bob := env.actor("Bob", 2, event.ActorTypeHuman)
+		work := compositions.NewWorkGrammar(env.grammar)
+		lead := env.actor("Lead", 1, event.ActorTypeHuman)
+		dev1 := env.actor("Dev1", 2, event.ActorTypeHuman)
+		dev2 := env.actor("Dev2", 3, event.ActorTypeHuman)
 
-		// Sprint = Goal + Decompose + Assign + Progress + Complete + Review
-		goal, _ := env.grammar.Emit(env.ctx, alice.ID(),
-			"sprint goal: ship auth feature", env.convID, []types.EventID{env.boot.ID()}, signer)
-		task1, _ := env.grammar.Derive(env.ctx, alice.ID(),
-			"task: backend auth", goal.ID(), env.convID, signer)
-		task2, _ := env.grammar.Derive(env.ctx, alice.ID(),
-			"task: frontend auth", goal.ID(), env.convID, signer)
-
-		_, _ = env.grammar.Delegate(env.ctx, alice.ID(), bob.ID(),
-			types.MustDomainScope("backend"), types.MustWeight(0.8),
-			task1.ID(), env.convID, signer)
-
-		done1, _ := env.grammar.Derive(env.ctx, bob.ID(),
-			"complete: backend auth done", task1.ID(), env.convID, signer)
-		done2, _ := env.grammar.Derive(env.ctx, alice.ID(),
-			"complete: frontend auth done", task2.ID(), env.convID, signer)
-
-		sprintDone, _ := env.grammar.Merge(env.ctx, alice.ID(),
-			"sprint complete: auth feature shipped",
-			[]types.EventID{done1.ID(), done2.ID()}, env.convID, signer)
-
-		ancestors := env.ancestors(sprintDone.ID(), 10)
-		if !containsEvent(ancestors, goal.ID()) {
-			t.Error("sprint completion should trace to goal")
+		result, err := work.Sprint(env.ctx, lead.ID(), "Sprint 7: auth hardening",
+			[]string{"add rate limiting", "add 2FA"},
+			[]types.ActorID{dev1.ID(), dev2.ID()},
+			[]types.DomainScope{types.MustDomainScope("rate_limiting"), types.MustDomainScope("two_factor")},
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Sprint: %v", err)
 		}
-		env.verifyChain()
-	})
 
-	t.Run("DelegateAndVerify", func(t *testing.T) {
-		env := newTestEnv(t)
-		alice := env.actor("Alice", 1, event.ActorTypeHuman)
-		agent := env.actor("Agent", 4, event.ActorTypeAI)
+		if len(result.Subtasks) != 2 {
+			t.Errorf("expected 2 subtasks, got %d", len(result.Subtasks))
+		}
+		if len(result.Assignments) != 2 {
+			t.Errorf("expected 2 assignments, got %d", len(result.Assignments))
+		}
 
-		task, _ := env.grammar.Emit(env.ctx, alice.ID(),
-			"task: generate test data", env.convID, []types.EventID{env.boot.ID()}, signer)
-
-		_, _ = env.grammar.Delegate(env.ctx, alice.ID(), agent.ID(),
-			types.MustDomainScope("test_data"), types.MustWeight(0.6),
-			task.ID(), env.convID, signer)
-
-		work, _ := env.grammar.Derive(env.ctx, agent.ID(),
-			"complete: generated 500 test records", task.ID(), env.convID, signer)
-
-		// Alice verifies
-		verification, _ := env.grammar.Respond(env.ctx, alice.ID(),
-			"verified: spot-checked 50 records, all valid",
-			work.ID(), env.convID, signer)
-
-		ancestors := env.ancestors(verification.ID(), 10)
-		if !containsEvent(ancestors, task.ID()) {
-			t.Error("verification should trace to original task")
+		ancestors := env.ancestors(result.Assignments[1].ID(), 10)
+		if !containsEvent(ancestors, result.Intent.ID()) {
+			t.Error("assignment should trace to sprint intent")
 		}
 		env.verifyChain()
 	})
 
 	t.Run("Escalate", func(t *testing.T) {
 		env := newTestEnv(t)
-		bob := env.actor("Bob", 2, event.ActorTypeHuman)
-		manager := env.actor("Manager", 5, event.ActorTypeHuman)
+		work := compositions.NewWorkGrammar(env.grammar)
+		dev := env.actor("Dev", 1, event.ActorTypeHuman)
+		lead := env.actor("Lead", 2, event.ActorTypeHuman)
 
-		task, _ := env.grammar.Emit(env.ctx, bob.ID(),
-			"task: production database migration", env.convID, []types.EventID{env.boot.ID()}, signer)
+		task, _ := work.Intend(env.ctx, dev.ID(), "migrate database",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
 
-		// Bob escalates — needs higher authority
-		escalation, _ := env.graph.Record(
-			event.EventTypeAuthorityRequested, bob.ID(),
-			event.AuthorityRequestContent{
-				Actor:  bob.ID(),
-				Action: "production_database_migration",
-				Level:  event.AuthorityLevelRequired,
-			},
-			[]types.EventID{task.ID()}, env.convID, signer)
-
-		// Manager approves
-		_, err := env.graph.Record(
-			event.EventTypeAuthorityResolved, manager.ID(),
-			event.AuthorityResolvedContent{
-				RequestID: escalation.ID(),
-				Approved:  true,
-				Resolver:  manager.ID(),
-				Reason:    types.None[string](),
-			},
-			[]types.EventID{escalation.ID()}, env.convID, signer)
+		result, err := work.Escalate(env.ctx, dev.ID(),
+			"need DBA approval for schema change",
+			task.ID(), lead.ID(), types.MustDomainScope("database"),
+			env.convID, signer)
 		if err != nil {
-			t.Fatalf("authority resolved: %v", err)
+			t.Fatalf("Escalate: %v", err)
+		}
+
+		ancestors := env.ancestors(result.HandoffEvent.ID(), 10)
+		if !containsEvent(ancestors, task.ID()) {
+			t.Error("escalation should trace to original task")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("DelegateAndVerify", func(t *testing.T) {
+		env := newTestEnv(t)
+		work := compositions.NewWorkGrammar(env.grammar)
+		lead := env.actor("Lead", 1, event.ActorTypeHuman)
+		agent := env.actor("Agent", 2, event.ActorTypeAI)
+
+		result, err := work.DelegateAndVerify(env.ctx, lead.ID(), agent.ID(),
+			types.MustDomainScope("code_review"), types.MustWeight(0.7),
+			env.boot.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("DelegateAndVerify: %v", err)
+		}
+
+		ancestors := env.ancestors(result.ScopeEvent.ID(), 5)
+		if !containsEvent(ancestors, result.AssignEvent.ID()) {
+			t.Error("scope should trace to assignment")
 		}
 		env.verifyChain()
 	})

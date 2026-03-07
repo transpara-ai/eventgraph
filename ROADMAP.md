@@ -275,25 +275,25 @@ Note: Scenario 5 (Supply Chain) is simplified to single-system provenance since 
 | 12 | [Community Lifecycle](docs/tests/primitives/12-community-lifecycle.md) | Community | DONE |
 | 13 | [System Self-Evolution](docs/tests/primitives/13-system-self-evolution.md) | Emergence | DONE |
 
-### Composition Grammar Tests — DONE
+### Composition Grammars — DONE
 
-13 composition grammar test suites exercising the per-layer grammar operations. Each suite tests the domain-specific operations, named functions, and causal chain integrity for its layer. All tests in `go/pkg/compositions/`.
+13 per-layer composition grammar types in `go/pkg/compositions/`. Each grammar wraps `*grammar.Grammar` and provides domain-specific operations that compose the base 15 grammar operations. ~145 operations + ~25 named functions total, with full test suites (87 subtests).
 
-| # | Grammar | Layer | Status |
-|---|---------|-------|--------|
-| 1 | Work Grammar | Agency | DONE |
-| 2 | Market Grammar | Exchange | DONE |
-| 3 | Social Grammar | Society | DONE |
-| 4 | Justice Grammar | Legal | DONE |
-| 5 | Build Grammar | Technology | DONE |
-| 6 | Knowledge Grammar | Information | DONE |
-| 7 | Alignment Grammar | Ethics | DONE |
-| 8 | Identity Grammar | Identity | DONE |
-| 9 | Bond Grammar | Relationship | DONE |
-| 10 | Belonging Grammar | Community | DONE |
-| 11 | Meaning Grammar | Governance | DONE |
-| 12 | Evolution Grammar | Culture | DONE |
-| 13 | Being Grammar | Existence | DONE |
+| # | Grammar | Layer | Operations | Named Functions | Status |
+|---|---------|-------|------------|-----------------|--------|
+| 1 | WorkGrammar | Agency | 12 (Intend, Decompose, Assign, Claim, Block, Unblock, Progress, Complete, Review, ...) | Sprint, Escalate, DelegateAndVerify | DONE |
+| 2 | MarketGrammar | Exchange | 14 (List, Bid, Inquire, Negotiate, Accept, Decline, Invoice, Pay, Deliver, Confirm, Rate, Dispute, Escrow, Release) | Auction, Milestone | DONE |
+| 3 | SocialGrammar | Society | 5 (Norm, Moderate, Elect, Welcome, Exile) | Poll, Federation | DONE |
+| 4 | JusticeGrammar | Legal | 12 (Legislate, Amend, Repeal, File, Submit, Argue, Judge, Appeal, Enforce, Audit, Pardon, Reform) | Trial | DONE |
+| 5 | BuildGrammar | Technology | 12 (Build, Version, Ship, Sunset, Define, Automate, Test, Review, Measure, Feedback, Iterate, Innovate) | Pipeline, PostMortem | DONE |
+| 6 | KnowledgeGrammar | Information | 11 (Claim, Categorize, Abstract, Encode, Infer, Remember, Challenge, DetectBias, Correct, Trace, Learn) | Retract, FactCheck | DONE |
+| 7 | AlignmentGrammar | Ethics | 10 (Constrain, DetectHarm, AssessFairness, FlagDilemma, Weigh, Explain, Assign, Repair, Care, Grow) | EthicsAudit, RestorativeJustice | DONE |
+| 8 | IdentityGrammar | Identity | 10 (Introspect, Narrate, Align, Bound, Aspire, Transform, Disclose, Recognize, Distinguish, Memorialize) | IdentityAudit, Retirement | DONE |
+| 9 | BondGrammar | Relationship | 10 (Connect, Balance, Deepen, Open, Attune, FeelWith, Break, Apologize, Reconcile, Mourn) | BetrayalRepair, CheckIn, Forgive | DONE |
+| 10 | BelongingGrammar | Community | 10 (Settle, Contribute, Include, Practice, Steward, Sustain, PassOn, Celebrate, Tell, Gift) | Onboard, Succession | DONE |
+| 11 | MeaningGrammar | Culture | 10 (Examine, Reframe, Question, Distill, Beautify, Liken, Lighten, Teach, Translate, Prophesy) | PostMortem, Mentorship | DONE |
+| 12 | EvolutionGrammar | Emergence | 10 (DetectPattern, Model, TraceLoop, WatchThreshold, Adapt, Select, Simplify, CheckIntegrity, AssessResilience, AlignPurpose) | SelfEvolve, HealthCheck | DONE |
+| 13 | BeingGrammar | Existence | 8 (Exist, Accept, ObserveChange, MapWeb, FaceMystery, HoldParadox, Marvel, AskWhy) | Contemplation, ExistentialAudit | DONE |
 
 ---
 

@@ -3,84 +3,61 @@ package compositions_test
 import (
 	"testing"
 
+	"github.com/lovyou-ai/eventgraph/go/pkg/compositions"
 	"github.com/lovyou-ai/eventgraph/go/pkg/event"
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
 )
 
-// TestBuildGrammar exercises the Build Grammar (Layer 5: Technology).
-// Operations: Build, Version, Ship, Sunset, Define, Automate, Test, Review,
-// Measure, Feedback, Iterate, Innovate.
-// Named functions: Pipeline, Post-Mortem.
 func TestBuildGrammar(t *testing.T) {
 	t.Run("BuildAndVersion", func(t *testing.T) {
 		env := newTestEnv(t)
+		build := compositions.NewBuildGrammar(env.grammar)
 		dev := env.actor("Developer", 1, event.ActorTypeHuman)
 
-		v1, _ := env.grammar.Emit(env.ctx, dev.ID(),
-			"artefact created: eventgraph-cli v1.0.0",
-			env.convID, []types.EventID{env.boot.ID()}, signer)
+		v1, _ := build.Build(env.ctx, dev.ID(), "eventgraph-cli v1.0.0",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		v2, _ := build.Version(env.ctx, dev.ID(),
+			"eventgraph-cli v1.1.0 — added JSON output", v1.ID(), env.convID, signer)
+		v3, _ := build.Version(env.ctx, dev.ID(),
+			"eventgraph-cli v2.0.0 — breaking: new config format", v2.ID(), env.convID, signer)
 
-		v2, _ := env.grammar.Derive(env.ctx, dev.ID(),
-			"artefact version: eventgraph-cli v1.1.0 — added JSON output",
-			v1.ID(), env.convID, signer)
-
-		v3, _ := env.grammar.Derive(env.ctx, dev.ID(),
-			"artefact version: eventgraph-cli v2.0.0 — breaking: new config format",
-			v2.ID(), env.convID, signer)
-
-		// Version chain: v3 → v2 → v1
 		ancestors := env.ancestors(v3.ID(), 10)
 		if !containsEvent(ancestors, v1.ID()) {
 			t.Error("v3 should trace to v1")
-		}
-		if !containsEvent(ancestors, v2.ID()) {
-			t.Error("v3 should trace to v2")
 		}
 		env.verifyChain()
 	})
 
 	t.Run("ShipAndSunset", func(t *testing.T) {
 		env := newTestEnv(t)
+		build := compositions.NewBuildGrammar(env.grammar)
 		dev := env.actor("Developer", 1, event.ActorTypeHuman)
 
-		artefact, _ := env.grammar.Emit(env.ctx, dev.ID(),
-			"artefact: auth-lib v1.0",
-			env.convID, []types.EventID{env.boot.ID()}, signer)
-
-		shipped, _ := env.grammar.Annotate(env.ctx, dev.ID(),
-			artefact.ID(), "status", "shipped: available in package registry",
-			env.convID, signer)
-
-		replacement, _ := env.grammar.Derive(env.ctx, dev.ID(),
-			"artefact: auth-lib-v2 v2.0 — replacement for auth-lib",
-			artefact.ID(), env.convID, signer)
-
-		sunset, _ := env.grammar.Annotate(env.ctx, dev.ID(),
-			artefact.ID(), "deprecated",
-			"sunset: replaced by auth-lib-v2, removal date 2026-09-01",
-			env.convID, signer)
+		artefact, _ := build.Build(env.ctx, dev.ID(), "auth-lib v1.0",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		shipped, _ := build.Ship(env.ctx, dev.ID(), "auth-lib v1.0 to package registry",
+			[]types.EventID{artefact.ID()}, env.convID, signer)
+		sunset, _ := build.Sunset(env.ctx, dev.ID(), artefact.ID(),
+			"replaced by auth-lib-v2, removal date 2026-09-01", env.convID, signer)
 
 		_ = shipped
 		_ = sunset
-		_ = replacement
 		env.verifyChain()
 	})
 
 	t.Run("TestAndReview", func(t *testing.T) {
 		env := newTestEnv(t)
+		build := compositions.NewBuildGrammar(env.grammar)
 		dev := env.actor("Developer", 1, event.ActorTypeHuman)
 		reviewer := env.actor("Reviewer", 2, event.ActorTypeHuman)
 
-		code, _ := env.grammar.Emit(env.ctx, dev.ID(),
-			"code: auth module implementation",
-			env.convID, []types.EventID{env.boot.ID()}, signer)
-
-		testResult, _ := env.grammar.Derive(env.ctx, dev.ID(),
-			"test results: 45/45 passing, coverage 91%, no regressions",
-			code.ID(), env.convID, signer)
-
-		review, _ := env.grammar.Respond(env.ctx, reviewer.ID(),
-			"review: code quality good, tests comprehensive, approved",
+		code, _ := build.Build(env.ctx, dev.ID(), "auth module implementation",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		testResult, _ := build.Test(env.ctx, dev.ID(),
+			"45/45 passing, coverage 91%, no regressions",
+			[]types.EventID{code.ID()}, env.convID, signer)
+		review, _ := build.Review(env.ctx, reviewer.ID(),
+			"code quality good, tests comprehensive, approved",
 			testResult.ID(), env.convID, signer)
 
 		ancestors := env.ancestors(review.ID(), 10)
@@ -92,25 +69,19 @@ func TestBuildGrammar(t *testing.T) {
 
 	t.Run("FeedbackAndIterate", func(t *testing.T) {
 		env := newTestEnv(t)
+		build := compositions.NewBuildGrammar(env.grammar)
 		dev := env.actor("Developer", 1, event.ActorTypeHuman)
-		user := env.actor("User", 3, event.ActorTypeHuman)
 
-		v1, _ := env.grammar.Emit(env.ctx, dev.ID(),
-			"shipped: CLI tool v1.0",
-			env.convID, []types.EventID{env.boot.ID()}, signer)
-
-		feedback, _ := env.grammar.Respond(env.ctx, user.ID(),
-			"feedback: output is hard to read, needs colour coding and table format",
+		v1, _ := build.Ship(env.ctx, dev.ID(), "CLI tool v1.0",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		feedback, _ := build.Feedback(env.ctx, dev.ID(),
+			"output is hard to read, needs colour coding and table format",
 			v1.ID(), env.convID, signer)
-
-		v2, _ := env.grammar.Derive(env.ctx, dev.ID(),
-			"iterated: CLI tool v1.1 — added colour output and table format",
+		v2, _ := build.Iterate(env.ctx, dev.ID(),
+			"CLI tool v1.1 — added colour output and table format",
 			feedback.ID(), env.convID, signer)
 
 		ancestors := env.ancestors(v2.ID(), 10)
-		if !containsEvent(ancestors, feedback.ID()) {
-			t.Error("iteration should trace to feedback")
-		}
 		if !containsEvent(ancestors, v1.ID()) {
 			t.Error("iteration should trace to v1")
 		}
@@ -119,61 +90,77 @@ func TestBuildGrammar(t *testing.T) {
 
 	t.Run("Pipeline", func(t *testing.T) {
 		env := newTestEnv(t)
+		build := compositions.NewBuildGrammar(env.grammar)
 		ci := env.actor("CI", 1, event.ActorTypeAI)
 
-		commit, _ := env.grammar.Emit(env.ctx, ci.ID(),
-			"commit: abc123 pushed to main",
-			env.convID, []types.EventID{env.boot.ID()}, signer)
+		result, err := build.Pipeline(env.ctx, ci.ID(),
+			"build+test+lint for commit abc123",
+			"234/234 passing, coverage 88%",
+			"0 lint issues, build time 45s",
+			"staging deployment successful",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Pipeline: %v", err)
+		}
 
-		build, _ := env.grammar.Derive(env.ctx, ci.ID(),
-			"build: compiled successfully, 0 warnings",
-			commit.ID(), env.convID, signer)
-		test, _ := env.grammar.Derive(env.ctx, ci.ID(),
-			"test: 234/234 passing, coverage 88%",
-			build.ID(), env.convID, signer)
-		lint, _ := env.grammar.Derive(env.ctx, ci.ID(),
-			"lint: 0 issues found",
-			test.ID(), env.convID, signer)
-		deploy, _ := env.grammar.Derive(env.ctx, ci.ID(),
-			"deploy: staging deployment successful",
-			lint.ID(), env.convID, signer)
-
-		// Pipeline chain: deploy → lint → test → build → commit
-		ancestors := env.ancestors(deploy.ID(), 10)
-		if !containsEvent(ancestors, commit.ID()) {
-			t.Error("deploy should trace to commit")
+		ancestors := env.ancestors(result.Deployment.ID(), 10)
+		if !containsEvent(ancestors, result.Definition.ID()) {
+			t.Error("deployment should trace to definition")
 		}
 		env.verifyChain()
 	})
 
 	t.Run("PostMortem", func(t *testing.T) {
 		env := newTestEnv(t)
+		build := compositions.NewBuildGrammar(env.grammar)
 		lead := env.actor("Lead", 1, event.ActorTypeHuman)
 		eng1 := env.actor("Eng1", 2, event.ActorTypeHuman)
 		eng2 := env.actor("Eng2", 3, event.ActorTypeHuman)
 
-		incident, _ := env.grammar.Emit(env.ctx, env.system,
-			"incident: 45-minute production outage due to database connection pool exhaustion",
-			env.convID, []types.EventID{env.boot.ID()}, signer)
+		incident, _ := build.Build(env.ctx, lead.ID(),
+			"incident: 45-minute production outage",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
 
-		fb1, _ := env.grammar.Respond(env.ctx, eng1.ID(),
-			"feedback: connection pool was set to default 10, needs 50+ for our load",
+		result, err := build.PostMortem(env.ctx, lead.ID(),
+			[]types.ActorID{eng1.ID(), eng2.ID()},
+			[]string{
+				"connection pool was set to default 10, needs 50+",
+				"monitoring didn't alert until connections were fully exhausted",
+			},
+			"root cause was under-provisioned connection pool + late alerting",
+			"1) increase pool to 100 2) add connection utilisation alert at 80%",
 			incident.ID(), env.convID, signer)
-		fb2, _ := env.grammar.Respond(env.ctx, eng2.ID(),
-			"feedback: monitoring didn't alert until connections were fully exhausted",
-			incident.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("PostMortem: %v", err)
+		}
 
-		analysis, _ := env.grammar.Merge(env.ctx, lead.ID(),
-			"post-mortem: root cause was under-provisioned connection pool + late alerting",
-			[]types.EventID{fb1.ID(), fb2.ID()}, env.convID, signer)
-
-		actions, _ := env.grammar.Derive(env.ctx, lead.ID(),
-			"improvement actions: 1) increase pool to 100 2) add connection utilisation alert at 80%",
-			analysis.ID(), env.convID, signer)
-
-		ancestors := env.ancestors(actions.ID(), 10)
+		if len(result.Feedback) != 2 {
+			t.Errorf("expected 2 feedback events, got %d", len(result.Feedback))
+		}
+		ancestors := env.ancestors(result.Improvements.ID(), 10)
 		if !containsEvent(ancestors, incident.ID()) {
-			t.Error("actions should trace to incident")
+			t.Error("improvements should trace to incident")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("MeasureAndInnovate", func(t *testing.T) {
+		env := newTestEnv(t)
+		build := compositions.NewBuildGrammar(env.grammar)
+		dev := env.actor("Developer", 1, event.ActorTypeHuman)
+
+		artefact, _ := build.Build(env.ctx, dev.ID(), "query engine v1",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		measure, _ := build.Measure(env.ctx, dev.ID(), artefact.ID(),
+			"latency p50=12ms p99=45ms, throughput 10k qps",
+			env.convID, signer)
+		innovation, _ := build.Innovate(env.ctx, dev.ID(),
+			"vectorized query processing — 5x throughput improvement",
+			[]types.EventID{measure.ID()}, env.convID, signer)
+
+		ancestors := env.ancestors(innovation.ID(), 10)
+		if !containsEvent(ancestors, artefact.ID()) {
+			t.Error("innovation should trace to original artefact")
 		}
 		env.verifyChain()
 	})
