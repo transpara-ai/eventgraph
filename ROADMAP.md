@@ -197,21 +197,102 @@ The 45 foundation primitives in 11 groups. Each primitive needs: implementation,
 
 ---
 
-## Phase 3: Communication Protocol
+## Phase 3: Communication Protocol — DONE
 
-Inter-primitive communication within a single system.
+Inter-primitive communication is the event graph itself. Primitives communicate by emitting events (via `AddEvent` mutations), and the tick engine routes those events to primitives whose `Subscriptions()` patterns match. This is already fully implemented:
 
-- [ ] `go/pkg/protocol/message.go` — Four event types: MessageSent, MessageReceived, Decision, Action
-- [ ] `go/pkg/protocol/listen_say.go` — Listen/Say interface for communicator primitives
-- [ ] `go/pkg/protocol/router.go` — Semantic routing (Self primitive routes to relevant domain primitives)
-- [ ] `go/pkg/protocol/knowledge.go` — Three-layer knowledge architecture (context, memory, structural change)
-- [ ] Tests for all of the above
+- [x] **Message passing** — primitives emit typed events, tick engine delivers to subscribers
+- [x] **Listen/Say** — `Subscriptions()` defines what a primitive listens for; `AddEvent` mutations are how it speaks
+- [x] **Routing** — tick engine matches event types to subscription patterns, respects layer ordering
+- [x] **Knowledge architecture** — per-tick snapshots (context), primitive state (memory), lifecycle mutations (structural change)
+
+The subscription contracts for all 201 primitives are specified in `docs/primitives.md`.
 
 ---
 
-## Phase 4: EGIP (Inter-System Protocol)
+## Phase 4: Layers 1-13
 
-Sovereign systems communicating across graph boundaries.
+Each layer has 12 primitives in 3 groups of 4. Layer N depends on Layer N-1 being stable. Each primitive's subscriptions, emitted events, dependencies, and state are specified in `docs/primitives.md`.
+
+### Layer 1 — Agency (Observer → Participant)
+- [x] Specification (`docs/layers/01-agency.md`)
+- [ ] 12 primitives implementation + tests
+
+### Layer 2 — Exchange (Individual → Dyad)
+- [x] Specification (`docs/layers/02-exchange.md`)
+- [ ] 12 primitives implementation + tests
+
+### Layer 3 — Society (Dyad → Group)
+- [x] Specification (`docs/layers/03-society.md`)
+- [ ] 12 primitives implementation + tests
+
+### Layer 4 — Legal (Informal → Formal)
+- [x] Specification (`docs/layers/04-legal.md`)
+- [ ] 12 primitives implementation + tests
+
+### Layer 5 — Technology (Governing → Building)
+- [x] Specification (`docs/layers/05-technology.md`)
+- [ ] 12 primitives implementation + tests
+
+### Layer 6 — Information (Physical → Symbolic)
+- [x] Specification (`docs/layers/06-information.md`)
+- [ ] 12 primitives implementation + tests
+
+### Layer 7 — Ethics (Is → Ought)
+- [x] Specification (`docs/layers/07-ethics.md`)
+- [ ] 12 primitives implementation + tests
+
+### Layer 8 — Identity (Doing → Being)
+- [x] Specification (`docs/layers/08-identity.md`)
+- [ ] 12 primitives implementation + tests
+
+### Layer 9 — Relationship (Self → Self-with-Other)
+- [x] Specification (`docs/layers/09-relationship.md`)
+- [ ] 12 primitives implementation + tests
+
+### Layer 10 — Community (Relationship → Belonging)
+- [x] Specification (`docs/layers/10-community.md`)
+- [ ] 12 primitives implementation + tests
+
+### Layer 11 — Culture (Living → Seeing)
+- [x] Specification (`docs/layers/11-culture.md`)
+- [ ] 12 primitives implementation + tests
+
+### Layer 12 — Emergence (Content → Architecture)
+- [x] Specification (`docs/layers/12-emergence.md`)
+- [ ] 12 primitives implementation + tests
+
+### Layer 13 — Existence (Everything → The Fact of Everything)
+- [x] Specification (`docs/layers/13-existence.md`)
+- [ ] 12 primitives implementation + tests
+
+### Integration Test Scenarios
+
+13 end-to-end scenarios exercising the full primitive stack through concrete use cases. Each scenario uses Layer 0 primitives + social grammar operations through a domain-specific story. Specified in `docs/tests/primitives/`.
+
+These require domain-specific event types and content types that emerge from implementing Layers 1-13. They double as example applications.
+
+| # | Scenario | Product Graph | Status |
+|---|----------|--------------|--------|
+| 1 | [AI Agent Audit Trail](docs/tests/primitives/01-agent-audit-trail.md) | Work / Ethics | NEEDED |
+| 2 | [Freelancer Reputation](docs/tests/primitives/02-freelancer-reputation.md) | Market | NEEDED |
+| 3 | [Consent-Based Journal](docs/tests/primitives/03-consent-journal.md) | Relationship | NEEDED |
+| 4 | [Community Governance](docs/tests/primitives/04-community-governance.md) | Governance | NEEDED |
+| 5 | [Supply Chain Transparency](docs/tests/primitives/05-supply-chain.md) | Work | NEEDED |
+| 6 | [Research Integrity](docs/tests/primitives/06-research-integrity.md) | Research | NEEDED |
+| 7 | [Creator Provenance](docs/tests/primitives/07-creator-provenance.md) | Culture | NEEDED |
+| 8 | [Family Decision Log](docs/tests/primitives/08-family-decision-log.md) | Social | NEEDED |
+| 9 | [Knowledge Verification](docs/tests/primitives/09-knowledge-verification.md) | Knowledge | NEEDED |
+| 10 | [AI Ethics Audit](docs/tests/primitives/10-ai-ethics-audit.md) | Ethics | NEEDED |
+| 11 | [Agent Identity Lifecycle](docs/tests/primitives/11-agent-identity-lifecycle.md) | Identity | NEEDED |
+| 12 | [Community Lifecycle](docs/tests/primitives/12-community-lifecycle.md) | Community | NEEDED |
+| 13 | [System Self-Evolution](docs/tests/primitives/13-system-self-evolution.md) | Emergence | NEEDED |
+
+---
+
+## Phase 5: EGIP (Inter-System Protocol)
+
+Sovereign systems communicating across graph boundaries. Deferred until the single-system event graph is complete and functional.
 
 - [ ] `go/pkg/protocol/egip/identity.go` — Ed25519 keypair, System URI
 - [ ] `go/pkg/protocol/egip/cger.go` — Cross-Graph Event Reference
@@ -221,64 +302,6 @@ Sovereign systems communicating across graph boundaries.
 - [ ] `go/pkg/protocol/egip/trust.go` — Trust accumulation model
 - [ ] `go/pkg/protocol/egip/proof.go` — Integrity proofs (chain segment, event existence, chain summary)
 - [ ] Tests for all of the above
-
----
-
-## Phase 5: Layers 1-13
-
-Each layer has 12 primitives in 3 groups of 4. Layer N depends on Layer N-1 being stable.
-
-### Layer 1 — Agency (Observer → Participant)
-- [ ] Specification (`docs/layers/01-agency.md`)
-- [ ] 12 primitives implementation + tests
-
-### Layer 2 — Exchange (Individual → Dyad)
-- [ ] Specification (`docs/layers/02-exchange.md`)
-- [ ] 12 primitives implementation + tests
-
-### Layer 3 — Society (Dyad → Group)
-- [ ] Specification
-- [ ] 12 primitives implementation + tests
-
-### Layer 4 — Legal (Informal → Formal)
-- [ ] Specification
-- [ ] 12 primitives implementation + tests
-
-### Layer 5 — Technology (Governing → Building)
-- [ ] Specification
-- [ ] 12 primitives implementation + tests
-
-### Layer 6 — Information (Physical → Symbolic)
-- [ ] Specification
-- [ ] 12 primitives implementation + tests
-
-### Layer 7 — Ethics (Is → Ought)
-- [ ] Specification
-- [ ] 12 primitives implementation + tests
-
-### Layer 8 — Identity (Doing → Being)
-- [ ] Specification
-- [ ] 12 primitives implementation + tests
-
-### Layer 9 — Relationship (Self → Self-with-Other)
-- [ ] Specification
-- [ ] 12 primitives implementation + tests
-
-### Layer 10 — Community (Relationship → Belonging)
-- [ ] Specification
-- [ ] 12 primitives implementation + tests
-
-### Layer 11 — Culture (Living → Seeing)
-- [ ] Specification
-- [ ] 12 primitives implementation + tests
-
-### Layer 12 — Emergence (Content → Architecture)
-- [ ] Specification
-- [ ] 12 primitives implementation + tests
-
-### Layer 13 — Existence (Everything → The Fact of Everything)
-- [ ] Specification
-- [ ] 12 primitives implementation + tests
 
 ---
 

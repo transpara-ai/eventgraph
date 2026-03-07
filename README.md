@@ -1,6 +1,6 @@
 # EventGraph
 
-> **Status: Phase 1 complete.** The Go reference implementation is fully built — event graph core, decision trees, trust model, authority chains, tick engine, social grammar, and both in-memory and PostgreSQL stores pass all conformance tests. See `ROADMAP.md` for what's next.
+> **Status: Phases 1-3 complete.** The Go reference implementation is fully built — event graph core, 45 Layer 0 primitives, decision trees, trust model, authority chains, tick engine, social grammar, and both in-memory and PostgreSQL stores pass all tests. Layers 1-13 are next. See `ROADMAP.md` for what's next.
 
 A hash-chained, append-only, causal event graph. The foundation for building systems where every action is signed, auditable, and causally linked.
 
@@ -125,10 +125,10 @@ All packages pass tests with the Go race detector. Both store implementations pa
 | Phase | What | Status |
 |-------|------|--------|
 | 1 | Foundation (event graph core, stores, decision trees, trust, authority, tick engine) | **Done** |
-| 2 | Layer 0 Primitives (45 foundation primitives in 11 groups) | Next |
-| 3 | Communication Protocol (inter-primitive messaging, semantic routing) | Planned |
-| 4 | EGIP (inter-system protocol — sovereign systems communicating across graph boundaries) | Planned |
-| 5 | Layers 1-13 (156 primitives across 13 cognitive layers) | Planned |
+| 2 | Layer 0 Primitives (45 foundation primitives in 11 groups) | **Done** |
+| 3 | Communication Protocol (tick engine + bus + subscription patterns) | **Done** |
+| 4 | Layers 1-13 (156 primitives across 13 cognitive layers) | Next |
+| 5 | EGIP (inter-system protocol — sovereign systems communicating across graph boundaries) | Planned |
 | 6 | Language Packages (Rust, Python, .NET — conformance-tested) | Planned |
 | 7 | Documentation & Examples | Planned |
 
