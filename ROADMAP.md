@@ -210,83 +210,70 @@ The subscription contracts for all 201 primitives are specified in `docs/primiti
 
 ---
 
-## Phase 4: Layers 1-13
+## Phase 4: Layers 1-13 — DONE
 
-Each layer has 12 primitives in 3 groups of 4. Layer N depends on Layer N-1 being stable. Each primitive's subscriptions, emitted events, dependencies, and state are specified in `docs/primitives.md`.
+156 primitives across 13 layers (12 per layer, 3 groups of 4). Each implements the Primitive interface with correct layer, subscriptions matching `docs/primitives.md`, and state-tracking Process methods. All mechanical implementations — intelligent behaviour (IIntelligence, IDecisionMaker) will be wired when those interfaces are needed.
 
-### Layer 1 — Agency (Observer → Participant)
-- [x] Specification (`docs/layers/01-agency.md`)
-- [ ] 12 primitives implementation + tests
+### Layer 1 — Agency (Observer → Participant) — DONE
+- [x] `go/pkg/primitive/layer1/` — Goal, Plan, Initiative, Commitment, Focus, Filter, Salience, Distraction, Permission, Capability, Delegation, Accountability
 
-### Layer 2 — Exchange (Individual → Dyad)
-- [x] Specification (`docs/layers/02-exchange.md`)
-- [ ] 12 primitives implementation + tests
+### Layer 2 — Exchange (Individual → Dyad) — DONE
+- [x] `go/pkg/primitive/layer2/` — Message, Acknowledgement, Clarification, Context, Offer, Acceptance, Obligation, Gratitude, Negotiation, Consent, Contract, Dispute
 
-### Layer 3 — Society (Dyad → Group)
-- [x] Specification (`docs/layers/03-society.md`)
-- [ ] 12 primitives implementation + tests
+### Layer 3 — Society (Dyad → Group) — DONE
+- [x] `go/pkg/primitive/layer3/` — Group, Role, Reputation, Exclusion, Vote, Consensus, Dissent, Majority, Convention, Norm, Sanction, Forgiveness
 
-### Layer 4 — Legal (Informal → Formal)
-- [x] Specification (`docs/layers/04-legal.md`)
-- [ ] 12 primitives implementation + tests
+### Layer 4 — Legal (Informal → Formal) — DONE
+- [x] `go/pkg/primitive/layer4/` — Rule, Jurisdiction, Precedent, Interpretation, Adjudication, Appeal, DueProcess, Rights, Audit, Enforcement, Amnesty, Reform
 
-### Layer 5 — Technology (Governing → Building)
-- [x] Specification (`docs/layers/05-technology.md`)
-- [ ] 12 primitives implementation + tests
+### Layer 5 — Technology (Governing → Building) — DONE
+- [x] `go/pkg/primitive/layer5/` — Create, Tool, Quality, Deprecation, Workflow, Automation, Testing, Review, Feedback, Iteration, Innovation, Legacy
 
-### Layer 6 — Information (Physical → Symbolic)
-- [x] Specification (`docs/layers/06-information.md`)
-- [ ] 12 primitives implementation + tests
+### Layer 6 — Information (Physical → Symbolic) — DONE
+- [x] `go/pkg/primitive/layer6/` — Symbol, Abstraction, Classification, Encoding, Fact, Inference, Memory, Learning, Narrative, Bias, Correction, Provenance
 
-### Layer 7 — Ethics (Is → Ought)
-- [x] Specification (`docs/layers/07-ethics.md`)
-- [ ] 12 primitives implementation + tests
+### Layer 7 — Ethics (Is → Ought) — DONE
+- [x] `go/pkg/primitive/layer7/` — Value, Harm, Fairness, Care, Dilemma, Proportionality, Intention, Consequence, Responsibility, Transparency, Redress, Growth
 
-### Layer 8 — Identity (Doing → Being)
-- [x] Specification (`docs/layers/08-identity.md`)
-- [ ] 12 primitives implementation + tests
+### Layer 8 — Identity (Doing → Being) — DONE
+- [x] `go/pkg/primitive/layer8/` — SelfModel, Authenticity, NarrativeIdentity, Boundary, Persistence, Transformation, Heritage, Aspiration, Dignity, Acknowledgement, Uniqueness, Memorial
 
-### Layer 9 — Relationship (Self → Self-with-Other)
-- [x] Specification (`docs/layers/09-relationship.md`)
-- [ ] 12 primitives implementation + tests
+### Layer 9 — Relationship (Self → Self-with-Other) — DONE
+- [x] `go/pkg/primitive/layer9/` — Attachment, Reciprocity, RelationalTrust, Rupture, Apology, Reconciliation, RelationalGrowth, Loss, Vulnerability, Understanding, Empathy, Presence
 
-### Layer 10 — Community (Relationship → Belonging)
-- [x] Specification (`docs/layers/10-community.md`)
-- [ ] 12 primitives implementation + tests
+### Layer 10 — Community (Relationship → Belonging) — DONE
+- [x] `go/pkg/primitive/layer10/` — Home, Contribution, Inclusion, Tradition, Commons, Sustainability, Succession, Renewal, Milestone, Ceremony, Story, Gift
 
-### Layer 11 — Culture (Living → Seeing)
-- [x] Specification (`docs/layers/11-culture.md`)
-- [ ] 12 primitives implementation + tests
+### Layer 11 — Culture (Living → Seeing) — DONE
+- [x] `go/pkg/primitive/layer11/` — SelfAwareness, Perspective, Critique, Wisdom, Aesthetic, Metaphor, Humour, Silence, Teaching, Translation, Archive, Prophecy
 
-### Layer 12 — Emergence (Content → Architecture)
-- [x] Specification (`docs/layers/12-emergence.md`)
-- [ ] 12 primitives implementation + tests
+### Layer 12 — Emergence (Content → Architecture) — DONE
+- [x] `go/pkg/primitive/layer12/` — MetaPattern, SystemDynamic, FeedbackLoop, Threshold, Adaptation, Selection, Complexification, Simplification, SystemicIntegrity, Harmony, Resilience, Purpose
 
-### Layer 13 — Existence (Everything → The Fact of Everything)
-- [x] Specification (`docs/layers/13-existence.md`)
-- [ ] 12 primitives implementation + tests
+### Layer 13 — Existence (Everything → The Fact of Everything) — DONE
+- [x] `go/pkg/primitive/layer13/` — Being, Finitude, Change, Interdependence, Mystery, Paradox, Infinity, Void, Awe, ExistentialGratitude, Play, Wonder
 
-### Integration Test Scenarios
+### Integration Test Scenarios — DONE
 
-13 end-to-end scenarios exercising the full primitive stack through concrete use cases. Each scenario uses Layer 0 primitives + social grammar operations through a domain-specific story. Specified in `docs/tests/primitives/`.
+13 end-to-end scenarios exercising the full primitive stack through concrete use cases. Each scenario uses social grammar operations + direct event recording through a domain-specific story. All tests in `go/pkg/integration/`.
 
-These require domain-specific event types and content types that emerge from implementing Layers 1-13. They double as example applications.
+Note: Scenario 5 (Supply Chain) is simplified to single-system provenance since EGIP is not yet built. It will be expanded when EGIP is implemented in Phase 5.
 
 | # | Scenario | Product Graph | Status |
 |---|----------|--------------|--------|
-| 1 | [AI Agent Audit Trail](docs/tests/primitives/01-agent-audit-trail.md) | Work / Ethics | NEEDED |
-| 2 | [Freelancer Reputation](docs/tests/primitives/02-freelancer-reputation.md) | Market | NEEDED |
-| 3 | [Consent-Based Journal](docs/tests/primitives/03-consent-journal.md) | Relationship | NEEDED |
-| 4 | [Community Governance](docs/tests/primitives/04-community-governance.md) | Governance | NEEDED |
-| 5 | [Supply Chain Transparency](docs/tests/primitives/05-supply-chain.md) | Work | NEEDED |
-| 6 | [Research Integrity](docs/tests/primitives/06-research-integrity.md) | Research | NEEDED |
-| 7 | [Creator Provenance](docs/tests/primitives/07-creator-provenance.md) | Culture | NEEDED |
-| 8 | [Family Decision Log](docs/tests/primitives/08-family-decision-log.md) | Social | NEEDED |
-| 9 | [Knowledge Verification](docs/tests/primitives/09-knowledge-verification.md) | Knowledge | NEEDED |
-| 10 | [AI Ethics Audit](docs/tests/primitives/10-ai-ethics-audit.md) | Ethics | NEEDED |
-| 11 | [Agent Identity Lifecycle](docs/tests/primitives/11-agent-identity-lifecycle.md) | Identity | NEEDED |
-| 12 | [Community Lifecycle](docs/tests/primitives/12-community-lifecycle.md) | Community | NEEDED |
-| 13 | [System Self-Evolution](docs/tests/primitives/13-system-self-evolution.md) | Emergence | NEEDED |
+| 1 | [AI Agent Audit Trail](docs/tests/primitives/01-agent-audit-trail.md) | Work / Ethics | DONE |
+| 2 | [Freelancer Reputation](docs/tests/primitives/02-freelancer-reputation.md) | Market | DONE |
+| 3 | [Consent-Based Journal](docs/tests/primitives/03-consent-journal.md) | Relationship | DONE |
+| 4 | [Community Governance](docs/tests/primitives/04-community-governance.md) | Governance | DONE |
+| 5 | [Supply Chain Transparency](docs/tests/primitives/05-supply-chain.md) | Work | DONE (single-system, EGIP deferred) |
+| 6 | [Research Integrity](docs/tests/primitives/06-research-integrity.md) | Research | DONE |
+| 7 | [Creator Provenance](docs/tests/primitives/07-creator-provenance.md) | Culture | DONE |
+| 8 | [Family Decision Log](docs/tests/primitives/08-family-decision-log.md) | Social | DONE |
+| 9 | [Knowledge Verification](docs/tests/primitives/09-knowledge-verification.md) | Knowledge | DONE |
+| 10 | [AI Ethics Audit](docs/tests/primitives/10-ai-ethics-audit.md) | Ethics | DONE |
+| 11 | [Agent Identity Lifecycle](docs/tests/primitives/11-agent-identity-lifecycle.md) | Identity | DONE |
+| 12 | [Community Lifecycle](docs/tests/primitives/12-community-lifecycle.md) | Community | DONE |
+| 13 | [System Self-Evolution](docs/tests/primitives/13-system-self-evolution.md) | Emergence | DONE |
 
 ---
 

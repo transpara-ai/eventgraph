@@ -1,6 +1,6 @@
 # EventGraph
 
-> **Status: Phases 1-3 complete.** The Go reference implementation is fully built — event graph core, 45 Layer 0 primitives, decision trees, trust model, authority chains, tick engine, social grammar, and both in-memory and PostgreSQL stores pass all tests. Layers 1-13 are next. See `ROADMAP.md` for what's next.
+> **Status: Phases 1-4 complete + integration tests.** The Go reference implementation is fully built — event graph core, all 201 primitives across 14 layers, decision trees, trust model, authority chains, tick engine, social grammar, 13 end-to-end integration scenarios, and both in-memory and PostgreSQL stores pass all tests. EGIP inter-system protocol is next. See `ROADMAP.md` for what's next.
 
 A hash-chained, append-only, causal event graph. The foundation for building systems where every action is signed, auditable, and causally linked.
 
@@ -117,6 +117,7 @@ The full Go reference implementation:
 | `graph` | Top-level facade (IGraph), query interface | ~400 |
 | `grammar` | 15 social grammar operations + 3 named functions | ~300 |
 | `actor` | Actor registration, lifecycle, in-memory actor store | ~300 |
+| `integration` | 13 end-to-end scenarios (audit trail, reputation, governance, provenance, ethics, identity, evolution) | ~1500 |
 
 All packages pass tests with the Go race detector. Both store implementations pass the shared conformance suite (25 tests covering append, get, query, pagination, causal traversal, hash chain verification, edge indexing, concurrent access).
 
@@ -127,8 +128,8 @@ All packages pass tests with the Go race detector. Both store implementations pa
 | 1 | Foundation (event graph core, stores, decision trees, trust, authority, tick engine) | **Done** |
 | 2 | Layer 0 Primitives (45 foundation primitives in 11 groups) | **Done** |
 | 3 | Communication Protocol (tick engine + bus + subscription patterns) | **Done** |
-| 4 | Layers 1-13 (156 primitives across 13 cognitive layers) | Next |
-| 5 | EGIP (inter-system protocol — sovereign systems communicating across graph boundaries) | Planned |
+| 4 | Layers 1-13 (156 primitives across 13 cognitive layers) | **Done** |
+| 5 | EGIP (inter-system protocol — sovereign systems communicating across graph boundaries) | Next |
 | 6 | Language Packages (Rust, Python, .NET — conformance-tested) | Planned |
 | 7 | Documentation & Examples | Planned |
 
