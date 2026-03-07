@@ -1,6 +1,8 @@
 package authority
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 
 	"github.com/lovyou-ai/eventgraph/go/pkg/actor"
@@ -32,7 +34,10 @@ func grantAndPersist(s store.Store, factory *event.EventFactory, signer event.Si
 	}
 	causes := []types.EventID{headOpt.Unwrap().ID()}
 
-	convID := types.MustConversationID("conv_authority_000000000000000000001")
+	convID, err := newGrantConversationID()
+	if err != nil {
+		return event.Edge{}, fmt.Errorf("generate grant conversation ID: %w", err)
+	}
 
 	ev, err := factory.Create(
 		event.EventTypeEdgeCreated, from.ID(), content, causes,
@@ -64,4 +69,13 @@ func grantAndPersist(s store.Store, factory *event.EventFactory, signer event.Si
 	}
 
 	return edge, nil
+}
+
+// newGrantConversationID generates a unique conversation ID for a grant operation.
+func newGrantConversationID() (types.ConversationID, error) {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return types.ConversationID{}, err
+	}
+	return types.NewConversationID("conv_grant_" + hex.EncodeToString(b[:]))
 }

@@ -101,6 +101,7 @@ func (e *Engine) Tick(pendingEvents []event.Event) (Result, error) {
 	totalMutations := 0
 	waveEvents := pendingEvents
 	wavesRun := 0
+	quiesced := false
 	invokedThisTick := make(map[types.PrimitiveID]bool)
 
 	for wavesRun < e.config.MaxWavesPerTick {
@@ -109,7 +110,8 @@ func (e *Engine) Tick(pendingEvents []event.Event) (Result, error) {
 		wavesRun++
 
 		if len(waveMutations) == 0 {
-			break // quiescence
+			quiesced = true
+			break
 		}
 
 		totalMutations += len(waveMutations)
@@ -121,7 +123,8 @@ func (e *Engine) Tick(pendingEvents []event.Event) (Result, error) {
 		allMutationErrors = append(allMutationErrors, errs...)
 
 		if len(newEvents) == 0 {
-			break // quiescence — mutations but no new events
+			quiesced = true
+			break
 		}
 
 		waveEvents = newEvents
@@ -129,8 +132,6 @@ func (e *Engine) Tick(pendingEvents []event.Event) (Result, error) {
 		copy(pendingCopy, waveEvents)
 		snapshot.PendingEvents = pendingCopy
 	}
-
-	quiesced := wavesRun < e.config.MaxWavesPerTick
 
 	// 3. Apply deferred (non-AddEvent) mutations
 	deferredErrors := e.applyMutations(deferredMutations, tick)

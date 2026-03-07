@@ -51,7 +51,7 @@ func (c *DelegationChain) Evaluate(ctx context.Context, a actor.IActor, action s
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	chain, err := c.walkChain(ctx, a.ID(), action, nil)
+	chain, err := c.walkChain(ctx, a.ID(), action, nil, 0)
 	if err != nil {
 		return AuthorityResult{}, err
 	}
@@ -93,7 +93,7 @@ func (c *DelegationChain) Chain(ctx context.Context, a actor.IActor, action stri
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	chain, err := c.walkChain(ctx, a.ID(), action, nil)
+	chain, err := c.walkChain(ctx, a.ID(), action, nil, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,8 @@ func (c *DelegationChain) Revoke(_ context.Context, _ actor.IActor, _ actor.IAct
 
 // walkChain recursively walks Authority edges from the given actor, building
 // the delegation chain. Weight propagates multiplicatively through the chain.
-func (c *DelegationChain) walkChain(ctx context.Context, actorID types.ActorID, action string, visited map[types.ActorID]bool) ([]event.AuthorityLink, error) {
+// depth tracks current path depth (not total actors visited across branches).
+func (c *DelegationChain) walkChain(ctx context.Context, actorID types.ActorID, action string, visited map[types.ActorID]bool, depth int) ([]event.AuthorityLink, error) {
 	if visited == nil {
 		visited = make(map[types.ActorID]bool)
 	}
@@ -129,7 +130,7 @@ func (c *DelegationChain) walkChain(ctx context.Context, actorID types.ActorID, 
 	if visited[actorID] {
 		return nil, nil // cycle detected
 	}
-	if len(visited) >= MaxChainDepth {
+	if depth >= MaxChainDepth {
 		return nil, ErrChainDepthExceeded
 	}
 	visited[actorID] = true
@@ -187,7 +188,7 @@ func (c *DelegationChain) walkChain(ctx context.Context, actorID types.ActorID, 
 	}
 
 	// Walk up the chain from the delegator
-	parentChain, err := c.walkChain(ctx, bestEdge.From(), action, visited)
+	parentChain, err := c.walkChain(ctx, bestEdge.From(), action, visited, depth+1)
 	if err != nil {
 		return nil, err
 	}

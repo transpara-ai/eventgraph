@@ -68,6 +68,8 @@ func NewDefaultTrustModelWithConfig(config DefaultConfig) *DefaultTrustModel {
 	}
 }
 
+// getOrCreate returns the trust state for the actor, creating it if absent.
+// Caller must hold m.mu.Lock().
 func (m *DefaultTrustModel) getOrCreate(actorID types.ActorID) *trustState {
 	key := trustKey{actor: actorID.Value()}
 	if state, ok := m.scores[key]; ok {
@@ -83,27 +85,42 @@ func (m *DefaultTrustModel) getOrCreate(actorID types.ActorID) *trustState {
 	return state
 }
 
-func (m *DefaultTrustModel) Score(_ context.Context, a actor.IActor) (event.TrustMetrics, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+// getOrDefault returns the trust state for the actor, or a default if absent.
+// Caller must hold at least m.mu.RLock(). Does not mutate m.scores.
+func (m *DefaultTrustModel) getOrDefault(actorID types.ActorID) trustState {
+	key := trustKey{actor: actorID.Value()}
+	if state, ok := m.scores[key]; ok {
+		return *state
+	}
+	return trustState{
+		score:       m.config.InitialTrust,
+		byDomain:    make(map[types.DomainScope]types.Score),
+		lastUpdated: types.Now(),
+		trend:       types.MustWeight(0.0),
+	}
+}
 
-	state := m.getOrCreate(a.ID())
-	return m.buildMetrics(a.ID(), state), nil
+func (m *DefaultTrustModel) Score(_ context.Context, a actor.IActor) (event.TrustMetrics, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	state := m.getOrDefault(a.ID())
+	return m.buildMetrics(a.ID(), &state), nil
 }
 
 func (m *DefaultTrustModel) ScoreInDomain(_ context.Context, a actor.IActor, domain types.DomainScope) (event.TrustMetrics, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
-	state := m.getOrCreate(a.ID())
+	state := m.getOrDefault(a.ID())
 
 	// If domain-specific score exists, return metrics with that score
 	if domainScore, ok := state.byDomain[domain]; ok {
-		return m.buildDomainMetrics(a.ID(), state, domainScore), nil
+		return m.buildDomainMetrics(a.ID(), &state, domainScore), nil
 	}
 
 	// Fall back to global score with lower confidence
-	return m.buildMetrics(a.ID(), state), nil
+	return m.buildMetrics(a.ID(), &state), nil
 }
 
 func (m *DefaultTrustModel) Update(_ context.Context, a actor.IActor, evidence event.Event) (event.TrustMetrics, error) {

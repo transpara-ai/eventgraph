@@ -84,7 +84,11 @@ func (s *InMemoryStore) Append(ev event.Event) (event.Event, error) {
 
 	// Index edge-creating events
 	if ev.Type() == event.EventTypeEdgeCreated {
-		if ec, ok := ev.Content().(event.EdgeCreatedContent); ok {
+		ec, ok := ev.Content().(event.EdgeCreatedContent)
+		if !ok {
+			return event.Event{}, fmt.Errorf("edge.created event %s has wrong content type %T", ev.ID().Value(), ev.Content())
+		}
+		{
 			edgeID := types.MustEdgeID(ev.ID().Value())
 			// metadata is nil — EdgeCreatedContent does not carry typed metadata.
 			// Callers must nil-check Edge.Metadata() before calling methods on it.

@@ -85,12 +85,17 @@ func (a Actor) withStatus(status types.ActorStatus) Actor {
 
 // withUpdates returns a copy of the actor with updates applied.
 func (a Actor) withUpdates(u ActorUpdate) Actor {
+	// Always deep-copy metadata to preserve immutability.
+	md := make(map[string]any, len(a.metadata))
+	for k, v := range a.metadata {
+		md[k] = v
+	}
 	result := Actor{
 		id:          a.id,
 		publicKey:   a.publicKey,
 		displayName: a.displayName,
 		actorType:   a.actorType,
-		metadata:    a.metadata,
+		metadata:    md,
 		createdAt:   a.createdAt,
 		status:      a.status,
 	}
@@ -98,15 +103,9 @@ func (a Actor) withUpdates(u ActorUpdate) Actor {
 		result.displayName = u.DisplayName.Unwrap()
 	}
 	if u.Metadata.IsSome() {
-		// Shallow merge
-		merged := make(map[string]any, len(a.metadata))
-		for k, v := range a.metadata {
-			merged[k] = v
-		}
 		for k, v := range u.Metadata.Unwrap() {
-			merged[k] = v
+			result.metadata[k] = v
 		}
-		result.metadata = merged
 	}
 	return result
 }

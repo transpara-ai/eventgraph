@@ -1,6 +1,7 @@
 package event
 
 import (
+	"encoding/hex"
 	"fmt"
 
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
@@ -64,11 +65,15 @@ func (f *EventFactory) Create(
 	causesCopy := make([]types.EventID, len(causes))
 	copy(causesCopy, causes)
 
-	ev := Event{
+	timestamp := types.Now()
+
+	// Build a temporary event to compute canonical form, then construct
+	// the final immutable event via NewEvent with all fields.
+	tmp := Event{
 		version:        1,
 		id:             id,
 		eventType:      eventType,
-		timestamp:      types.Now(),
+		timestamp:      timestamp,
 		source:         source,
 		content:        content,
 		causes:         causesCopy,
@@ -76,20 +81,24 @@ func (f *EventFactory) Create(
 		prevHash:       prevHash,
 	}
 
-	canonical := CanonicalForm(ev)
+	canonical := CanonicalForm(tmp)
 	hash, err := ComputeHash(canonical)
 	if err != nil {
 		return Event{}, err
 	}
-	ev.hash = hash
 
-	sig, err := signer.Sign([]byte(canonical))
+	// Sign the hash bytes — binds signature to the exact hash value.
+	hashBytes, err := hex.DecodeString(hash.Value())
+	if err != nil {
+		return Event{}, fmt.Errorf("decode hash for signing: %w", err)
+	}
+	sig, err := signer.Sign(hashBytes)
 	if err != nil {
 		return Event{}, err
 	}
-	ev.signature = sig
 
-	return ev, nil
+	return NewEvent(1, id, eventType, timestamp, source, content, causesCopy,
+		conversationID, hash, prevHash, sig), nil
 }
 
 // BootstrapFactory creates the genesis event.
@@ -124,7 +133,9 @@ func (f *BootstrapFactory) Init(
 		Timestamp:    now,
 	}
 
-	ev := Event{
+	// Build a temporary event to compute canonical form, then construct
+	// the final immutable event via NewBootstrapEvent with all fields.
+	tmp := Event{
 		version:        1,
 		id:             id,
 		eventType:      EventTypeSystemBootstrapped,
@@ -136,18 +147,22 @@ func (f *BootstrapFactory) Init(
 		prevHash:       types.ZeroHash(),
 	}
 
-	canonical := CanonicalForm(ev)
+	canonical := CanonicalForm(tmp)
 	hash, err := ComputeHash(canonical)
 	if err != nil {
 		return Event{}, err
 	}
-	ev.hash = hash
 
-	sig, err := signer.Sign([]byte(canonical))
+	// Sign the hash bytes — binds signature to the exact hash value.
+	hashBytes, err := hex.DecodeString(hash.Value())
+	if err != nil {
+		return Event{}, fmt.Errorf("decode hash for signing: %w", err)
+	}
+	sig, err := signer.Sign(hashBytes)
 	if err != nil {
 		return Event{}, err
 	}
-	ev.signature = sig
 
-	return ev, nil
+	return NewBootstrapEvent(1, id, EventTypeSystemBootstrapped, now, systemActor,
+		content, convID, hash, sig), nil
 }

@@ -137,6 +137,9 @@ func evaluateLeaf(ctx context.Context, leaf *LeafNode, input EvaluateInput, path
 		tree.Stats.MechanicalHits++
 		tree.statsMu.Unlock()
 
+		if !leaf.Outcome.IsSome() {
+			return TreeResult{}, fmt.Errorf("mechanical leaf has no outcome (NeedsLLM=false but Outcome is None)")
+		}
 		outcome := leaf.Outcome.Unwrap()
 		return TreeResult{
 			Outcome:    outcome,

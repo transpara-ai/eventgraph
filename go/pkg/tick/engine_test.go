@@ -2,6 +2,7 @@ package tick_test
 
 import (
 	"fmt"
+	"sync"
 	"sync/atomic"
 	"testing"
 
@@ -319,6 +320,7 @@ func TestTickMutationProducesEvents(t *testing.T) {
 
 func TestTickLayerOrdering(t *testing.T) {
 	var order []string
+	var orderMu sync.Mutex
 
 	makeLayerPrim := func(name string, layer int) *testPrimitive {
 		return &testPrimitive{
@@ -329,7 +331,9 @@ func TestTickLayerOrdering(t *testing.T) {
 				types.MustSubscriptionPattern("*"),
 			},
 			processFunc: func(tk types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+				orderMu.Lock()
 				order = append(order, name)
+				orderMu.Unlock()
 				return nil, nil
 			},
 		}
