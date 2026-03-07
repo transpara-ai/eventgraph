@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
@@ -121,8 +122,11 @@ func (e Event) IsBootstrap() bool {
 // Format: version|prev_hash|causes|id|type|source|conversation_id|timestamp_nanos|content_json
 // Causes are sorted lexicographically and comma-separated. Empty for bootstrap events.
 func CanonicalForm(e Event) string {
+	// Use IsBootstrap() to decide prevHash inclusion, not IsZero().
+	// ZeroHash() (64 zeros) is a valid prevHash for the first non-bootstrap event
+	// on an empty chain and must appear in canonical form for cross-language conformance.
 	prevHash := ""
-	if !e.prevHash.IsZero() {
+	if !e.IsBootstrap() {
 		prevHash = e.prevHash.Value()
 	}
 
@@ -189,6 +193,9 @@ func sortedJSON(m map[string]any) string {
 		return "{}"
 	}
 
+	// Null/None fields are omitted from canonical form. This is safe because
+	// Option[T] marshals None as JSON null, making "None" and "absent" equivalent.
+	// All content types use Option[T] for optional fields, never bare pointers.
 	keys := make([]string, 0, len(m))
 	for k, v := range m {
 		if v == nil {
@@ -245,6 +252,8 @@ func formatCanonicalNumber(f float64) string {
 	if f == float64(int64(f)) && f >= -1e15 && f <= 1e15 {
 		return fmt.Sprintf("%d", int64(f))
 	}
-	s := fmt.Sprintf("%g", f)
-	return s
+	// Use strconv.FormatFloat with 'f' format and full precision for cross-language
+	// determinism. The %g format selects between %e and %f non-deterministically
+	// across languages, breaking hash conformance.
+	return strconv.FormatFloat(f, 'f', -1, 64)
 }

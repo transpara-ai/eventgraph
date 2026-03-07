@@ -135,6 +135,17 @@ func (e *InvalidCursorError) Error() string {
 }
 func (e *InvalidCursorError) storeError() {}
 
+// EdgeIndexError indicates a failure to index an edge from an edge.created event.
+type EdgeIndexError struct {
+	EventID types.EventID
+	Reason  string
+}
+
+func (e *EdgeIndexError) Error() string {
+	return fmt.Sprintf("edge index error for event %s: %s", e.EventID.Value(), e.Reason)
+}
+func (e *EdgeIndexError) storeError() {}
+
 // StoreUnavailableError indicates the backing store is unavailable.
 type StoreUnavailableError struct{ Reason string }
 
@@ -149,6 +160,7 @@ type StoreErrorVisitor interface {
 	VisitActorNotFound(*ActorNotFoundError)
 	VisitActorKeyNotFound(*ActorKeyNotFoundError)
 	VisitEdgeNotFound(*EdgeNotFoundError)
+	VisitEdgeIndex(*EdgeIndexError)
 	VisitDuplicateEvent(*DuplicateEventError)
 	VisitCausalLinkMissing(*CausalLinkMissingError)
 	VisitChainIntegrityViolation(*ChainIntegrityViolationError)
@@ -171,6 +183,7 @@ func (e *EventNotFoundError) Accept(v StoreErrorVisitor)           { v.VisitEven
 func (e *ActorNotFoundError) Accept(v StoreErrorVisitor)           { v.VisitActorNotFound(e) }
 func (e *ActorKeyNotFoundError) Accept(v StoreErrorVisitor)        { v.VisitActorKeyNotFound(e) }
 func (e *EdgeNotFoundError) Accept(v StoreErrorVisitor)            { v.VisitEdgeNotFound(e) }
+func (e *EdgeIndexError) Accept(v StoreErrorVisitor)               { v.VisitEdgeIndex(e) }
 func (e *DuplicateEventError) Accept(v StoreErrorVisitor)          { v.VisitDuplicateEvent(e) }
 func (e *CausalLinkMissingError) Accept(v StoreErrorVisitor)      { v.VisitCausalLinkMissing(e) }
 func (e *ChainIntegrityViolationError) Accept(v StoreErrorVisitor) { v.VisitChainIntegrityViolation(e) }

@@ -103,11 +103,17 @@ func (s *InMemoryStore) Append(ev event.Event) (event.Event, error) {
 	if ev.Type() == event.EventTypeEdgeCreated {
 		ec, ok := ev.Content().(event.EdgeCreatedContent)
 		if !ok {
-			return event.Event{}, fmt.Errorf("edge.created event %s has wrong content type %T", ev.ID().Value(), ev.Content())
+			return event.Event{}, &EdgeIndexError{
+				EventID: ev.ID(),
+				Reason:  fmt.Sprintf("wrong content type %T", ev.Content()),
+			}
 		}
 		edgeID, edgeIDErr := types.NewEdgeID(ev.ID().Value())
 		if edgeIDErr != nil {
-			return event.Event{}, fmt.Errorf("derive edge ID from event %s: %w", ev.ID().Value(), edgeIDErr)
+			return event.Event{}, &EdgeIndexError{
+				EventID: ev.ID(),
+				Reason:  fmt.Sprintf("derive edge ID: %v", edgeIDErr),
+			}
 		}
 		var newEdgeErr error
 		edge, newEdgeErr = event.NewEdge(
@@ -115,7 +121,10 @@ func (s *InMemoryStore) Append(ev event.Event) (event.Event, error) {
 			ec.Scope, nil, ev.Timestamp(), ec.ExpiresAt,
 		)
 		if newEdgeErr != nil {
-			return event.Event{}, fmt.Errorf("index edge: %w", newEdgeErr)
+			return event.Event{}, &EdgeIndexError{
+				EventID: ev.ID(),
+				Reason:  fmt.Sprintf("construct edge: %v", newEdgeErr),
+			}
 		}
 		hasEdge = true
 	}

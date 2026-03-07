@@ -118,6 +118,7 @@ func (c *storeErrorCollector) VisitEventNotFound(*store.EventNotFoundError)     
 func (c *storeErrorCollector) VisitActorNotFound(*store.ActorNotFoundError)                   { c.visited = "ActorNotFound" }
 func (c *storeErrorCollector) VisitActorKeyNotFound(*store.ActorKeyNotFoundError)             { c.visited = "ActorKeyNotFound" }
 func (c *storeErrorCollector) VisitEdgeNotFound(*store.EdgeNotFoundError)                     { c.visited = "EdgeNotFound" }
+func (c *storeErrorCollector) VisitEdgeIndex(*store.EdgeIndexError)                           { c.visited = "EdgeIndex" }
 func (c *storeErrorCollector) VisitDuplicateEvent(*store.DuplicateEventError)                 { c.visited = "DuplicateEvent" }
 func (c *storeErrorCollector) VisitCausalLinkMissing(*store.CausalLinkMissingError)           { c.visited = "CausalLinkMissing" }
 func (c *storeErrorCollector) VisitChainIntegrityViolation(*store.ChainIntegrityViolationError) { c.visited = "ChainIntegrityViolation" }
@@ -142,6 +143,7 @@ func TestStoreErrorVisitor(t *testing.T) {
 		{&store.ActorNotFoundError{ID: actorID}, "ActorNotFound"},
 		{&store.ActorKeyNotFoundError{KeyHex: "deadbeef"}, "ActorKeyNotFound"},
 		{&store.EdgeNotFoundError{From: actorID, To: actorID, EdgeType: event.EdgeTypeTrust}, "EdgeNotFound"},
+		{&store.EdgeIndexError{EventID: eventID, Reason: "test"}, "EdgeIndex"},
 		{&store.DuplicateEventError{ID: eventID}, "DuplicateEvent"},
 		{&store.CausalLinkMissingError{EventID: eventID, MissingCause: eventID}, "CausalLinkMissing"},
 		{&store.ChainIntegrityViolationError{Position: 0, Expected: hash, Actual: hash}, "ChainIntegrityViolation"},

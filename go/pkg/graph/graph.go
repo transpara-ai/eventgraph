@@ -121,14 +121,17 @@ func (g *Graph) Start() error {
 }
 
 // Close performs graceful shutdown.
+// Sets closed flag under lock, then releases the lock before calling bus.Close()
+// to prevent deadlock if a subscriber calls back into the Graph.
 func (g *Graph) Close() error {
 	g.mu.Lock()
-	defer g.mu.Unlock()
-
 	if g.closed {
+		g.mu.Unlock()
 		return nil
 	}
 	g.closed = true
+	g.mu.Unlock()
+
 	g.bus.Close()
 	g.store.Close()
 	return nil

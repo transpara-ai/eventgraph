@@ -90,12 +90,20 @@ func evaluateMechanical(n *InternalNode, input EvaluateInput) (DecisionNode, eve
 }
 
 func evaluateSemantic(ctx context.Context, n *InternalNode, input EvaluateInput, intelligence types.Option[IIntelligence]) (DecisionNode, event.PathStep, error) {
-	if !intelligence.IsSome() {
-		step := event.PathStep{
-			Condition: n.Condition,
-			Branch:    event.MatchValue{String: types.Some("default")},
+	defaultStep := event.PathStep{
+		Condition: n.Condition,
+		Branch:    event.MatchValue{String: types.Some("default")},
+	}
+
+	returnDefault := func() (DecisionNode, event.PathStep, error) {
+		if n.Default == nil {
+			return nil, event.PathStep{}, fmt.Errorf("no branch matched and no default node set for semantic condition on field %q", n.Condition.Field.Value())
 		}
-		return n.Default, step, nil
+		return n.Default, defaultStep, nil
+	}
+
+	if !intelligence.IsSome() {
+		return returnDefault()
 	}
 
 	intel := intelligence.Unwrap()
@@ -107,11 +115,7 @@ func evaluateSemantic(ctx context.Context, n *InternalNode, input EvaluateInput,
 	resp, err := intel.Reason(ctx, prompt, input.History)
 	if err != nil {
 		// Intelligence failed — fall through to default
-		step := event.PathStep{
-			Condition: n.Condition,
-			Branch:    event.MatchValue{String: types.Some("default")},
-		}
-		return n.Default, step, nil
+		return returnDefault()
 	}
 
 	// Check if response confidence meets threshold.
@@ -126,11 +130,7 @@ func evaluateSemantic(ctx context.Context, n *InternalNode, input EvaluateInput,
 		}
 	}
 
-	step := event.PathStep{
-		Condition: n.Condition,
-		Branch:    event.MatchValue{String: types.Some("default")},
-	}
-	return n.Default, step, nil
+	return returnDefault()
 }
 
 func evaluateLeaf(ctx context.Context, leaf *LeafNode, input EvaluateInput, path []event.PathStep, tree *DecisionTree, intelligence types.Option[IIntelligence]) (TreeResult, error) {
@@ -138,12 +138,9 @@ func evaluateLeaf(ctx context.Context, leaf *LeafNode, input EvaluateInput, path
 	leaf.Stats.HitCount++
 	leaf.mu.Unlock()
 
-	tree.statsMu.Lock()
-	tree.Stats.TotalHits++
-	tree.statsMu.Unlock()
-
 	if !leaf.NeedsLLM {
 		tree.statsMu.Lock()
+		tree.Stats.TotalHits++
 		tree.Stats.MechanicalHits++
 		tree.statsMu.Unlock()
 
@@ -160,13 +157,14 @@ func evaluateLeaf(ctx context.Context, leaf *LeafNode, input EvaluateInput, path
 	}
 
 	// Needs LLM
+	tree.statsMu.Lock()
+	tree.Stats.TotalHits++
+	tree.Stats.LLMHits++
+	tree.statsMu.Unlock()
+
 	if !intelligence.IsSome() {
 		return TreeResult{}, &IntelligenceUnavailableError{}
 	}
-
-	tree.statsMu.Lock()
-	tree.Stats.LLMHits++
-	tree.statsMu.Unlock()
 
 	leaf.mu.Lock()
 	leaf.Stats.LLMCallCount++
@@ -179,11 +177,11 @@ func evaluateLeaf(ctx context.Context, leaf *LeafNode, input EvaluateInput, path
 		return TreeResult{}, err
 	}
 
+	outcome := parseOutcome(resp.Content())
+
 	tree.statsMu.Lock()
 	tree.Stats.TotalTokens += resp.TokensUsed()
 	tree.statsMu.Unlock()
-
-	outcome := parseOutcome(resp.Content())
 
 	leaf.mu.Lock()
 	leaf.Stats.ResponseHistory = append(leaf.Stats.ResponseHistory, ResponseRecord{

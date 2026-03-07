@@ -163,8 +163,8 @@ func (m *DefaultTrustModel) Update(_ context.Context, a actor.IActor, evidence e
 		}
 	}
 
-	// Extract trust delta from the evidence event
-	delta := m.extractDelta(evidence)
+	// Extract trust delta from the evidence event, relative to current score
+	delta := m.extractDeltaForScore(evidence, state.score.Value())
 
 	// Clamp to MaxAdjustment
 	maxAdj := m.config.MaxAdjustment.Value()
@@ -233,7 +233,7 @@ func (m *DefaultTrustModel) UpdateBetween(_ context.Context, from actor.IActor, 
 		}
 	}
 
-	delta := m.extractDelta(evidence)
+	delta := m.extractDeltaForScore(evidence, state.score.Value())
 
 	maxAdj := m.config.MaxAdjustment.Value()
 	if delta > maxAdj {
@@ -279,10 +279,26 @@ func (m *DefaultTrustModel) Decay(_ context.Context, a actor.IActor, elapsed tim
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	days := elapsed.Hours() / 24
+	decayAmount := m.config.DecayRate.Value() * days
+	trendDecay := m.config.TrendDecayRate * days
+
+	// Decay undirected trust
 	key := trustKey{actor: a.ID().Value()}
 	state, ok := m.scores[key]
+	if ok {
+		m.decayState(state, decayAmount, trendDecay)
+	}
+
+	// Decay directed trust (both as source and target)
+	for dkey, dstate := range m.directed {
+		if dkey.from == a.ID().Value() || dkey.to == a.ID().Value() {
+			m.decayState(dstate, decayAmount, trendDecay)
+		}
+	}
+
 	if !ok {
-		// No trust state to decay — return defaults without creating state
+		// No undirected trust state — return defaults without creating state
 		defaults := trustState{
 			score:       m.config.InitialTrust,
 			byDomain:    make(map[types.DomainScope]types.Score),
@@ -292,18 +308,17 @@ func (m *DefaultTrustModel) Decay(_ context.Context, a actor.IActor, elapsed tim
 		return m.buildMetrics(a.ID(), &defaults), nil
 	}
 
-	days := elapsed.Hours() / 24
-	decayAmount := m.config.DecayRate.Value() * days
-	newScore := math.Max(0, state.score.Value()-decayAmount)
-	state.score = types.MustScore(newScore)
+	return m.buildMetrics(a.ID(), state), nil
+}
 
-	// Decay domain-specific scores
+// decayState applies linear decay to a trust state's score, domain scores, and trend.
+func (m *DefaultTrustModel) decayState(state *trustState, decayAmount, trendDecay float64) {
+	state.score = types.MustScore(math.Max(0, state.score.Value()-decayAmount))
+
 	for domain, ds := range state.byDomain {
 		state.byDomain[domain] = types.MustScore(math.Max(0, ds.Value()-decayAmount))
 	}
 
-	// Decay trend toward zero
-	trendDecay := m.config.TrendDecayRate * days
 	if state.trend.Value() > 0 {
 		state.trend = types.MustWeight(math.Max(0, state.trend.Value()-trendDecay))
 	} else if state.trend.Value() < 0 {
@@ -311,8 +326,6 @@ func (m *DefaultTrustModel) Decay(_ context.Context, a actor.IActor, elapsed tim
 	}
 
 	state.lastUpdated = types.Now()
-
-	return m.buildMetrics(a.ID(), state), nil
 }
 
 func (m *DefaultTrustModel) Between(_ context.Context, from actor.IActor, to actor.IActor) (event.TrustMetrics, error) {
@@ -370,10 +383,13 @@ func (m *DefaultTrustModel) buildMetrics(actorID types.ActorID, state *trustStat
 	)
 }
 
-func (m *DefaultTrustModel) extractDelta(ev event.Event) float64 {
-	// Extract trust delta from TrustUpdatedContent
+// extractDeltaForScore computes the trust adjustment from an evidence event
+// relative to the given current score. For TrustUpdatedContent, the delta moves
+// the score toward tc.Current (absolute target), not by tc.Current - tc.Previous
+// (which would double-apply if the model's current score has diverged from tc.Previous).
+func (m *DefaultTrustModel) extractDeltaForScore(ev event.Event, currentScore float64) float64 {
 	if tc, ok := ev.Content().(event.TrustUpdatedContent); ok {
-		return tc.Current.Value() - tc.Previous.Value()
+		return tc.Current.Value() - currentScore
 	}
 	// Small positive trust boost for any observed (non-trust) event
 	return m.config.ObservedEventDelta
