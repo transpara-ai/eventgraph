@@ -165,12 +165,24 @@ func (r *Registry) UpdateState(id types.PrimitiveID, key string, value any) erro
 	return nil
 }
 
-// Activate transitions a primitive from Dormant → Activating → Active.
+// Activate transitions a primitive from Dormant → Activating → Active atomically.
 func (r *Registry) Activate(id types.PrimitiveID) error {
-	if err := r.SetLifecycle(id, types.LifecycleActivating); err != nil {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	ms, ok := r.states[id]
+	if !ok {
+		return fmt.Errorf("primitive %q not found", id.Value())
+	}
+	activating, err := ms.lifecycle.TransitionTo(types.LifecycleActivating)
+	if err != nil {
 		return err
 	}
-	return r.SetLifecycle(id, types.LifecycleActive)
+	active, err := activating.TransitionTo(types.LifecycleActive)
+	if err != nil {
+		return err
+	}
+	ms.lifecycle = active
+	return nil
 }
 
 // Count returns the number of registered primitives.

@@ -72,10 +72,15 @@ func (b *EventBus) Subscribe(pattern types.SubscriptionPattern, handler func(eve
 		buffer:  ch,
 	}
 
-	// Start delivery goroutine
+	// Start delivery goroutine with panic recovery
 	go func() {
 		for ev := range ch {
-			handler(ev)
+			func() {
+				defer func() {
+					recover() // prevent subscriber panic from killing delivery goroutine
+				}()
+				handler(ev)
+			}()
 		}
 	}()
 

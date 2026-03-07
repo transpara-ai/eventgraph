@@ -2,6 +2,7 @@ package event
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
 )
@@ -536,7 +537,9 @@ type EventTypeRegistration struct {
 }
 
 // EventTypeRegistry maps event type strings to their content schemas.
+// Thread-safe for concurrent access.
 type EventTypeRegistry struct {
+	mu    sync.RWMutex
 	types map[string]EventTypeRegistration
 }
 
@@ -547,11 +550,15 @@ func NewEventTypeRegistry() *EventTypeRegistry {
 
 // Register adds an event type to the registry.
 func (r *EventTypeRegistry) Register(et types.EventType, validate func(EventContent) error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
 	r.types[et.Value()] = EventTypeRegistration{Type: et, Validate: validate}
 }
 
 // Validate checks that content matches the registered schema for the given type.
 func (r *EventTypeRegistry) Validate(et types.EventType, content EventContent) error {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	reg, ok := r.types[et.Value()]
 	if !ok {
 		return fmt.Errorf("unregistered event type: %s", et.Value())
@@ -567,12 +574,16 @@ func (r *EventTypeRegistry) Validate(et types.EventType, content EventContent) e
 
 // IsRegistered returns true if the event type is registered.
 func (r *EventTypeRegistry) IsRegistered(et types.EventType) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	_, ok := r.types[et.Value()]
 	return ok
 }
 
 // AllTypes returns all registered event types.
 func (r *EventTypeRegistry) AllTypes() []types.EventType {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
 	result := make([]types.EventType, 0, len(r.types))
 	for _, reg := range r.types {
 		result = append(result, reg.Type)

@@ -141,6 +141,8 @@ func ComputeHash(canonical string) (types.Hash, error) {
 
 // canonicalContentJSON serialises content to JSON with sorted keys, no whitespace,
 // null/None fields omitted.
+// Panics on marshal failure — content types are validated at construction,
+// so marshal failure is an unrecoverable invariant violation.
 func canonicalContentJSON(content EventContent) string {
 	if content == nil {
 		return "{}"
@@ -148,13 +150,13 @@ func canonicalContentJSON(content EventContent) string {
 
 	b, err := json.Marshal(content)
 	if err != nil {
-		return "{}"
+		panic(fmt.Sprintf("canonicalContentJSON: marshal failed for %T: %v", content, err))
 	}
 
 	// Re-parse to sort keys
 	var raw map[string]any
 	if err := json.Unmarshal(b, &raw); err != nil {
-		return string(b)
+		panic(fmt.Sprintf("canonicalContentJSON: re-parse failed for %T: %v", content, err))
 	}
 
 	return sortedJSON(raw)
