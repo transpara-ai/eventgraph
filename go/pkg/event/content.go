@@ -3,6 +3,7 @@ package event
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"sync"
 
@@ -339,7 +340,12 @@ func (c *HealthReportContent) UnmarshalJSON(data []byte) error {
 }
 
 // NewHealthReportContent creates a HealthReportContent with a defensive copy of the health map.
+// Panics if eventRate is NaN or Inf — these are not valid JSON numbers and would
+// break canonical form hashing.
 func NewHealthReportContent(overall types.Score, chainIntegrity bool, primitiveHealth map[types.PrimitiveID]types.Score, activeActors int, eventRate float64) HealthReportContent {
+	if math.IsNaN(eventRate) || math.IsInf(eventRate, 0) {
+		panic(fmt.Sprintf("NewHealthReportContent: eventRate must be finite, got %v", eventRate))
+	}
 	// Normalize: empty or nil map → nil, so that canonical form is consistent
 	// (omitempty omits nil maps; an empty non-nil map would emit "PrimitiveHealth":{}
 	// producing a different hash for semantically equivalent content).
@@ -506,10 +512,23 @@ func (c GrammarMergeContent) EventTypeName() string        { return "grammar.mer
 func (c GrammarMergeContent) Accept(v EventContentVisitor) { v.VisitGrammarMerge(c) }
 
 // GrammarConsentContent is emitted for a mutual, atomic, dual-signed event.
+// Parties are sorted lexicographically for deterministic hashing.
+// Use NewGrammarConsentContent to ensure sorting.
 type GrammarConsentContent struct {
 	Parties   [2]types.ActorID  `json:"Parties"`
 	Agreement string            `json:"Agreement"`
 	Scope     types.DomainScope `json:"Scope"`
+}
+
+// NewGrammarConsentContent creates a GrammarConsentContent with Parties sorted
+// lexicographically. This ensures consent(A,B) and consent(B,A) produce
+// identical hashes for the same agreement.
+func NewGrammarConsentContent(partyA, partyB types.ActorID, agreement string, scope types.DomainScope) GrammarConsentContent {
+	parties := [2]types.ActorID{partyA, partyB}
+	if partyA.Value() > partyB.Value() {
+		parties[0], parties[1] = partyB, partyA
+	}
+	return GrammarConsentContent{Parties: parties, Agreement: agreement, Scope: scope}
 }
 
 func (c GrammarConsentContent) EventTypeName() string        { return "grammar.consent" }

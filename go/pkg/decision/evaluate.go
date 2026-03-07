@@ -42,13 +42,27 @@ func Evaluate(ctx context.Context, tree *DecisionTree, input EvaluateInput, inte
 	for {
 		switch n := node.(type) {
 		case *InternalNode:
-			next, step, err := evaluateInternal(ctx, n, input, intelligence)
-			if err != nil {
+			if n.Condition.Operator == event.ConditionOperatorSemantic {
+				// Snapshot node data and release lock before LLM I/O.
+				// evaluateSemantic may call intel.Reason which is unbounded I/O.
 				tree.mu.RUnlock()
-				return TreeResult{}, err
+				next, step, err := evaluateSemantic(ctx, n, input, intelligence)
+				if err != nil {
+					return TreeResult{}, err
+				}
+				path = append(path, step)
+				node = next
+				// Re-acquire lock for next iteration's tree traversal
+				tree.mu.RLock()
+			} else {
+				next, step, err := evaluateMechanical(n, input)
+				if err != nil {
+					tree.mu.RUnlock()
+					return TreeResult{}, err
+				}
+				path = append(path, step)
+				node = next
 			}
-			path = append(path, step)
-			node = next
 
 		case *LeafNode:
 			// Release tree lock before evaluateLeaf, which may perform
@@ -62,13 +76,6 @@ func Evaluate(ctx context.Context, tree *DecisionTree, input EvaluateInput, inte
 			return TreeResult{}, fmt.Errorf("unknown decision node type: %T", node)
 		}
 	}
-}
-
-func evaluateInternal(ctx context.Context, n *InternalNode, input EvaluateInput, intelligence types.Option[IIntelligence]) (DecisionNode, event.PathStep, error) {
-	if n.Condition.Operator == event.ConditionOperatorSemantic {
-		return evaluateSemantic(ctx, n, input, intelligence)
-	}
-	return evaluateMechanical(n, input)
 }
 
 func evaluateMechanical(n *InternalNode, input EvaluateInput) (DecisionNode, event.PathStep, error) {

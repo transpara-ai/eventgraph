@@ -340,6 +340,9 @@ func (s *InMemoryStore) VerifyChain() (event.ChainVerifiedContent, error) {
 	for i, ev := range s.events {
 		// Verify prev_hash
 		if i == 0 {
+			if !ev.IsBootstrap() {
+				return event.ChainVerifiedContent{Valid: false, Length: i}, nil
+			}
 			if ev.PrevHash() != types.ZeroHash() {
 				return event.ChainVerifiedContent{Valid: false, Length: i}, nil
 			}

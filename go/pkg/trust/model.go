@@ -297,9 +297,11 @@ func (m *DefaultTrustModel) Decay(_ context.Context, a actor.IActor, elapsed tim
 		m.decayState(state, decayAmount, trendDecay)
 	}
 
-	// Decay directed trust (both as source and target)
+	// Decay directed trust where actor is the trust holder (from).
+	// Only the trust-holder's perspective decays — the target's trust from
+	// other actors is decayed when Decay is called for those actors.
 	for dkey, dstate := range m.directed {
-		if dkey.from == a.ID().Value() || dkey.to == a.ID().Value() {
+		if dkey.from == a.ID().Value() {
 			m.decayState(dstate, decayAmount, trendDecay)
 		}
 	}

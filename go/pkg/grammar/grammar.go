@@ -299,11 +299,7 @@ func (g *Grammar) Consent(
 ) (event.Event, error) {
 	return g.graph.Record(
 		event.EventTypeGrammarConsent, partyA,
-		event.GrammarConsentContent{
-			Parties:   [2]types.ActorID{partyA, partyB},
-			Agreement: agreement,
-			Scope:     scope,
-		},
+		event.NewGrammarConsentContent(partyA, partyB, agreement, scope),
 		[]types.EventID{cause}, conversationID, signer,
 	)
 }
