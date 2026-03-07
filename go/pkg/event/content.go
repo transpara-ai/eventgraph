@@ -213,7 +213,7 @@ func (c EdgeCreatedContent) Accept(v EventContentVisitor) { v.VisitEdgeCreated(c
 // EdgeSupersededContent is emitted when an edge is superseded.
 type EdgeSupersededContent struct {
 	PreviousEdge types.EdgeID
-	NewEdge      types.EdgeID
+	NewEdge      types.Option[types.EdgeID]
 	Reason       types.EventID
 }
 

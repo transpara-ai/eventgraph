@@ -75,16 +75,16 @@ func (h *Harness) Process(p Primitive, events []event.Event) ([]Mutation, error)
 		return nil, err
 	}
 
-	h.mutations = mutations
+	h.mutations = append(h.mutations, mutations...)
 	return mutations, nil
 }
 
-// Mutations returns all mutations from the last Process call.
+// Mutations returns all accumulated mutations from Process calls.
 func (h *Harness) Mutations() []Mutation {
 	return h.mutations
 }
 
-// EmittedEvents returns AddEvent mutations from the last Process call.
+// EmittedEvents returns AddEvent mutations from all Process calls.
 func (h *Harness) EmittedEvents() []AddEvent {
 	var result []AddEvent
 	for _, m := range h.mutations {
@@ -106,7 +106,7 @@ func (h *Harness) StateChanges() map[string]any {
 	return result
 }
 
-// ActivationChanges returns UpdateActivation mutations from the last Process call.
+// ActivationChanges returns UpdateActivation mutations from all Process calls.
 func (h *Harness) ActivationChanges() []UpdateActivation {
 	var result []UpdateActivation
 	for _, m := range h.mutations {
@@ -117,7 +117,7 @@ func (h *Harness) ActivationChanges() []UpdateActivation {
 	return result
 }
 
-// EdgeMutations returns AddEdge mutations from the last Process call.
+// EdgeMutations returns AddEdge mutations from all Process calls.
 func (h *Harness) EdgeMutations() []AddEdge {
 	var result []AddEdge
 	for _, m := range h.mutations {
@@ -128,7 +128,7 @@ func (h *Harness) EdgeMutations() []AddEdge {
 	return result
 }
 
-// LifecycleChanges returns UpdateLifecycle mutations from the last Process call.
+// LifecycleChanges returns UpdateLifecycle mutations from all Process calls.
 func (h *Harness) LifecycleChanges() []UpdateLifecycle {
 	var result []UpdateLifecycle
 	for _, m := range h.mutations {

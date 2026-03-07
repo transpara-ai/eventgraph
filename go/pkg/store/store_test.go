@@ -116,6 +116,7 @@ type storeErrorCollector struct{ visited string }
 
 func (c *storeErrorCollector) VisitEventNotFound(*store.EventNotFoundError)                   { c.visited = "EventNotFound" }
 func (c *storeErrorCollector) VisitActorNotFound(*store.ActorNotFoundError)                   { c.visited = "ActorNotFound" }
+func (c *storeErrorCollector) VisitActorKeyNotFound(*store.ActorKeyNotFoundError)             { c.visited = "ActorKeyNotFound" }
 func (c *storeErrorCollector) VisitEdgeNotFound(*store.EdgeNotFoundError)                     { c.visited = "EdgeNotFound" }
 func (c *storeErrorCollector) VisitDuplicateEvent(*store.DuplicateEventError)                 { c.visited = "DuplicateEvent" }
 func (c *storeErrorCollector) VisitCausalLinkMissing(*store.CausalLinkMissingError)           { c.visited = "CausalLinkMissing" }
@@ -138,6 +139,7 @@ func TestStoreErrorVisitor(t *testing.T) {
 	}{
 		{&store.EventNotFoundError{ID: eventID}, "EventNotFound"},
 		{&store.ActorNotFoundError{ID: actorID}, "ActorNotFound"},
+		{&store.ActorKeyNotFoundError{KeyHex: "deadbeef"}, "ActorKeyNotFound"},
 		{&store.EdgeNotFoundError{From: actorID, To: actorID, EdgeType: event.EdgeTypeTrust}, "EdgeNotFound"},
 		{&store.DuplicateEventError{ID: eventID}, "DuplicateEvent"},
 		{&store.CausalLinkMissingError{EventID: eventID, MissingCause: eventID}, "CausalLinkMissing"},

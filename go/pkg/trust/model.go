@@ -237,7 +237,18 @@ func (m *DefaultTrustModel) Decay(_ context.Context, a actor.IActor, elapsed tim
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	state := m.getOrCreate(a.ID())
+	key := trustKey{actor: a.ID().Value()}
+	state, ok := m.scores[key]
+	if !ok {
+		// No trust state to decay — return defaults without creating state
+		defaults := trustState{
+			score:       m.config.InitialTrust,
+			byDomain:    make(map[types.DomainScope]types.Score),
+			lastUpdated: types.Now(),
+			trend:       types.MustWeight(0.0),
+		}
+		return m.buildMetrics(a.ID(), &defaults), nil
+	}
 
 	days := elapsed.Hours() / 24
 	decayAmount := m.config.DecayRate.Value() * days

@@ -212,6 +212,22 @@ func deepCopyValue(v any) any {
 			cp[i] = deepCopyValue(elem)
 		}
 		return cp
+	case []string:
+		cp := make([]string, len(val))
+		copy(cp, val)
+		return cp
+	case []byte:
+		cp := make([]byte, len(val))
+		copy(cp, val)
+		return cp
+	case []int:
+		cp := make([]int, len(val))
+		copy(cp, val)
+		return cp
+	case []float64:
+		cp := make([]float64, len(val))
+		copy(cp, val)
+		return cp
 	default:
 		return v // scalars are immutable
 	}

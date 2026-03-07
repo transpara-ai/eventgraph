@@ -139,6 +139,14 @@ func (e *Engine) Tick(pendingEvents []event.Event) (Result, error) {
 		pendingCopy := make([]event.Event, len(waveEvents))
 		copy(pendingCopy, waveEvents)
 		snapshot.PendingEvents = pendingCopy
+
+		// Refresh RecentEvents so subsequent waves see events persisted this tick
+		recentPage, _ := e.store.Recent(100, types.None[types.Cursor]())
+		if recentPage.Items() != nil {
+			recentCopy := make([]event.Event, len(recentPage.Items()))
+			copy(recentCopy, recentPage.Items())
+			snapshot.RecentEvents = recentCopy
+		}
 	}
 
 	// 3. Apply deferred (non-AddEvent) mutations
@@ -271,8 +279,7 @@ func (e *Engine) runWave(tick types.Tick, wave int, events []event.Event, snapsh
 				if len(mutations) > 0 {
 					if lcErr := e.registry.SetLifecycle(pid, types.LifecycleEmitting); lcErr != nil {
 						results[idx].err = fmt.Errorf("lifecycle Processing→Emitting: %w", lcErr)
-					}
-					if lcErr := e.registry.SetLifecycle(pid, types.LifecycleActive); lcErr != nil {
+					} else if lcErr := e.registry.SetLifecycle(pid, types.LifecycleActive); lcErr != nil {
 						results[idx].err = fmt.Errorf("lifecycle Emitting→Active: %w", lcErr)
 					}
 				} else {

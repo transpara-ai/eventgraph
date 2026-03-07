@@ -1,6 +1,10 @@
 // Package grammar implements the 15 social grammar operations as compositions
 // of the event graph primitives. This is a product layer — it builds on top of
 // the graph infrastructure, not inside it.
+//
+// NOTE: All methods accept context.Context for future cancellation/deadline support,
+// but context is not yet propagated to graph.Record. This will be addressed when
+// graph.Record gains context support.
 package grammar
 
 import (
@@ -121,25 +125,6 @@ func (g *Grammar) Annotate(
 		event.EventTypeGrammarAnnotate, source,
 		event.GrammarAnnotateContent{Target: target, Key: key, Value: value},
 		[]types.EventID{target}, conversationID, signer,
-	)
-}
-
-// Merge joins two or more independent subtrees. (Operation 15)
-func (g *Grammar) Merge(
-	ctx context.Context,
-	source types.ActorID,
-	body string,
-	sources []types.EventID,
-	conversationID types.ConversationID,
-	signer event.Signer,
-) (event.Event, error) {
-	if len(sources) < 2 {
-		return event.Event{}, fmt.Errorf("merge requires at least two sources")
-	}
-	return g.graph.Record(
-		event.EventTypeGrammarMerge, source,
-		event.NewGrammarMergeContent(body, sources),
-		sources, conversationID, signer,
 	)
 }
 
@@ -327,9 +312,29 @@ func (g *Grammar) Sever(
 		event.EventTypeEdgeSuperseded, source,
 		event.EdgeSupersededContent{
 			PreviousEdge: previousEdge,
+			NewEdge:      types.None[types.EdgeID](),
 			Reason:       cause,
 		},
 		[]types.EventID{cause}, conversationID, signer,
+	)
+}
+
+// Merge joins two or more independent subtrees. (Operation 15)
+func (g *Grammar) Merge(
+	ctx context.Context,
+	source types.ActorID,
+	body string,
+	sources []types.EventID,
+	conversationID types.ConversationID,
+	signer event.Signer,
+) (event.Event, error) {
+	if len(sources) < 2 {
+		return event.Event{}, fmt.Errorf("merge requires at least two sources")
+	}
+	return g.graph.Record(
+		event.EventTypeGrammarMerge, source,
+		event.NewGrammarMergeContent(body, sources),
+		sources, conversationID, signer,
 	)
 }
 

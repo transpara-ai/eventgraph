@@ -139,6 +139,7 @@ func (e *StoreUnavailableError) storeError() {}
 type StoreErrorVisitor interface {
 	VisitEventNotFound(*EventNotFoundError)
 	VisitActorNotFound(*ActorNotFoundError)
+	VisitActorKeyNotFound(*ActorKeyNotFoundError)
 	VisitEdgeNotFound(*EdgeNotFoundError)
 	VisitDuplicateEvent(*DuplicateEventError)
 	VisitCausalLinkMissing(*CausalLinkMissingError)
@@ -159,6 +160,7 @@ type VisitableStoreError interface {
 
 func (e *EventNotFoundError) Accept(v StoreErrorVisitor)           { v.VisitEventNotFound(e) }
 func (e *ActorNotFoundError) Accept(v StoreErrorVisitor)           { v.VisitActorNotFound(e) }
+func (e *ActorKeyNotFoundError) Accept(v StoreErrorVisitor)        { v.VisitActorKeyNotFound(e) }
 func (e *EdgeNotFoundError) Accept(v StoreErrorVisitor)            { v.VisitEdgeNotFound(e) }
 func (e *DuplicateEventError) Accept(v StoreErrorVisitor)          { v.VisitDuplicateEvent(e) }
 func (e *CausalLinkMissingError) Accept(v StoreErrorVisitor)      { v.VisitCausalLinkMissing(e) }

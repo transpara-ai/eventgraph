@@ -195,7 +195,7 @@ func (g *Graph) Bootstrap(systemActor types.ActorID, signer event.Signer) (event
 
 // Evaluate runs an action through authority evaluation.
 // In the bootstrap phase, this is simplified — no tick engine or full decision tree.
-func (g *Graph) Evaluate(ctx context.Context, a actor.IActor, action string, evalContext map[string]any) (authority.AuthorityResult, error) {
+func (g *Graph) Evaluate(ctx context.Context, a actor.IActor, action string) (authority.AuthorityResult, error) {
 	g.mu.RLock()
 	defer g.mu.RUnlock()
 

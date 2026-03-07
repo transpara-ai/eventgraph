@@ -146,7 +146,7 @@ func TestEvaluate(t *testing.T) {
 	pk := testPublicKey(1)
 	a, _ := as.Register(pk, "Alice", event.ActorTypeHuman)
 
-	result, err := g.Evaluate(context.Background(), a, "test.action", nil)
+	result, err := g.Evaluate(context.Background(), a, "test.action")
 	if err != nil {
 		t.Fatalf("Evaluate: %v", err)
 	}
@@ -165,7 +165,7 @@ func TestEvaluateAfterClose(t *testing.T) {
 
 	g.Close()
 
-	_, err := g.Evaluate(context.Background(), a, "test", nil)
+	_, err := g.Evaluate(context.Background(), a, "test")
 	if err == nil {
 		t.Fatal("expected error evaluating after close")
 	}
@@ -308,9 +308,8 @@ func TestBusReceivesPublishedEvents(t *testing.T) {
 		if ev.Type().Value() != "system.bootstrapped" {
 			t.Errorf("received event type = %v, want system.bootstrapped", ev.Type().Value())
 		}
-	default:
-		// Give async delivery a moment
-		// Bus delivery is async, may not be immediate
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for bus delivery")
 	}
 }
 
@@ -407,7 +406,7 @@ func TestWithAuthorityChain(t *testing.T) {
 	pk := testPublicKey(1)
 	a, _ := as.Register(pk, "Alice", event.ActorTypeHuman)
 
-	_, err := g.Evaluate(context.Background(), a, "test.action", nil)
+	_, err := g.Evaluate(context.Background(), a, "test.action")
 	if err != nil {
 		t.Fatalf("Evaluate: %v", err)
 	}

@@ -235,9 +235,13 @@ func testCondition(value any, op event.ConditionOperator, match event.MatchValue
 		return exists
 	case event.ConditionOperatorMatches:
 		return patternMatch(value, match)
-	default:
+	case event.ConditionOperatorSemantic:
+		// Semantic operators are handled by evaluateSemantic before reaching here.
 		return false
 	}
+	// No default — exhaustive matching per CLAUDE.md.
+	// New ConditionOperator variants must be handled explicitly above.
+	panic(fmt.Sprintf("unhandled ConditionOperator: %s", op))
 }
 
 func equalsMatch(value any, match event.MatchValue) bool {
