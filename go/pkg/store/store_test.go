@@ -7,8 +7,16 @@ import (
 
 	"github.com/lovyou-ai/eventgraph/go/pkg/event"
 	"github.com/lovyou-ai/eventgraph/go/pkg/store"
+	"github.com/lovyou-ai/eventgraph/go/pkg/store/storetest"
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
 )
+
+// TestInMemoryStoreConformance runs the shared conformance test suite.
+func TestInMemoryStoreConformance(t *testing.T) {
+	storetest.RunConformanceSuite(t, func() store.Store {
+		return store.NewInMemoryStore()
+	})
+}
 
 // --- Test helper: deterministic signer ---
 
