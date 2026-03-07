@@ -1,6 +1,8 @@
 package decision
 
 import (
+	"sync"
+
 	"github.com/lovyou-ai/eventgraph/go/pkg/event"
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
 )
@@ -27,9 +29,10 @@ type Branch struct {
 
 // LeafNode is a terminal node — either deterministic or needs intelligence.
 type LeafNode struct {
-	Outcome  types.Option[event.DecisionOutcome]
-	NeedsLLM bool
+	Outcome    types.Option[event.DecisionOutcome]
+	NeedsLLM   bool
 	Confidence types.Score
+	mu         sync.Mutex
 	Stats      LeafStats
 }
 
@@ -61,6 +64,7 @@ type TreeStats struct {
 type DecisionTree struct {
 	Root    DecisionNode
 	Version int
+	mu      sync.Mutex
 	Stats   TreeStats
 }
 

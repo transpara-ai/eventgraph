@@ -2,6 +2,7 @@ package authority
 
 import (
 	"context"
+	"sync"
 
 	"github.com/lovyou-ai/eventgraph/go/pkg/actor"
 	"github.com/lovyou-ai/eventgraph/go/pkg/event"
@@ -19,6 +20,7 @@ const MaxChainDepth = 10
 type DelegationChain struct {
 	trustModel trust.ITrustModel
 	store      store.Store
+	mu         sync.RWMutex
 	policies   []AuthorityPolicy
 }
 
@@ -32,10 +34,15 @@ func NewDelegationChain(trustModel trust.ITrustModel, s store.Store) *Delegation
 
 // AddPolicy registers an authority policy.
 func (c *DelegationChain) AddPolicy(policy AuthorityPolicy) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.policies = append(c.policies, policy)
 }
 
 func (c *DelegationChain) Evaluate(ctx context.Context, a actor.IActor, action string) (AuthorityResult, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
 	chain, err := c.walkChain(ctx, a.ID(), action, nil)
 	if err != nil {
 		return AuthorityResult{}, err
@@ -75,6 +82,9 @@ func (c *DelegationChain) Evaluate(ctx context.Context, a actor.IActor, action s
 }
 
 func (c *DelegationChain) Chain(ctx context.Context, a actor.IActor, action string) ([]event.AuthorityLink, error) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
 	chain, err := c.walkChain(ctx, a.ID(), action, nil)
 	if err != nil {
 		return nil, err

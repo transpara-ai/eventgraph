@@ -119,11 +119,19 @@ func evaluateSemantic(ctx context.Context, n *InternalNode, input EvaluateInput,
 }
 
 func evaluateLeaf(ctx context.Context, leaf *LeafNode, input EvaluateInput, path []event.PathStep, tree *DecisionTree, intelligence types.Option[IIntelligence]) (TreeResult, error) {
+	leaf.mu.Lock()
 	leaf.Stats.HitCount++
+	leaf.mu.Unlock()
+
+	tree.mu.Lock()
 	tree.Stats.TotalHits++
+	tree.mu.Unlock()
 
 	if !leaf.NeedsLLM {
+		tree.mu.Lock()
 		tree.Stats.MechanicalHits++
+		tree.mu.Unlock()
+
 		outcome := leaf.Outcome.Unwrap()
 		return TreeResult{
 			Outcome:    outcome,
@@ -142,8 +150,13 @@ func evaluateLeaf(ctx context.Context, leaf *LeafNode, input EvaluateInput, path
 		}
 	}
 
+	tree.mu.Lock()
 	tree.Stats.LLMHits++
+	tree.mu.Unlock()
+
+	leaf.mu.Lock()
 	leaf.Stats.LLMCallCount++
+	leaf.mu.Unlock()
 
 	intel := intelligence.Unwrap()
 	prompt := formatPrompt(input, path)
@@ -152,13 +165,18 @@ func evaluateLeaf(ctx context.Context, leaf *LeafNode, input EvaluateInput, path
 		return TreeResult{}, err
 	}
 
+	tree.mu.Lock()
 	tree.Stats.TotalTokens += resp.TokensUsed()
+	tree.mu.Unlock()
 
 	outcome := parseOutcome(resp.Content())
+
+	leaf.mu.Lock()
 	leaf.Stats.ResponseHistory = append(leaf.Stats.ResponseHistory, ResponseRecord{
 		Output:     outcome,
 		Confidence: resp.Confidence(),
 	})
+	leaf.mu.Unlock()
 
 	return TreeResult{
 		Outcome:    outcome,

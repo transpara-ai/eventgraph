@@ -83,16 +83,16 @@ func (m *DefaultTrustModel) getOrCreate(actorID types.ActorID) *trustState {
 }
 
 func (m *DefaultTrustModel) Score(_ context.Context, a actor.IActor) (event.TrustMetrics, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	state := m.getOrCreate(a.ID())
 	return m.buildMetrics(a.ID(), state), nil
 }
 
 func (m *DefaultTrustModel) ScoreInDomain(_ context.Context, a actor.IActor, domain types.DomainScope) (event.TrustMetrics, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	state := m.getOrCreate(a.ID())
 	return m.buildMetrics(a.ID(), state), nil

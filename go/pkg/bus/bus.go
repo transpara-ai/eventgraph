@@ -56,7 +56,12 @@ func (b *EventBus) Store() store.Store { return b.store }
 
 // Subscribe registers a handler for events matching the pattern.
 // The handler is called asynchronously from a per-subscriber goroutine.
+// Returns 0 if the bus is closed.
 func (b *EventBus) Subscribe(pattern types.SubscriptionPattern, handler func(event.Event)) SubscriptionID {
+	if b.closed.Load() {
+		return 0
+	}
+
 	id := SubscriptionID(b.nextID.Add(1))
 	ch := make(chan event.Event, b.bufferSize)
 

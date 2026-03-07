@@ -60,6 +60,10 @@ func (f *EventFactory) Create(
 		return Event{}, err
 	}
 
+	// Defensive copy of causes to prevent caller mutation
+	causesCopy := make([]types.EventID, len(causes))
+	copy(causesCopy, causes)
+
 	ev := Event{
 		version:        1,
 		id:             id,
@@ -67,7 +71,7 @@ func (f *EventFactory) Create(
 		timestamp:      types.Now(),
 		source:         source,
 		content:        content,
-		causes:         causes,
+		causes:         causesCopy,
 		conversationID: conversationID,
 		prevHash:       prevHash,
 	}

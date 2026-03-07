@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"sync"
 	"time"
 
@@ -82,16 +83,17 @@ func (s *InMemoryStore) Append(ev event.Event) (event.Event, error) {
 	s.byConv[ev.ConversationID()] = append(s.byConv[ev.ConversationID()], idx)
 
 	// Index edge-creating events
-	if ev.Type().Value() == "edge.created" {
+	if ev.Type() == event.EventTypeEdgeCreated {
 		if ec, ok := ev.Content().(event.EdgeCreatedContent); ok {
 			edgeID := types.MustEdgeID(ev.ID().Value())
-			edge, err := event.NewEdge(
+			edge, edgeErr := event.NewEdge(
 				edgeID, ec.From, ec.To, ec.EdgeType, ec.Weight, ec.Direction,
 				ec.Scope, nil, ev.Timestamp(), ec.ExpiresAt,
 			)
-			if err == nil {
-				s.edges = append(s.edges, edge)
+			if edgeErr != nil {
+				return event.Event{}, fmt.Errorf("index edge: %w", edgeErr)
 			}
+			s.edges = append(s.edges, edge)
 		}
 	}
 
