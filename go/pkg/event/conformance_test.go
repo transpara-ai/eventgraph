@@ -38,7 +38,7 @@ func TestConformanceBootstrapCanonicalForm(t *testing.T) {
 	)
 
 	canonical := CanonicalForm(ev)
-	expected := `1||019462a0-0000-7000-8000-000000000001|system.bootstrapped|actor_00000000000000000000000000000001|conv_00000000000000000000000000000001|1700000000000000000|{"ActorID":"actor_00000000000000000000000000000001","ChainGenesis":"0000000000000000000000000000000000000000000000000000000000000000","Timestamp":"2023-11-14T22:13:20Z"}`
+	expected := `1|||019462a0-0000-7000-8000-000000000001|system.bootstrapped|actor_00000000000000000000000000000001|conv_00000000000000000000000000000001|1700000000000000000|{"ActorID":"actor_00000000000000000000000000000001","ChainGenesis":"0000000000000000000000000000000000000000000000000000000000000000","Timestamp":"2023-11-14T22:13:20Z"}`
 	if canonical != expected {
 		t.Errorf("canonical form mismatch:\n  got:  %s\n  want: %s", canonical, expected)
 	}
@@ -47,7 +47,7 @@ func TestConformanceBootstrapCanonicalForm(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ComputeHash: %v", err)
 	}
-	expectedHash := "88a1c89ffad29455acaa28c66aef8c34db2532fdb47e37f16f09ab6fd91ceeb4"
+	expectedHash := "f7cae7ae11c1232a932c64f2302432c0e304dffce80f3935e688980dfbafeb75"
 	if hash.Value() != expectedHash {
 		t.Errorf("hash mismatch:\n  got:  %s\n  want: %s", hash.Value(), expectedHash)
 	}
@@ -82,7 +82,7 @@ func TestConformanceTrustUpdatedCanonicalForm(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ComputeHash: %v", err)
 	}
-	expectedHash := "04bfffee1d6d192302856af63d02d92f137083872a7775e4c778829021712bc5"
+	expectedHash := "b2fbcd2684868f0b0d07d2f5136b52f14b8e749da7b4b7bae2a22f67147152b7"
 	if hash.Value() != expectedHash {
 		t.Errorf("hash mismatch:\n  got:  %s\n  want: %s", hash.Value(), expectedHash)
 	}
@@ -117,7 +117,7 @@ func TestConformanceEdgeCreatedKeyOrdering(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ComputeHash: %v", err)
 	}
-	expectedHash := "1abc67e3790b10bd954951d0954ae6ccbe5e9f4e04a174e0090f7b003798f846"
+	expectedHash := "4e5c6710ca9325676663b4a66d2e82114fcd8fb49dbe5705795051e0b0be374c"
 	if hash.Value() != expectedHash {
 		t.Errorf("hash mismatch:\n  got:  %s\n  want: %s", hash.Value(), expectedHash)
 	}
@@ -179,9 +179,9 @@ func TestConformanceCanonicalFormBootstrapEmptyPrevHash(t *testing.T) {
 	)
 
 	canonical := CanonicalForm(ev)
-	// Should start with "1||" (empty prev_hash between pipes)
-	if canonical[:3] != "1||" {
-		t.Errorf("bootstrap canonical should start with '1||', got: %s", canonical[:10])
+	// Should start with "1|||" (empty prev_hash and empty causes between pipes)
+	if canonical[:4] != "1|||" {
+		t.Errorf("bootstrap canonical should start with '1|||', got: %s", canonical[:10])
 	}
 }
 

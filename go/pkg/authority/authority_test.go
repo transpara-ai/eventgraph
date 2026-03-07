@@ -12,6 +12,14 @@ import (
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
 )
 
+type testSigner struct{}
+
+func (testSigner) Sign(data []byte) (types.Signature, error) {
+	sig := make([]byte, 64)
+	copy(sig, data)
+	return types.MustSignature(sig), nil
+}
+
 func testPublicKey(b byte) types.PublicKey {
 	key := make([]byte, 32)
 	key[0] = b
@@ -28,10 +36,17 @@ func testActor(t *testing.T, name string, b byte) actor.IActor {
 	return a
 }
 
+func newTestDefaultChain(t *testing.T, model trust.ITrustModel, s store.Store) *authority.DefaultAuthorityChain {
+	t.Helper()
+	registry := event.DefaultRegistry()
+	factory := event.NewEventFactory(registry)
+	return authority.NewDefaultAuthorityChain(model, s, factory, testSigner{})
+}
+
 func TestDefaultLevelIsNotification(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := store.NewInMemoryStore()
-	chain := authority.NewDefaultAuthorityChain(model, s)
+	chain := newTestDefaultChain(t, model, s)
 
 	a := testActor(t, "Alice", 1)
 	result, err := chain.Evaluate(context.Background(), a, "some.random.action")
@@ -49,7 +64,7 @@ func TestDefaultLevelIsNotification(t *testing.T) {
 func TestPolicyExactMatch(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := store.NewInMemoryStore()
-	chain := authority.NewDefaultAuthorityChain(model, s)
+	chain := newTestDefaultChain(t, model, s)
 
 	chain.AddPolicy(authority.AuthorityPolicy{
 		Action: "actor.suspend",
@@ -66,7 +81,7 @@ func TestPolicyExactMatch(t *testing.T) {
 func TestPolicyWildcard(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := store.NewInMemoryStore()
-	chain := authority.NewDefaultAuthorityChain(model, s)
+	chain := newTestDefaultChain(t, model, s)
 
 	chain.AddPolicy(authority.AuthorityPolicy{
 		Action: "trust.*",
@@ -83,7 +98,7 @@ func TestPolicyWildcard(t *testing.T) {
 func TestPolicyGlobalWildcard(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := store.NewInMemoryStore()
-	chain := authority.NewDefaultAuthorityChain(model, s)
+	chain := newTestDefaultChain(t, model, s)
 
 	chain.AddPolicy(authority.AuthorityPolicy{
 		Action: "*",
@@ -100,7 +115,7 @@ func TestPolicyGlobalWildcard(t *testing.T) {
 func TestPolicyFirstMatchWins(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := store.NewInMemoryStore()
-	chain := authority.NewDefaultAuthorityChain(model, s)
+	chain := newTestDefaultChain(t, model, s)
 
 	chain.AddPolicy(authority.AuthorityPolicy{
 		Action: "deploy",
@@ -121,7 +136,7 @@ func TestPolicyFirstMatchWins(t *testing.T) {
 func TestPolicyNoMatch(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := store.NewInMemoryStore()
-	chain := authority.NewDefaultAuthorityChain(model, s)
+	chain := newTestDefaultChain(t, model, s)
 
 	chain.AddPolicy(authority.AuthorityPolicy{
 		Action: "deploy",
@@ -138,7 +153,7 @@ func TestPolicyNoMatch(t *testing.T) {
 func TestTrustDowngradeRequiredToRecommended(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := store.NewInMemoryStore()
-	chain := authority.NewDefaultAuthorityChain(model, s)
+	chain := newTestDefaultChain(t, model, s)
 
 	// Policy: deploy requires Required, but MinTrust 0.5 downgrades to Recommended
 	chain.AddPolicy(authority.AuthorityPolicy{
@@ -162,7 +177,7 @@ func TestTrustDowngradeRequiredToRecommended(t *testing.T) {
 func TestChain(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := store.NewInMemoryStore()
-	chain := authority.NewDefaultAuthorityChain(model, s)
+	chain := newTestDefaultChain(t, model, s)
 
 	a := testActor(t, "Alice", 1)
 	links, err := chain.Chain(context.Background(), a, "any.action")
@@ -179,8 +194,8 @@ func TestChain(t *testing.T) {
 
 func TestGrant(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
-	s := store.NewInMemoryStore()
-	chain := authority.NewDefaultAuthorityChain(model, s)
+	s := bootstrapStore(t)
+	chain := newTestDefaultChain(t, model, s)
 
 	from := testActor(t, "Alice", 1)
 	to := testActor(t, "Bob", 2)
@@ -203,7 +218,7 @@ func TestGrant(t *testing.T) {
 func TestRevoke(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := store.NewInMemoryStore()
-	chain := authority.NewDefaultAuthorityChain(model, s)
+	chain := newTestDefaultChain(t, model, s)
 
 	from := testActor(t, "Alice", 1)
 	to := testActor(t, "Bob", 2)
@@ -217,7 +232,7 @@ func TestRevoke(t *testing.T) {
 func TestAuthorityResultWeight(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := store.NewInMemoryStore()
-	chain := authority.NewDefaultAuthorityChain(model, s)
+	chain := newTestDefaultChain(t, model, s)
 
 	a := testActor(t, "Alice", 1)
 	result, _ := chain.Evaluate(context.Background(), a, "test")

@@ -1,0 +1,67 @@
+package authority
+
+import (
+	"fmt"
+
+	"github.com/lovyou-ai/eventgraph/go/pkg/actor"
+	"github.com/lovyou-ai/eventgraph/go/pkg/event"
+	"github.com/lovyou-ai/eventgraph/go/pkg/store"
+	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+)
+
+// grantAndPersist creates an authority edge and persists it to the store
+// as an edge.created event. Used by both DefaultAuthorityChain and DelegationChain.
+func grantAndPersist(s store.Store, factory *event.EventFactory, signer event.Signer, from actor.IActor, to actor.IActor, scope types.DomainScope, weight types.Score) (event.Edge, error) {
+	// Build the edge content
+	content := event.EdgeCreatedContent{
+		From:      from.ID(),
+		To:        to.ID(),
+		EdgeType:  event.EdgeTypeAuthority,
+		Weight:    types.MustWeight(weight.Value()*2 - 1), // Score [0,1] → Weight [-1,1]
+		Direction: event.EdgeDirectionCentrifugal,
+		Scope:     types.Some(scope),
+	}
+
+	// Need a cause — use head of chain
+	headOpt, err := s.Head()
+	if err != nil {
+		return event.Edge{}, err
+	}
+	if !headOpt.IsSome() {
+		return event.Edge{}, fmt.Errorf("cannot grant authority: store has no head event (causality invariant)")
+	}
+	causes := []types.EventID{headOpt.Unwrap().ID()}
+
+	convID := types.MustConversationID("conv_authority_000000000000000000001")
+
+	ev, err := factory.Create(
+		event.EventTypeEdgeCreated, from.ID(), content, causes,
+		convID, s, signer,
+	)
+	if err != nil {
+		return event.Edge{}, err
+	}
+
+	stored, err := s.Append(ev)
+	if err != nil {
+		return event.Edge{}, err
+	}
+
+	// Build the edge from the stored event
+	edgeID := types.MustEdgeID(stored.ID().Value())
+	edge, err := event.NewEdge(
+		edgeID, from.ID(), to.ID(),
+		event.EdgeTypeAuthority,
+		types.MustWeight(weight.Value()*2-1),
+		event.EdgeDirectionCentrifugal,
+		types.Some(scope),
+		nil,
+		stored.Timestamp(),
+		types.None[types.Timestamp](),
+	)
+	if err != nil {
+		return event.Edge{}, err
+	}
+
+	return edge, nil
+}

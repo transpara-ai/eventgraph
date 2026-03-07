@@ -37,12 +37,20 @@ type Graph struct {
 	bus          *bus.EventBus
 	registry     *event.EventTypeRegistry
 	factory      *event.EventFactory
+	signer       event.Signer
 	trustModel   trust.ITrustModel
 	authChain    authority.IAuthorityChain
 	decisionMaker decision.IDecisionMaker
 	config       Config
 	started      bool
 	closed       bool
+}
+
+// noopSigner produces zero-filled signatures. Used as default when no signer is provided.
+type noopSigner struct{}
+
+func (noopSigner) Sign([]byte) (types.Signature, error) {
+	return types.MustSignature(make([]byte, 64)), nil
 }
 
 // Option configures a Graph.
@@ -60,6 +68,9 @@ func WithAuthorityChain(c authority.IAuthorityChain) Option {
 func WithDecisionMaker(dm decision.IDecisionMaker) Option {
 	return func(g *Graph) { g.decisionMaker = dm }
 }
+
+// WithSigner sets the default signer for internal operations (e.g. authority grants).
+func WithSigner(s event.Signer) Option { return func(g *Graph) { g.signer = s } }
 
 // WithConfig sets the graph config.
 func WithConfig(c Config) Option { return func(g *Graph) { g.config = c } }
@@ -82,11 +93,14 @@ func New(s store.Store, as actor.IActorStore, opts ...Option) *Graph {
 	}
 
 	// Defaults
+	if g.signer == nil {
+		g.signer = noopSigner{}
+	}
 	if g.trustModel == nil {
 		g.trustModel = trust.NewDefaultTrustModel()
 	}
 	if g.authChain == nil {
-		g.authChain = authority.NewDefaultAuthorityChain(g.trustModel, s)
+		g.authChain = authority.NewDefaultAuthorityChain(g.trustModel, s, g.factory, g.signer)
 	}
 
 	g.bus = bus.NewEventBus(s, g.config.SubscriberBufferSize)

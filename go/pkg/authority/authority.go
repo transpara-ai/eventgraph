@@ -41,13 +41,17 @@ type DefaultAuthorityChain struct {
 	policies   []AuthorityPolicy
 	trustModel trust.ITrustModel
 	store      store.Store
+	factory    *event.EventFactory
+	signer     event.Signer
 }
 
 // NewDefaultAuthorityChain creates a flat authority chain.
-func NewDefaultAuthorityChain(trustModel trust.ITrustModel, s store.Store) *DefaultAuthorityChain {
+func NewDefaultAuthorityChain(trustModel trust.ITrustModel, s store.Store, factory *event.EventFactory, signer event.Signer) *DefaultAuthorityChain {
 	return &DefaultAuthorityChain{
 		trustModel: trustModel,
 		store:      s,
+		factory:    factory,
+		signer:     signer,
 	}
 }
 
@@ -97,28 +101,9 @@ func (c *DefaultAuthorityChain) Chain(_ context.Context, a actor.IActor, _ strin
 	}, nil
 }
 
+// Grant creates an authority edge and persists it to the store as an edge.created event.
 func (c *DefaultAuthorityChain) Grant(_ context.Context, from actor.IActor, to actor.IActor, scope types.DomainScope, weight types.Score) (event.Edge, error) {
-	eid, err := types.NewEventIDFromNew()
-	if err != nil {
-		return event.Edge{}, err
-	}
-	edgeID := types.MustEdgeID(eid.Value())
-	edge, err := event.NewEdge(
-		edgeID,
-		from.ID(),
-		to.ID(),
-		event.EdgeTypeAuthority,
-		types.MustWeight(weight.Value()*2 - 1), // Score [0,1] -> Weight [-1,1]
-		event.EdgeDirectionCentrifugal,
-		types.Some(scope),
-		nil,
-		types.Now(),
-		types.None[types.Timestamp](),
-	)
-	if err != nil {
-		return event.Edge{}, err
-	}
-	return edge, nil
+	return grantAndPersist(c.store, c.factory, c.signer, from, to, scope, weight)
 }
 
 func (c *DefaultAuthorityChain) Revoke(_ context.Context, _ actor.IActor, _ actor.IActor, _ types.DomainScope) error {

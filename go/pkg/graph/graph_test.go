@@ -341,6 +341,9 @@ func (m *mockTrustModel) ScoreInDomain(_ context.Context, a actor.IActor, _ type
 func (m *mockTrustModel) Update(_ context.Context, a actor.IActor, _ event.Event) (event.TrustMetrics, error) {
 	return m.zeroMetrics(a.ID()), nil
 }
+func (m *mockTrustModel) UpdateBetween(_ context.Context, _ actor.IActor, to actor.IActor, _ event.Event) (event.TrustMetrics, error) {
+	return m.zeroMetrics(to.ID()), nil
+}
 func (m *mockTrustModel) Decay(_ context.Context, a actor.IActor, _ time.Duration) (event.TrustMetrics, error) {
 	return m.zeroMetrics(a.ID()), nil
 }

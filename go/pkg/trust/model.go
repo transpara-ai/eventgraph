@@ -16,6 +16,7 @@ type ITrustModel interface {
 	Score(ctx context.Context, a actor.IActor) (event.TrustMetrics, error)
 	ScoreInDomain(ctx context.Context, a actor.IActor, domain types.DomainScope) (event.TrustMetrics, error)
 	Update(ctx context.Context, a actor.IActor, evidence event.Event) (event.TrustMetrics, error)
+	UpdateBetween(ctx context.Context, from actor.IActor, to actor.IActor, evidence event.Event) (event.TrustMetrics, error)
 	Decay(ctx context.Context, a actor.IActor, elapsed time.Duration) (event.TrustMetrics, error)
 	Between(ctx context.Context, from actor.IActor, to actor.IActor) (event.TrustMetrics, error)
 }
@@ -144,6 +145,53 @@ func (m *DefaultTrustModel) Update(_ context.Context, a actor.IActor, evidence e
 	state.lastUpdated = types.Now()
 
 	return m.buildMetrics(a.ID(), state), nil
+}
+
+// UpdateBetween updates directional trust from one actor toward another based on evidence.
+func (m *DefaultTrustModel) UpdateBetween(_ context.Context, from actor.IActor, to actor.IActor, evidence event.Event) (event.TrustMetrics, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	key := trustKey{actor: from.ID().Value() + "->" + to.ID().Value()}
+	state, ok := m.scores[key]
+	if !ok {
+		state = &trustState{
+			score:       m.config.InitialTrust,
+			byDomain:    make(map[types.DomainScope]types.Score),
+			lastUpdated: types.Now(),
+			trend:       types.MustWeight(0.0),
+		}
+		m.scores[key] = state
+	}
+
+	delta := m.extractDelta(evidence)
+
+	maxAdj := m.config.MaxAdjustment.Value()
+	if delta > maxAdj {
+		delta = maxAdj
+	}
+	if delta < -maxAdj {
+		delta = -maxAdj
+	}
+
+	newScore := state.score.Value() + delta
+	newScore = math.Max(0, math.Min(1, newScore))
+	state.score = types.MustScore(newScore)
+
+	if delta > 0 {
+		state.trend = types.MustWeight(math.Min(1, state.trend.Value()+0.1))
+	} else if delta < 0 {
+		state.trend = types.MustWeight(math.Max(-1, state.trend.Value()-0.1))
+	}
+
+	state.evidence = append(state.evidence, evidence.ID())
+	if len(state.evidence) > 100 {
+		state.evidence = state.evidence[len(state.evidence)-100:]
+	}
+
+	state.lastUpdated = types.Now()
+
+	return m.buildMetrics(to.ID(), state), nil
 }
 
 func (m *DefaultTrustModel) Decay(_ context.Context, a actor.IActor, elapsed time.Duration) (event.TrustMetrics, error) {

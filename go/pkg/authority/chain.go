@@ -24,15 +24,19 @@ var ErrChainDepthExceeded = fmt.Errorf("delegation chain depth exceeds %d", MaxC
 type DelegationChain struct {
 	trustModel trust.ITrustModel
 	store      store.Store
+	factory    *event.EventFactory
+	signer     event.Signer
 	mu         sync.RWMutex
 	policies   []AuthorityPolicy
 }
 
 // NewDelegationChain creates a delegation-aware authority chain.
-func NewDelegationChain(trustModel trust.ITrustModel, s store.Store) *DelegationChain {
+func NewDelegationChain(trustModel trust.ITrustModel, s store.Store, factory *event.EventFactory, signer event.Signer) *DelegationChain {
 	return &DelegationChain{
 		trustModel: trustModel,
 		store:      s,
+		factory:    factory,
+		signer:     signer,
 	}
 }
 
@@ -105,31 +109,9 @@ func (c *DelegationChain) Chain(ctx context.Context, a actor.IActor, action stri
 	return chain, nil
 }
 
-// Grant creates an authority edge. The returned edge is not persisted —
-// the caller must persist it by recording an edge.created event via the store.
-// This separation follows the pattern: factory creates, store persists.
+// Grant creates an authority edge and persists it to the store as an edge.created event.
 func (c *DelegationChain) Grant(_ context.Context, from actor.IActor, to actor.IActor, scope types.DomainScope, weight types.Score) (event.Edge, error) {
-	eid, err := types.NewEventIDFromNew()
-	if err != nil {
-		return event.Edge{}, err
-	}
-	edgeID := types.MustEdgeID(eid.Value())
-	edge, err := event.NewEdge(
-		edgeID,
-		from.ID(),
-		to.ID(),
-		event.EdgeTypeAuthority,
-		types.MustWeight(weight.Value()*2-1),
-		event.EdgeDirectionCentrifugal,
-		types.Some(scope),
-		nil,
-		types.Now(),
-		types.None[types.Timestamp](),
-	)
-	if err != nil {
-		return event.Edge{}, err
-	}
-	return edge, nil
+	return grantAndPersist(c.store, c.factory, c.signer, from, to, scope, weight)
 }
 
 // Revoke is a stub — full implementation would record an edge.superseded event.

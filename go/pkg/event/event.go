@@ -114,18 +114,31 @@ func (e Event) IsBootstrap() bool {
 }
 
 // CanonicalForm produces the canonical string representation of this event.
-// Format: version|prev_hash|id|type|source|conversation_id|timestamp_nanos|content_json
+// Format: version|prev_hash|causes|id|type|source|conversation_id|timestamp_nanos|content_json
+// Causes are sorted lexicographically and comma-separated. Empty for bootstrap events.
 func CanonicalForm(e Event) string {
 	prevHash := ""
 	if !e.prevHash.IsZero() {
 		prevHash = e.prevHash.Value()
 	}
 
+	// Sort causes lexicographically for deterministic canonical form
+	causesStr := ""
+	if len(e.causes) > 0 {
+		sorted := make([]string, len(e.causes))
+		for i, c := range e.causes {
+			sorted[i] = c.Value()
+		}
+		sort.Strings(sorted)
+		causesStr = strings.Join(sorted, ",")
+	}
+
 	contentJSON := canonicalContentJSON(e.content)
 
-	return fmt.Sprintf("%d|%s|%s|%s|%s|%s|%d|%s",
+	return fmt.Sprintf("%d|%s|%s|%s|%s|%s|%s|%d|%s",
 		e.version,
 		prevHash,
+		causesStr,
 		e.id.Value(),
 		e.eventType.Value(),
 		e.source.Value(),

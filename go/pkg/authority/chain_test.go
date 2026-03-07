@@ -12,14 +12,6 @@ import (
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
 )
 
-type chainTestSigner struct{}
-
-func (chainTestSigner) Sign(data []byte) (types.Signature, error) {
-	sig := make([]byte, 64)
-	copy(sig, data)
-	return types.MustSignature(sig), nil
-}
-
 type headFromStore struct{ s store.Store }
 
 func (h headFromStore) Head() (types.Option[event.Event], error) { return h.s.Head() }
@@ -31,13 +23,20 @@ func bootstrapStore(t *testing.T) store.Store {
 	factory := event.NewBootstrapFactory(registry)
 	ev, err := factory.Init(
 		types.MustActorID("actor_00000000000000000000000000000001"),
-		chainTestSigner{},
+		testSigner{},
 	)
 	if err != nil {
 		t.Fatalf("bootstrap: %v", err)
 	}
 	s.Append(ev)
 	return s
+}
+
+func newTestDelegationChain(t *testing.T, model trust.ITrustModel, s store.Store) *authority.DelegationChain {
+	t.Helper()
+	registry := event.DefaultRegistry()
+	factory := event.NewEventFactory(registry)
+	return authority.NewDelegationChain(model, s, factory, testSigner{})
 }
 
 func addAuthorityEdge(t *testing.T, s store.Store, from, to types.ActorID, weight float64, scope types.DomainScope, expiresAt types.Option[types.Timestamp]) types.EventID {
@@ -66,7 +65,7 @@ func addAuthorityEdge(t *testing.T, s store.Store, from, to types.ActorID, weigh
 		causes,
 		types.MustConversationID("conv_00000000000000000000000000000001"),
 		headFromStore{s},
-		chainTestSigner{},
+		testSigner{},
 	)
 	if err != nil {
 		t.Fatalf("create edge event: %v", err)
@@ -78,7 +77,7 @@ func addAuthorityEdge(t *testing.T, s store.Store, from, to types.ActorID, weigh
 func TestDelegationChainNoDelegation(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := bootstrapStore(t)
-	chain := authority.NewDelegationChain(model, s)
+	chain := newTestDelegationChain(t, model, s)
 
 	a := testActor(t, "Alice", 1)
 	result, err := chain.Evaluate(context.Background(), a, "test.action")
@@ -99,7 +98,7 @@ func TestDelegationChainNoDelegation(t *testing.T) {
 func TestDelegationChainSingleHop(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := bootstrapStore(t)
-	chain := authority.NewDelegationChain(model, s)
+	chain := newTestDelegationChain(t, model, s)
 
 	root := testActor(t, "Root", 1)
 	delegate := testActor(t, "Delegate", 2)
@@ -127,7 +126,7 @@ func TestDelegationChainSingleHop(t *testing.T) {
 func TestDelegationChainTwoHops(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := bootstrapStore(t)
-	chain := authority.NewDelegationChain(model, s)
+	chain := newTestDelegationChain(t, model, s)
 
 	root := testActor(t, "Root", 1)
 	mid := testActor(t, "Mid", 2)
@@ -154,7 +153,7 @@ func TestDelegationChainTwoHops(t *testing.T) {
 func TestDelegationChainExpiredEdge(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := bootstrapStore(t)
-	chain := authority.NewDelegationChain(model, s)
+	chain := newTestDelegationChain(t, model, s)
 
 	root := testActor(t, "Root", 1)
 	delegate := testActor(t, "Delegate", 2)
@@ -174,7 +173,7 @@ func TestDelegationChainExpiredEdge(t *testing.T) {
 func TestDelegationChainNotExpired(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := bootstrapStore(t)
-	chain := authority.NewDelegationChain(model, s)
+	chain := newTestDelegationChain(t, model, s)
 
 	root := testActor(t, "Root", 1)
 	delegate := testActor(t, "Delegate", 2)
@@ -194,7 +193,7 @@ func TestDelegationChainNotExpired(t *testing.T) {
 func TestDelegationChainWithPolicy(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := bootstrapStore(t)
-	chain := authority.NewDelegationChain(model, s)
+	chain := newTestDelegationChain(t, model, s)
 
 	chain.AddPolicy(authority.AuthorityPolicy{
 		Action: "deploy.*",
@@ -214,7 +213,7 @@ func TestDelegationChainWithPolicy(t *testing.T) {
 func TestDelegationChainMethod(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := bootstrapStore(t)
-	chain := authority.NewDelegationChain(model, s)
+	chain := newTestDelegationChain(t, model, s)
 
 	a := testActor(t, "Alice", 1)
 	links, err := chain.Chain(context.Background(), a, "test")
@@ -229,7 +228,7 @@ func TestDelegationChainMethod(t *testing.T) {
 func TestDelegationChainGrant(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := bootstrapStore(t)
-	chain := authority.NewDelegationChain(model, s)
+	chain := newTestDelegationChain(t, model, s)
 
 	from := testActor(t, "Alice", 1)
 	to := testActor(t, "Bob", 2)
@@ -246,7 +245,7 @@ func TestDelegationChainGrant(t *testing.T) {
 func TestDelegationChainRevoke(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := bootstrapStore(t)
-	chain := authority.NewDelegationChain(model, s)
+	chain := newTestDelegationChain(t, model, s)
 
 	from := testActor(t, "Alice", 1)
 	to := testActor(t, "Bob", 2)
@@ -260,7 +259,7 @@ func TestDelegationChainRevoke(t *testing.T) {
 func TestDelegationChainBestWeight(t *testing.T) {
 	model := trust.NewDefaultTrustModel()
 	s := bootstrapStore(t)
-	chain := authority.NewDelegationChain(model, s)
+	chain := newTestDelegationChain(t, model, s)
 
 	root1 := testActor(t, "Root1", 1)
 	root2 := testActor(t, "Root2", 2)
