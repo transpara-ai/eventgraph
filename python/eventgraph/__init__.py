@@ -185,6 +185,79 @@ from .graph import (
 from .store import ChainVerification, InMemoryStore, Store
 from .trust import DefaultTrustModel, TrustConfig, TrustMetrics
 from .tick import TickConfig, TickEngine, TickResult
+from .egip import (
+    # Constants
+    CURRENT_PROTOCOL_VERSION,
+    MAX_ENVELOPE_AGE_SECONDS,
+    DEDUP_PRUNE_INTERVAL,
+    INTER_SYSTEM_DECAY_RATE,
+    INTER_SYSTEM_MAX_ADJUSTMENT,
+    TRUST_IMPACT_VALID_PROOF,
+    TRUST_IMPACT_RECEIPT_ON_TIME,
+    TRUST_IMPACT_TREATY_HONOURED,
+    TRUST_IMPACT_TREATY_VIOLATED,
+    TRUST_IMPACT_INVALID_PROOF,
+    TRUST_IMPACT_SIGNATURE_INVALID,
+    TRUST_IMPACT_NO_HELLO_RESPONSE,
+    # Enums
+    MessageType,
+    TreatyStatus,
+    TreatyAction,
+    ReceiptStatus,
+    ProofType,
+    CGERRelationship,
+    AuthorityLevel as EGIPAuthorityLevel,
+    # Identity
+    IIdentity,
+    SystemIdentity,
+    # Envelope
+    Envelope as EGIPEnvelope,
+    sign_envelope,
+    verify_envelope,
+    # Payloads
+    CGER,
+    HelloPayload,
+    MessagePayloadContent,
+    ReceiptPayload,
+    ProofPayload,
+    TreatyPayload,
+    TreatyTerm,
+    AuthorityRequestPayload as EGIPAuthorityRequestPayload,
+    DiscoverPayload,
+    DiscoverQuery,
+    DiscoverResult,
+    ChainSegmentProof,
+    EventExistenceProof,
+    ChainSummaryProof,
+    # Version negotiation
+    negotiate_version,
+    # Treaty
+    Treaty,
+    new_treaty,
+    # Stores & infra
+    PeerRecord,
+    PeerStore,
+    TreatyStore,
+    EnvelopeDedup,
+    Handler as EGIPHandler,
+    # Proof
+    ProofGenerator,
+    validate_proof,
+    verify_chain_segment,
+    verify_event_existence,
+    # Transport
+    ITransport,
+    # Errors
+    EGIPError,
+    SystemNotFoundError as EGIPSystemNotFoundError,
+    EnvelopeSignatureInvalidError,
+    TreatyViolationError,
+    TrustInsufficientError,
+    TransportFailureError,
+    DuplicateEnvelopeError,
+    TreatyNotFoundError,
+    VersionIncompatibleError,
+)
 from .types import (
     Activation,
     ActorID,

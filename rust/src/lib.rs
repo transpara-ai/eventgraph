@@ -12,3 +12,4 @@ pub mod trust;
 pub mod decision;
 pub mod authority;
 pub mod graph;
+pub mod egip;

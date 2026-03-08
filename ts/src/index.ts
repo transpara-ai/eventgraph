@@ -12,3 +12,4 @@ export * from "./trust.js";
 export * from "./decision.js";
 export * from "./authority.js";
 export * from "./graph.js";
+export * from "./egip.js";
