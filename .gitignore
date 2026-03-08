@@ -53,3 +53,4 @@ coverage/
 *.pem
 *.key
 *.p12
+dotnet/nupkg/
