@@ -1,0 +1,22 @@
+name: Publish NuGet
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    name: Publish to NuGet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+      - run: dotnet build -c Release
+        working-directory: dotnet
+      - run: dotnet test -c Release
+        working-directory: dotnet
+      - run: dotnet pack -c Release -o nupkgs
+        working-directory: dotnet/src/EventGraph
+      - run: dotnet nuget push "dotnet/src/EventGraph/nupkgs/*.nupkg" --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json

@@ -323,13 +323,13 @@ Each language package must pass the language-agnostic conformance test suite.
 - [ ] Tick engine
 - [ ] Conformance tests passing
 
-### Python — DONE (100 tests)
+### Python — DONE (124 tests)
 - [x] Core event types + hash chain
 - [x] Store protocol + InMemory implementation
 - [x] Bus
 - [x] Primitive protocol + Registry
 - [x] Tick engine
-- [ ] Conformance tests (pending language-agnostic test vectors)
+- [x] Conformance tests (24 tests matching Go reference hashes)
 
 ### TypeScript/npm — DONE (68 tests)
 - [x] Core event types + hash chain
@@ -339,13 +339,13 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] Tick engine
 - [x] Conformance tests (matching Go reference hashes)
 
-### .NET — DONE (84 tests)
+### .NET — DONE (87 tests)
 - [x] Core event types + hash chain
 - [x] IStore interface + InMemory implementation
 - [x] Bus
 - [x] IPrimitive interface + Registry
 - [x] Tick engine
-- [ ] Conformance tests (pending language-agnostic test vectors)
+- [x] Conformance tests (3 tests matching Go reference hashes)
 
 ---
 
@@ -359,6 +359,12 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] Tutorial: "Build your first primitive" (`docs/tutorials/01-first-primitive.md`)
 - [x] Tutorial: "Implement a custom store" (`docs/tutorials/02-custom-store.md`)
 - [x] Tutorial: "Connect two event graphs" (`docs/tutorials/03-connect-two-graphs.md`)
+
+### CI/CD & Publishing — DONE
+- [x] `.github/workflows/ci.yml` — Tests all languages on push/PR (Go, Python 3.10-3.13, .NET 9, TypeScript/Node 22)
+- [x] `.github/workflows/publish-npm.yml` — Publishes `@lovyou-ai/eventgraph` to npm on release
+- [x] `.github/workflows/publish-pypi.yml` — Publishes `eventgraph` to PyPI on release (trusted publisher)
+- [x] `.github/workflows/publish-nuget.yml` — Publishes `LovYou.EventGraph` to NuGet on release
 
 ---
 

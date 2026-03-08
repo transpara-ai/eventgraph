@@ -1,9 +1,24 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+
+    <!-- NuGet package metadata -->
+    <PackageId>LovYou.EventGraph</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>LovYou AI</Authors>
+    <Description>Hash-chained, append-only, causal event graph</Description>
+    <PackageLicenseExpression>BSL-1.1</PackageLicenseExpression>
+    <PackageTags>eventgraph;event-sourcing;hash-chain;causal-graph</PackageTags>
+    <RepositoryUrl>https://github.com/lovyou-ai/eventgraph</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
 
 </Project>
