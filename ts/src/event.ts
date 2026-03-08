@@ -18,12 +18,21 @@ export class NoopSigner implements Signer {
 // ── Canonical form ──────────────────────────────────────────────────────
 
 export function canonicalContentJson(content: Record<string, unknown>): string {
-  // Omit null/undefined values, sort keys
-  const filtered: Record<string, unknown> = {};
-  for (const key of Object.keys(content).sort()) {
-    if (content[key] != null) filtered[key] = content[key];
+  return JSON.stringify(sortAndFilter(content));
+}
+
+function sortAndFilter(obj: unknown): unknown {
+  if (obj === null || obj === undefined) return undefined;
+  if (Array.isArray(obj)) return obj.map(sortAndFilter);
+  if (typeof obj === "object" && obj !== null) {
+    const sorted: Record<string, unknown> = {};
+    for (const key of Object.keys(obj as Record<string, unknown>).sort()) {
+      const val = (obj as Record<string, unknown>)[key];
+      if (val != null) sorted[key] = sortAndFilter(val);
+    }
+    return sorted;
   }
-  return JSON.stringify(filtered, Object.keys(filtered).sort());
+  return obj;
 }
 
 export function canonicalForm(

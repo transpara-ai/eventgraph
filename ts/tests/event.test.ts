@@ -74,6 +74,9 @@ describe("canonical formatting", () => {
   it("null values are omitted", () => {
     expect(canonicalContentJson({ Actor: "actor_1", Scope: null, Reason: undefined })).toBe('{"Actor":"actor_1"}');
   });
+  it("nested objects have sorted keys", () => {
+    expect(canonicalContentJson({ outer: { z: 1, a: 2 } })).toBe('{"outer":{"a":2,"z":1}}');
+  });
 });
 
 describe("conformance", () => {
