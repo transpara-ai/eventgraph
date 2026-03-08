@@ -149,14 +149,18 @@ func (s *SQLiteStore) Append(ev event.Event) (event.Event, error) {
 		causeStrs = append(causeStrs, c.Value())
 	}
 	causesJSON, _ := json.Marshal(causeStrs)
-	contentJSON := event.ContentJSON(ev)
+	contentBytes, marshalErr := json.Marshal(ev.Content())
+	if marshalErr != nil {
+		return event.Event{}, &store.StoreUnavailableError{Reason: fmt.Sprintf("marshal content: %v", marshalErr)}
+	}
+	contentJSON := string(contentBytes)
 
 	_, err = s.db.Exec(
 		`INSERT INTO events (event_id, event_type, version, timestamp_nanos, source,
 		 content, causes, conversation_id, hash, prev_hash, signature)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		ev.ID().Value(), ev.Type().Value(), ev.Version(),
-		ev.Timestamp().Nanoseconds(), ev.Source().Value(),
+		ev.Timestamp().UnixNano(), ev.Source().Value(),
 		contentJSON, string(causesJSON),
 		ev.ConversationID().Value(), ev.Hash().Value(), ev.PrevHash().Value(),
 		ev.Signature().Bytes(),
@@ -200,7 +204,7 @@ func (s *SQLiteStore) insertEdge(e event.Edge) {
 	s.db.Exec(
 		`INSERT OR REPLACE INTO edges (id, from_actor, to_actor, edge_type, weight, direction, scope, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		e.ID().Value(), e.From().Value(), e.To().Value(), string(e.Type()),
-		e.Weight().Value(), string(e.Direction()), scope, e.CreatedAt().Nanoseconds(),
+		e.Weight().Value(), string(e.Direction()), scope, e.CreatedAt().UnixNano(),
 	)
 }
 
@@ -237,15 +241,29 @@ func (s *SQLiteStore) scanEvent(row *sql.Row) (event.Event, error) {
 		causes = append(causes, types.MustEventID(c))
 	}
 
-	content := event.UnmarshalContent(types.MustEventType(eventType), contentJSON)
+	content, unmarshalErr := unmarshalContent(eventType, []byte(contentJSON))
+	if unmarshalErr != nil {
+		return event.Event{}, &store.StoreUnavailableError{Reason: fmt.Sprintf("unmarshal content: %v", unmarshalErr)}
+	}
 
 	signature := types.MustSignature(sig)
-	ts := types.MustTimestamp(timestampNs)
+	ts := types.NewTimestamp(time.Unix(0, timestampNs))
+	evType := types.MustEventType(eventType)
+
+	if evType == event.EventTypeSystemBootstrapped {
+		bc, ok := content.(event.BootstrapContent)
+		if !ok {
+			return event.Event{}, &store.StoreUnavailableError{Reason: "bootstrap content type mismatch"}
+		}
+		return event.NewBootstrapEvent(version, types.MustEventID(eventID), evType, ts,
+			types.MustActorID(source), bc, types.MustConversationID(conversationID),
+			types.MustHash(hash), signature), nil
+	}
 
 	return event.NewEvent(
 		version,
 		types.MustEventID(eventID),
-		types.MustEventType(eventType),
+		evType,
 		ts,
 		types.MustActorID(source),
 		content,
@@ -341,11 +359,26 @@ func (s *SQLiteStore) scanRows(rows *sql.Rows) []event.Event {
 			causes = append(causes, types.MustEventID(c))
 		}
 
-		content := event.UnmarshalContent(types.MustEventType(eventType), contentJSON)
+		content, unmarshalErr := unmarshalContent(eventType, []byte(contentJSON))
+		if unmarshalErr != nil {
+			continue
+		}
 		signature := types.MustSignature(sig)
-		ts := types.MustTimestamp(timestampNs)
+		ts := types.NewTimestamp(time.Unix(0, timestampNs))
+		evType := types.MustEventType(eventType)
 
-		ev := event.NewEvent(version, types.MustEventID(eventID), types.MustEventType(eventType),
+		if evType == event.EventTypeSystemBootstrapped {
+			bc, ok := content.(event.BootstrapContent)
+			if ok {
+				ev := event.NewBootstrapEvent(version, types.MustEventID(eventID), evType, ts,
+					types.MustActorID(source), bc, types.MustConversationID(conversationID),
+					types.MustHash(hash), signature)
+				result = append(result, ev)
+			}
+			continue
+		}
+
+		ev := event.NewEvent(version, types.MustEventID(eventID), evType,
 			ts, types.MustActorID(source), content, causes,
 			types.MustConversationID(conversationID), types.MustHash(hash),
 			types.MustHash(prevHash), signature)
@@ -610,7 +643,7 @@ func (s *SQLiteStore) scanEdges(rows *sql.Rows) []event.Edge {
 
 		edgeID, _ := types.NewEdgeID(id)
 		w := types.MustWeight(weight)
-		ts := types.MustTimestamp(createdAt)
+		ts := types.NewTimestamp(time.Unix(0, createdAt))
 
 		var scopeOpt types.Option[types.DomainScope]
 		if scope.Valid {
@@ -619,7 +652,7 @@ func (s *SQLiteStore) scanEdges(rows *sql.Rows) []event.Edge {
 
 		var expiresOpt types.Option[types.Timestamp]
 		if expiresAt.Valid {
-			expiresOpt = types.Some(types.MustTimestamp(expiresAt.Int64))
+			expiresOpt = types.Some(types.NewTimestamp(time.Unix(0, expiresAt.Int64)))
 		}
 
 		dir := event.EdgeDirection(direction)
@@ -698,9 +731,133 @@ func (s *SQLiteStore) Close() error {
 // Ensure SQLiteStore implements store.Store at compile time.
 var _ store.Store = (*SQLiteStore)(nil)
 
-// ContentJSON returns the JSON representation of the event's content.
-// This is a helper exposed for the store package to use.
-func contentJSON(ev event.Event) string {
-	data, _ := json.Marshal(ev.Content())
-	return string(data)
+// unmarshalContent deserializes JSON into the correct EventContent type.
+func unmarshalContent(eventType string, data []byte) (event.EventContent, error) {
+	switch eventType {
+	case "system.bootstrapped":
+		var c event.BootstrapContent
+		return c, json.Unmarshal(data, &c)
+	case "trust.updated":
+		var c event.TrustUpdatedContent
+		return c, json.Unmarshal(data, &c)
+	case "trust.score":
+		var c event.TrustScoreContent
+		return c, json.Unmarshal(data, &c)
+	case "trust.decayed":
+		var c event.TrustDecayedContent
+		return c, json.Unmarshal(data, &c)
+	case "authority.requested":
+		var c event.AuthorityRequestContent
+		return c, json.Unmarshal(data, &c)
+	case "authority.resolved":
+		var c event.AuthorityResolvedContent
+		return c, json.Unmarshal(data, &c)
+	case "authority.delegated":
+		var c event.AuthorityDelegatedContent
+		return c, json.Unmarshal(data, &c)
+	case "authority.revoked":
+		var c event.AuthorityRevokedContent
+		return c, json.Unmarshal(data, &c)
+	case "authority.timeout":
+		var c event.AuthorityTimeoutContent
+		return c, json.Unmarshal(data, &c)
+	case "actor.registered":
+		var c event.ActorRegisteredContent
+		return c, json.Unmarshal(data, &c)
+	case "actor.suspended":
+		var c event.ActorSuspendedContent
+		return c, json.Unmarshal(data, &c)
+	case "actor.memorial":
+		var c event.ActorMemorialContent
+		return c, json.Unmarshal(data, &c)
+	case "edge.created":
+		var c event.EdgeCreatedContent
+		return c, json.Unmarshal(data, &c)
+	case "edge.superseded":
+		var c event.EdgeSupersededContent
+		return c, json.Unmarshal(data, &c)
+	case "violation.detected":
+		var c event.ViolationDetectedContent
+		return c, json.Unmarshal(data, &c)
+	case "chain.verified":
+		var c event.ChainVerifiedContent
+		return c, json.Unmarshal(data, &c)
+	case "chain.broken":
+		var c event.ChainBrokenContent
+		return c, json.Unmarshal(data, &c)
+	case "clock.tick":
+		var c event.ClockTickContent
+		return c, json.Unmarshal(data, &c)
+	case "health.report":
+		var c event.HealthReportContent
+		return c, json.Unmarshal(data, &c)
+	case "decision.branch.proposed":
+		var c event.BranchProposedContent
+		return c, json.Unmarshal(data, &c)
+	case "decision.branch.inserted":
+		var c event.BranchInsertedContent
+		return c, json.Unmarshal(data, &c)
+	case "decision.cost.report":
+		var c event.CostReportContent
+		return c, json.Unmarshal(data, &c)
+	case "grammar.emit":
+		var c event.GrammarEmitContent
+		return c, json.Unmarshal(data, &c)
+	case "grammar.respond":
+		var c event.GrammarRespondContent
+		return c, json.Unmarshal(data, &c)
+	case "grammar.derive":
+		var c event.GrammarDeriveContent
+		return c, json.Unmarshal(data, &c)
+	case "grammar.extend":
+		var c event.GrammarExtendContent
+		return c, json.Unmarshal(data, &c)
+	case "grammar.retract":
+		var c event.GrammarRetractContent
+		return c, json.Unmarshal(data, &c)
+	case "grammar.annotate":
+		var c event.GrammarAnnotateContent
+		return c, json.Unmarshal(data, &c)
+	case "grammar.merge":
+		var c event.GrammarMergeContent
+		return c, json.Unmarshal(data, &c)
+	case "grammar.consent":
+		var c event.GrammarConsentContent
+		return c, json.Unmarshal(data, &c)
+	case "egip.hello.sent":
+		var c event.EGIPHelloSentContent
+		return c, json.Unmarshal(data, &c)
+	case "egip.hello.received":
+		var c event.EGIPHelloReceivedContent
+		return c, json.Unmarshal(data, &c)
+	case "egip.message.sent":
+		var c event.EGIPMessageSentContent
+		return c, json.Unmarshal(data, &c)
+	case "egip.message.received":
+		var c event.EGIPMessageReceivedContent
+		return c, json.Unmarshal(data, &c)
+	case "egip.receipt.sent":
+		var c event.EGIPReceiptSentContent
+		return c, json.Unmarshal(data, &c)
+	case "egip.receipt.received":
+		var c event.EGIPReceiptReceivedContent
+		return c, json.Unmarshal(data, &c)
+	case "egip.proof.requested":
+		var c event.EGIPProofRequestedContent
+		return c, json.Unmarshal(data, &c)
+	case "egip.proof.received":
+		var c event.EGIPProofReceivedContent
+		return c, json.Unmarshal(data, &c)
+	case "egip.treaty.proposed":
+		var c event.EGIPTreatyProposedContent
+		return c, json.Unmarshal(data, &c)
+	case "egip.treaty.active":
+		var c event.EGIPTreatyActiveContent
+		return c, json.Unmarshal(data, &c)
+	case "egip.trust.updated":
+		var c event.EGIPTrustUpdatedContent
+		return c, json.Unmarshal(data, &c)
+	default:
+		return nil, fmt.Errorf("unknown event type: %s", eventType)
+	}
 }

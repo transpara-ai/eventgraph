@@ -315,7 +315,7 @@ Sovereign systems communicating across graph boundaries.
 
 Each language package must pass the language-agnostic conformance test suite.
 
-### Rust — DONE (321 tests)
+### Rust — DONE (345 tests)
 - [x] Core event types + hash chain
 - [x] Store trait + InMemory implementation (with query methods: by_type, by_source, by_conversation, ancestors, descendants)
 - [x] Bus
@@ -331,8 +331,12 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] EGIP inter-system protocol (identity, envelope, handler, treaty, trust, proofs, dedup, transport)
 - [x] 21 integration test scenarios
 - [x] Conformance tests (matching Go reference hashes)
+- [x] 201 primitives (all 14 layers)
+- [x] SQLite store (`rusqlite`, optional `sqlite` feature)
+- [x] Postgres store (`postgres` crate, optional `postgres` feature)
+- [x] CLI tool (`eg` binary)
 
-### Python — DONE (427 tests)
+### Python — DONE (462 tests)
 - [x] Core event types + hash chain
 - [x] Store protocol + InMemory implementation (with query methods: by_type, by_source, by_conversation, ancestors, descendants)
 - [x] Bus
@@ -348,8 +352,12 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] EGIP inter-system protocol (identity, envelope, handler, treaty, trust, proofs, dedup, transport)
 - [x] 21 integration test scenarios
 - [x] Conformance tests (matching Go reference hashes)
+- [x] 201 primitives (all 14 layers)
+- [x] SQLite store (stdlib `sqlite3`)
+- [x] Postgres store (`psycopg2`, optional)
+- [x] CLI tool (`eg` entry point)
 
-### TypeScript/npm — DONE (425 tests)
+### TypeScript/npm — DONE (499 tests)
 - [x] Core event types + hash chain
 - [x] Store interface + InMemory implementation (with query methods: byType, bySource, byConversation, ancestors, descendants)
 - [x] Bus
@@ -365,8 +373,12 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] EGIP inter-system protocol (identity, envelope, handler, treaty, trust, proofs, dedup, transport)
 - [x] 21 integration test scenarios
 - [x] Conformance tests (matching Go reference hashes)
+- [x] 201 primitives (all 14 layers)
+- [x] SQLite store (`better-sqlite3`, optional)
+- [x] Postgres store (`pg`, optional, async)
+- [x] CLI tool (`eg` binary via package.json)
 
-### .NET — DONE (367 tests)
+### .NET — DONE (406 tests)
 - [x] Core event types + hash chain
 - [x] IStore interface + InMemory implementation (with query methods: ByType, BySource, ByConversation, Ancestors, Descendants)
 - [x] Bus
@@ -382,6 +394,58 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] EGIP inter-system protocol (identity, envelope, handler, treaty, trust, proofs, dedup, transport)
 - [x] 21 integration test scenarios
 - [x] Conformance tests (matching Go reference hashes)
+- [x] 201 primitives (all 14 layers)
+- [x] SQLite store (separate NuGet: `LovYou.EventGraph.Sqlite`)
+- [x] Postgres store (separate NuGet: `LovYou.EventGraph.Postgres`)
+- [x] SQL Server store (separate NuGet: `LovYou.EventGraph.SqlServer`)
+- [x] CLI tool (`EventGraph.Cli` project)
+
+---
+
+## Phase 6b: Persistent Stores — DONE
+
+Database-backed store implementations. Each follows the same schema with dialect-appropriate syntax.
+
+### Store Matrix
+
+| Language | SQLite | Postgres | MySQL | SQL Server |
+|----------|--------|----------|-------|------------|
+| **Go** | `sqlitestore/` (modernc.org/sqlite) | `pgstore/` (pgx/v5) | `mysqlstore/` (go-sql-driver) | — |
+| **TypeScript** | `sqlite-store.ts` (better-sqlite3) | `postgres-store.ts` (pg) | — | — |
+| **Python** | `sqlite_store.py` (stdlib sqlite3) | `postgres_store.py` (psycopg2) | — | — |
+| **.NET** | `EventGraph.Sqlite` (Microsoft.Data.Sqlite) | `EventGraph.Postgres` (Npgsql) | — | `EventGraph.SqlServer` (Microsoft.Data.SqlClient) |
+| **Rust** | `sqlite_store.rs` (rusqlite) | `postgres_store.rs` (postgres) | — | — |
+
+### Go Stores — DONE
+- [x] `go/pkg/store/pgstore/pgstore.go` — PostgresStore (pgx/v5, advisory locks, recursive CTEs, normalized causes, JSONB content)
+- [x] `go/pkg/store/pgstore/pgstore_test.go` — Conformance suite (set `EVENTGRAPH_POSTGRES_URL`)
+- [x] `go/pkg/store/sqlitestore/sqlitestore.go` — SQLiteStore (modernc.org/sqlite, pure Go)
+- [x] `go/pkg/store/mysqlstore/mysqlstore.go` — MySQLStore (go-sql-driver/mysql, recursive CTEs, normalized causes)
+
+### Non-Go Stores — DONE
+- [x] Python: `sqlite_store.py`, `postgres_store.py` (18 SQLite tests passing, Postgres tests skip without `POSTGRES_URL`)
+- [x] TypeScript: `sqlite-store.ts`, `postgres-store.ts` (optional deps, async Postgres)
+- [x] .NET: Separate NuGet packages — `EventGraph.Sqlite`, `EventGraph.Postgres`, `EventGraph.SqlServer`
+- [x] Rust: `sqlite_store.rs` (feature `sqlite`), `postgres_store.rs` (feature `postgres`)
+
+---
+
+## Phase 6c: CLI Tools & 201 Primitives — DONE
+
+### CLI Tools (all languages)
+- [x] `go/cmd/eg/main.go` — Go CLI (reference, existed)
+- [x] `ts/src/cli.ts` — TypeScript CLI (8 commands: bootstrap, get, recent, count, verify, head, help)
+- [x] `python/eventgraph/cli.py` — Python CLI (`eg` entry point via pyproject.toml)
+- [x] `dotnet/src/EventGraph.Cli/Program.cs` — .NET CLI
+- [x] `rust/src/bin/eg.rs` — Rust CLI
+
+### 201 Primitives (all non-Go languages)
+All 201 primitives across 14 layers (L0: 45, L1-L12: 12 each, L13: 12). Each implements the Primitive interface with correct layer, subscriptions, and a Process method returning UpdateState mutations.
+
+- [x] `ts/src/primitives.ts` — TypeScript (data-driven GenericPrimitive, 20 tests)
+- [x] `python/eventgraph/primitives.py` — Python (metaclass factory, 17 tests)
+- [x] `dotnet/src/EventGraph/Primitives.cs` — .NET (ConcretePrimitive, PrimitiveFactory, 25 tests)
+- [x] `rust/src/primitives.rs` — Rust (macro-driven, 8 integration tests)
 
 ---
 
@@ -402,6 +466,18 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] `.github/workflows/publish-pypi.yml` — Publishes `eventgraph` to PyPI on release (trusted publisher)
 - [x] `.github/workflows/publish-nuget.yml` — Publishes `LovYou.EventGraph` to NuGet on release
 - [x] `.github/workflows/publish-crates.yml` — Publishes `eventgraph` to crates.io on release
+
+### Published Packages (v0.3.0)
+
+| Registry | Package | Install |
+|----------|---------|---------|
+| npm | `@lovyou-ai/eventgraph` | `npm install @lovyou-ai/eventgraph` |
+| PyPI | `lovyou-eventgraph` | `pip install lovyou-eventgraph` |
+| NuGet | `LovYou.EventGraph` | `dotnet add package LovYou.EventGraph` |
+| NuGet | `LovYou.EventGraph.Sqlite` | `dotnet add package LovYou.EventGraph.Sqlite` |
+| NuGet | `LovYou.EventGraph.Postgres` | `dotnet add package LovYou.EventGraph.Postgres` |
+| NuGet | `LovYou.EventGraph.SqlServer` | `dotnet add package LovYou.EventGraph.SqlServer` |
+| crates.io | `eventgraph` | `cargo add eventgraph` |
 
 ---
 
