@@ -315,37 +315,37 @@ Sovereign systems communicating across graph boundaries.
 
 Each language package must pass the language-agnostic conformance test suite.
 
-### Rust — DONE (79 tests)
+### Rust — DONE (92 tests)
 - [x] Core event types + hash chain
-- [x] Store trait + InMemory implementation
+- [x] Store trait + InMemory implementation (with query methods: by_type, by_source, by_conversation, ancestors, descendants)
 - [x] Bus
 - [x] Primitive trait + Registry
 - [x] Tick engine
-- [x] Conformance tests (3 tests matching Go reference hashes)
+- [x] Conformance tests (matching Go reference hashes)
 
-### Python — DONE (135 tests)
+### Python — DONE (142 tests)
 - [x] Core event types + hash chain
-- [x] Store protocol + InMemory implementation
+- [x] Store protocol + InMemory implementation (with query methods: by_type, by_source, by_conversation, ancestors, descendants)
 - [x] Bus
 - [x] Primitive protocol + Registry
 - [x] Tick engine
-- [x] Conformance tests (24 tests matching Go reference hashes)
+- [x] Conformance tests (matching Go reference hashes)
 
-### TypeScript/npm — DONE (124 tests)
+### TypeScript/npm — DONE (137 tests)
 - [x] Core event types + hash chain
-- [x] Store interface + InMemory implementation
+- [x] Store interface + InMemory implementation (with query methods: byType, bySource, byConversation, ancestors, descendants)
 - [x] Bus
 - [x] Primitive interface + Registry
 - [x] Tick engine
 - [x] Conformance tests (matching Go reference hashes)
 
-### .NET — DONE (94 tests)
+### .NET — DONE (104 tests)
 - [x] Core event types + hash chain
-- [x] IStore interface + InMemory implementation
+- [x] IStore interface + InMemory implementation (with query methods: ByType, BySource, ByConversation, Ancestors, Descendants)
 - [x] Bus
 - [x] IPrimitive interface + Registry
 - [x] Tick engine
-- [x] Conformance tests (3 tests matching Go reference hashes)
+- [x] Conformance tests (matching Go reference hashes)
 
 ---
 
