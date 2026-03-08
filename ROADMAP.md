@@ -331,6 +331,14 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] Tick engine
 - [ ] Conformance tests (pending language-agnostic test vectors)
 
+### TypeScript/npm — DONE (68 tests)
+- [x] Core event types + hash chain
+- [x] Store interface + InMemory implementation
+- [x] Bus
+- [x] Primitive interface + Registry
+- [x] Tick engine
+- [x] Conformance tests (matching Go reference hashes)
+
 ### .NET — DONE (84 tests)
 - [x] Core event types + hash chain
 - [x] IStore interface + InMemory implementation

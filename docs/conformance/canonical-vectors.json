@@ -1,13 +1,13 @@
 {
-  "_comment": "Language-agnostic conformance test vectors for EventGraph. All implementations must produce identical outputs for these inputs. Content JSON keys match the Go reference implementation's json.Marshal output (PascalCase struct fields).",
-  "_version": 1,
+  "_comment": "Language-agnostic conformance test vectors for EventGraph. All implementations must produce identical outputs for these inputs. Canonical form: version|prev_hash|causes|id|type|source|conversation_id|timestamp_nanos|content_json. Causes are sorted lexicographically, comma-separated. Empty for bootstrap.",
+  "_version": 2,
 
   "canonical_form": {
     "_comment": "Each test case provides event fields and the expected canonical string and hash. Content JSON keys use Go's default marshalling (PascalCase).",
     "cases": [
       {
         "name": "bootstrap_event",
-        "description": "The genesis event — no causes, no prev_hash.",
+        "description": "The genesis event — no causes, empty prev_hash. Canonical: 1|||id|type|source|conv|nanos|json (empty prev_hash and empty causes between pipes).",
         "input": {
           "version": 1,
           "id": "019462a0-0000-7000-8000-000000000001",
@@ -16,6 +16,7 @@
           "conversation_id": "conv_00000000000000000000000000000001",
           "timestamp_nanos": 1700000000000000000,
           "prev_hash": "",
+          "causes": [],
           "content": {
             "ActorID": "actor_00000000000000000000000000000001",
             "ChainGenesis": "0000000000000000000000000000000000000000000000000000000000000000",
@@ -23,8 +24,8 @@
           }
         },
         "expected": {
-          "canonical": "1||019462a0-0000-7000-8000-000000000001|system.bootstrapped|actor_00000000000000000000000000000001|conv_00000000000000000000000000000001|1700000000000000000|{\"ActorID\":\"actor_00000000000000000000000000000001\",\"ChainGenesis\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"Timestamp\":\"2023-11-14T22:13:20Z\"}",
-          "hash": "88a1c89ffad29455acaa28c66aef8c34db2532fdb47e37f16f09ab6fd91ceeb4"
+          "canonical": "1|||019462a0-0000-7000-8000-000000000001|system.bootstrapped|actor_00000000000000000000000000000001|conv_00000000000000000000000000000001|1700000000000000000|{\"ActorID\":\"actor_00000000000000000000000000000001\",\"ChainGenesis\":\"0000000000000000000000000000000000000000000000000000000000000000\",\"Timestamp\":\"2023-11-14T22:13:20Z\"}",
+          "hash": "f7cae7ae11c1232a932c64f2302432c0e304dffce80f3935e688980dfbafeb75"
         }
       },
       {
@@ -38,6 +39,7 @@
           "conversation_id": "conv_00000000000000000000000000000001",
           "timestamp_nanos": 1700000001000000000,
           "prev_hash": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+          "causes": ["019462a0-0000-7000-8000-000000000001"],
           "content": {
             "Actor": "actor_00000000000000000000000000000002",
             "Cause": "019462a0-0000-7000-8000-000000000001",
@@ -47,7 +49,7 @@
           }
         },
         "expected": {
-          "hash": "04bfffee1d6d192302856af63d02d92f137083872a7775e4c778829021712bc5"
+          "hash": "b2fbcd2684868f0b0d07d2f5136b52f14b8e749da7b4b7bae2a22f67147152b7"
         }
       },
       {
@@ -61,6 +63,7 @@
           "conversation_id": "conv_00000000000000000000000000000001",
           "timestamp_nanos": 1700000002000000000,
           "prev_hash": "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3",
+          "causes": ["019462a0-0000-7000-8000-000000000001"],
           "content": {
             "Weight": 0.5,
             "From": "actor_00000000000000000000000000000001",
@@ -70,7 +73,7 @@
           }
         },
         "expected": {
-          "hash": "1abc67e3790b10bd954951d0954ae6ccbe5e9f4e04a174e0090f7b003798f846"
+          "hash": "4e5c6710ca9325676663b4a66d2e82114fcd8fb49dbe5705795051e0b0be374c"
         }
       },
       {

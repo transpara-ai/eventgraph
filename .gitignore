@@ -24,6 +24,10 @@ python/*.egg-info/
 **/bin/
 **/obj/
 
+# Node/TypeScript
+node_modules/
+dist/
+
 # IDE
 .idea/
 .vscode/
