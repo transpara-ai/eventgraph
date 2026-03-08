@@ -10,3 +10,4 @@ export * from "./actor.js";
 export * from "./trust.js";
 export * from "./decision.js";
 export * from "./authority.js";
+export * from "./graph.js";

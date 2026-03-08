@@ -95,6 +95,14 @@ from .primitive import (
     UpdateState,
 )
 from .grammar import Grammar
+from .graph import (
+    AlreadyBootstrappedError,
+    Graph,
+    GraphClosedError,
+    GraphConfig,
+    GraphNotStartedError,
+    Query,
+)
 from .store import ChainVerification, InMemoryStore, Store
 from .trust import DefaultTrustModel, TrustConfig, TrustMetrics
 from .tick import TickConfig, TickEngine, TickResult

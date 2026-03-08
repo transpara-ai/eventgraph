@@ -10,3 +10,4 @@ pub mod actor;
 pub mod trust;
 pub mod decision;
 pub mod authority;
+pub mod graph;

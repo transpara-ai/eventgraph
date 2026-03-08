@@ -315,7 +315,7 @@ Sovereign systems communicating across graph boundaries.
 
 Each language package must pass the language-agnostic conformance test suite.
 
-### Rust — DONE (176 tests)
+### Rust — DONE (207 tests)
 - [x] Core event types + hash chain
 - [x] Store trait + InMemory implementation (with query methods: by_type, by_source, by_conversation, ancestors, descendants)
 - [x] Bus
@@ -325,9 +325,11 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] Actor module (ActorType, ActorStatus state machine, InMemoryActorStore)
 - [x] Trust module (DefaultTrustModel, directional trust, decay, domain scores)
 - [x] Decision module (decision trees, evaluate, evolve LLM→mechanical)
+- [x] Authority module (DefaultAuthorityChain, policy matching, trust-based downgrade)
+- [x] Graph facade (Graph, GraphQuery, bootstrap/record/evaluate/query lifecycle)
 - [x] Conformance tests (matching Go reference hashes)
 
-### Python — DONE (218 tests)
+### Python — DONE (245 tests)
 - [x] Core event types + hash chain
 - [x] Store protocol + InMemory implementation (with query methods: by_type, by_source, by_conversation, ancestors, descendants)
 - [x] Bus
@@ -337,9 +339,11 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] Actor module (ActorType, ActorStatus state machine, InMemoryActorStore)
 - [x] Trust module (DefaultTrustModel, directional trust, decay, domain scores)
 - [x] Decision module (decision trees, evaluate, evolve LLM→mechanical)
+- [x] Authority module (DefaultAuthorityChain, policy matching, trust-based downgrade)
+- [x] Graph facade (Graph, Query, bootstrap/record/evaluate/query lifecycle)
 - [x] Conformance tests (matching Go reference hashes)
 
-### TypeScript/npm — DONE (231 tests)
+### TypeScript/npm — DONE (261 tests)
 - [x] Core event types + hash chain
 - [x] Store interface + InMemory implementation (with query methods: byType, bySource, byConversation, ancestors, descendants)
 - [x] Bus
@@ -349,9 +353,11 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] Actor module (ActorType, ActorStatus state machine, InMemoryActorStore)
 - [x] Trust module (DefaultTrustModel, directional trust, decay, domain scores)
 - [x] Decision module (decision trees, evaluate, evolve LLM→mechanical)
+- [x] Authority module (DefaultAuthorityChain, policy matching, trust-based downgrade)
+- [x] Graph facade (Graph, Query, bootstrap/record/evaluate/query lifecycle)
 - [x] Conformance tests (matching Go reference hashes)
 
-### .NET — DONE (191 tests)
+### .NET — DONE (222 tests)
 - [x] Core event types + hash chain
 - [x] IStore interface + InMemory implementation (with query methods: ByType, BySource, ByConversation, Ancestors, Descendants)
 - [x] Bus
@@ -361,6 +367,8 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] Actor module (ActorType, ActorStatus state machine, InMemoryActorStore)
 - [x] Trust module (DefaultTrustModel, directional trust, decay, domain scores)
 - [x] Decision module (decision trees, evaluate, evolve LLM→mechanical)
+- [x] Authority module (DefaultAuthorityChain, policy matching, trust-based downgrade)
+- [x] Graph facade (Graph, GraphQuery, Bootstrap/Record/Evaluate/Query lifecycle)
 - [x] Conformance tests (matching Go reference hashes)
 
 ---
