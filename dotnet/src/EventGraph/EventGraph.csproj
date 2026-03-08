@@ -10,7 +10,7 @@
     <Version>0.1.0</Version>
     <Authors>LovYou AI</Authors>
     <Description>Hash-chained, append-only, causal event graph</Description>
-    <PackageLicenseExpression>BSL-1.1</PackageLicenseExpression>
+    <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageTags>eventgraph;event-sourcing;hash-chain;causal-graph</PackageTags>
     <RepositoryUrl>https://github.com/lovyou-ai/eventgraph</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="../../LICENSE" Pack="true" PackagePath="/" />
   </ItemGroup>
 
 </Project>
