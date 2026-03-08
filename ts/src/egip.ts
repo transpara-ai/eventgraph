@@ -61,12 +61,12 @@ export const CGERRelationship = {
 } as const;
 export type CGERRelationship = (typeof CGERRelationship)[keyof typeof CGERRelationship];
 
-export const AuthorityLevel = {
+export const EGIPAuthorityLevel = {
   Required: "Required",
   Recommended: "Recommended",
   Notification: "Notification",
 } as const;
-export type AuthorityLevel = (typeof AuthorityLevel)[keyof typeof AuthorityLevel];
+export type EGIPAuthorityLevel = (typeof EGIPAuthorityLevel)[keyof typeof EGIPAuthorityLevel];
 
 // ── Protocol constants ──────────────────────────────────────────────────
 
@@ -324,7 +324,7 @@ export interface AuthorityRequestPayload {
   readonly kind: "authority_request";
   readonly action: DomainScope;
   readonly actor: ActorId;
-  readonly level: AuthorityLevel;
+  readonly level: EGIPAuthorityLevel;
   readonly justification: string;
   readonly treatyId: Option<TreatyId>;
 }

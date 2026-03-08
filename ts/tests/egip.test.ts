@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   // Constants
   MessageType, TreatyStatus, TreatyAction, ReceiptStatus, ProofType,
-  CGERRelationship, AuthorityLevel, CurrentProtocolVersion,
+  CGERRelationship, EGIPAuthorityLevel, CurrentProtocolVersion,
   MaxEnvelopeAgeMs, isValidMessageType,
   // Trust constants
   TrustImpactValidProof, TrustImpactReceiptOnTime, TrustImpactTreatyHonoured,
@@ -127,11 +127,11 @@ describe("CGERRelationship", () => {
   });
 });
 
-describe("AuthorityLevel", () => {
+describe("EGIPAuthorityLevel", () => {
   it("has all three levels", () => {
-    expect(AuthorityLevel.Required).toBe("Required");
-    expect(AuthorityLevel.Recommended).toBe("Recommended");
-    expect(AuthorityLevel.Notification).toBe("Notification");
+    expect(EGIPAuthorityLevel.Required).toBe("Required");
+    expect(EGIPAuthorityLevel.Recommended).toBe("Recommended");
+    expect(EGIPAuthorityLevel.Notification).toBe("Notification");
   });
 });
 
