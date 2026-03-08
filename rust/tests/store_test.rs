@@ -96,3 +96,221 @@ fn recent_returns_reverse_order() {
     let recent = store.recent(10);
     assert_eq!(recent.len(), 1);
 }
+
+// ── Helper to build a chained event ────────────────────────────────────
+
+fn append_event(
+    store: &mut InMemoryStore,
+    event_type: &str,
+    source: &str,
+    conversation_id: &str,
+    causes: Vec<EventId>,
+) -> Event {
+    let head = store.head().unwrap();
+    let prev_hash = head.hash.clone();
+    let ev = create_event(
+        EventType::new(event_type).unwrap(),
+        ActorId::new(source).unwrap(),
+        std::collections::BTreeMap::new(),
+        causes,
+        ConversationId::new(conversation_id).unwrap(),
+        prev_hash,
+        &NoopSigner,
+        1,
+    );
+    store.append(ev).unwrap()
+}
+
+// ── by_type ────────────────────────────────────────────────────────────
+
+#[test]
+fn by_type_filters_correctly() {
+    let mut store = InMemoryStore::new();
+    let boot = bootstrap();
+    let boot_id = boot.id.clone();
+    store.append(boot).unwrap();
+
+    let ev1 = append_event(&mut store, "trust.updated", "alice", "conv_1", vec![boot_id.clone()]);
+    let ev1_id = ev1.id.clone();
+    append_event(&mut store, "message.sent", "alice", "conv_1", vec![ev1_id.clone()]);
+    append_event(&mut store, "trust.updated", "alice", "conv_1", vec![ev1_id]);
+
+    let trust_type = EventType::new("trust.updated").unwrap();
+    let results = store.by_type(&trust_type, 10);
+    assert_eq!(results.len(), 2);
+    // Newest first
+    assert_eq!(results[0].event_type.value(), "trust.updated");
+    assert_eq!(results[1].event_type.value(), "trust.updated");
+}
+
+#[test]
+fn by_type_respects_limit() {
+    let mut store = InMemoryStore::new();
+    let boot = bootstrap();
+    let boot_id = boot.id.clone();
+    store.append(boot).unwrap();
+
+    let ev1 = append_event(&mut store, "trust.updated", "alice", "conv_1", vec![boot_id]);
+    append_event(&mut store, "trust.updated", "alice", "conv_1", vec![ev1.id.clone()]);
+
+    let trust_type = EventType::new("trust.updated").unwrap();
+    let results = store.by_type(&trust_type, 1);
+    assert_eq!(results.len(), 1);
+}
+
+#[test]
+fn by_type_returns_empty_for_no_match() {
+    let mut store = InMemoryStore::new();
+    store.append(bootstrap()).unwrap();
+
+    let t = EventType::new("nonexistent.type").unwrap();
+    let results = store.by_type(&t, 10);
+    assert!(results.is_empty());
+}
+
+// ── by_source ──────────────────────────────────────────────────────────
+
+#[test]
+fn by_source_filters_correctly() {
+    let mut store = InMemoryStore::new();
+    let boot = bootstrap(); // source = alice
+    let boot_id = boot.id.clone();
+    store.append(boot).unwrap();
+
+    let ev1 = append_event(&mut store, "trust.updated", "bob", "conv_1", vec![boot_id.clone()]);
+    append_event(&mut store, "trust.updated", "alice", "conv_1", vec![ev1.id.clone()]);
+
+    let bob = ActorId::new("bob").unwrap();
+    let results = store.by_source(&bob, 10);
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].source.value(), "bob");
+}
+
+#[test]
+fn by_source_respects_limit() {
+    let mut store = InMemoryStore::new();
+    let boot = bootstrap();
+    let boot_id = boot.id.clone();
+    store.append(boot).unwrap();
+
+    let ev1 = append_event(&mut store, "trust.updated", "alice", "conv_1", vec![boot_id]);
+    append_event(&mut store, "trust.updated", "alice", "conv_1", vec![ev1.id.clone()]);
+
+    let alice = ActorId::new("alice").unwrap();
+    // bootstrap + 2 events = 3 from alice, but limit to 2
+    let results = store.by_source(&alice, 2);
+    assert_eq!(results.len(), 2);
+}
+
+// ── by_conversation ────────────────────────────────────────────────────
+
+#[test]
+fn by_conversation_filters_correctly() {
+    let mut store = InMemoryStore::new();
+    let boot = bootstrap(); // conversation = conv_alice
+    let boot_id = boot.id.clone();
+    store.append(boot).unwrap();
+
+    let ev1 = append_event(&mut store, "trust.updated", "alice", "conv_a", vec![boot_id.clone()]);
+    append_event(&mut store, "trust.updated", "alice", "conv_b", vec![ev1.id.clone()]);
+
+    let conv_a = ConversationId::new("conv_a").unwrap();
+    let results = store.by_conversation(&conv_a, 10);
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].conversation_id.value(), "conv_a");
+}
+
+#[test]
+fn by_conversation_respects_limit() {
+    let mut store = InMemoryStore::new();
+    let boot = bootstrap();
+    let boot_id = boot.id.clone();
+    store.append(boot).unwrap();
+
+    let ev1 = append_event(&mut store, "trust.updated", "alice", "conv_a", vec![boot_id]);
+    append_event(&mut store, "trust.updated", "alice", "conv_a", vec![ev1.id.clone()]);
+
+    let conv_a = ConversationId::new("conv_a").unwrap();
+    let results = store.by_conversation(&conv_a, 1);
+    assert_eq!(results.len(), 1);
+}
+
+// ── ancestors ──────────────────────────────────────────────────────────
+
+#[test]
+fn ancestors_returns_causal_parents() {
+    let mut store = InMemoryStore::new();
+    let boot = bootstrap();
+    let boot_id = boot.id.clone();
+    store.append(boot).unwrap();
+
+    let ev1 = append_event(&mut store, "trust.updated", "alice", "conv_1", vec![boot_id.clone()]);
+    let ev2 = append_event(&mut store, "trust.updated", "alice", "conv_1", vec![ev1.id.clone()]);
+
+    // ancestors of ev2 at depth 1 should be ev1
+    let ancestors = store.ancestors(&ev2.id, 1).unwrap();
+    assert_eq!(ancestors.len(), 1);
+    assert_eq!(ancestors[0].id, ev1.id);
+
+    // ancestors of ev2 at depth 2 should be ev1 + boot
+    let ancestors = store.ancestors(&ev2.id, 2).unwrap();
+    assert_eq!(ancestors.len(), 2);
+}
+
+#[test]
+fn ancestors_error_on_not_found() {
+    let store = InMemoryStore::new();
+    let id = EventId::new("019462a0-0000-7000-8000-000000000001").unwrap();
+    assert!(store.ancestors(&id, 5).is_err());
+}
+
+#[test]
+fn ancestors_depth_zero_returns_empty() {
+    let mut store = InMemoryStore::new();
+    let boot = bootstrap();
+    let boot_id = boot.id.clone();
+    store.append(boot).unwrap();
+
+    let ancestors = store.ancestors(&boot_id, 0).unwrap();
+    assert!(ancestors.is_empty());
+}
+
+// ── descendants ────────────────────────────────────────────────────────
+
+#[test]
+fn descendants_returns_causal_children() {
+    let mut store = InMemoryStore::new();
+    let boot = bootstrap();
+    let boot_id = boot.id.clone();
+    store.append(boot).unwrap();
+
+    let ev1 = append_event(&mut store, "trust.updated", "alice", "conv_1", vec![boot_id.clone()]);
+    append_event(&mut store, "trust.updated", "alice", "conv_1", vec![ev1.id.clone()]);
+
+    // descendants of boot at depth 1 should include ev1 (ev1 references boot in causes)
+    let desc = store.descendants(&boot_id, 1).unwrap();
+    assert_eq!(desc.len(), 1);
+    assert_eq!(desc[0].id, ev1.id);
+
+    // descendants of boot at depth 2 should include ev1 and ev2
+    let desc = store.descendants(&boot_id, 2).unwrap();
+    assert_eq!(desc.len(), 2);
+}
+
+#[test]
+fn descendants_error_on_not_found() {
+    let store = InMemoryStore::new();
+    let id = EventId::new("019462a0-0000-7000-8000-000000000001").unwrap();
+    assert!(store.descendants(&id, 5).is_err());
+}
+
+#[test]
+fn descendants_depth_zero_returns_empty() {
+    let mut store = InMemoryStore::new();
+    let boot = bootstrap();
+    let boot_id = boot.id.clone();
+    store.append(boot).unwrap();
+
+    let desc = store.descendants(&boot_id, 0).unwrap();
+    assert!(desc.is_empty());
+}

@@ -8,7 +8,7 @@ from typing import Protocol
 
 from .errors import ChainIntegrityError, EventNotFoundError
 from .event import Event, compute_hash, canonical_form, canonical_content_json
-from .types import EventID, Hash, Option
+from .types import ActorID, ConversationID, EventID, EventType, Hash, Option
 
 
 @dataclass(frozen=True, slots=True)
@@ -27,6 +27,11 @@ class Store(Protocol):
     def head(self) -> Option[Event]: ...
     def count(self) -> int: ...
     def verify_chain(self) -> ChainVerification: ...
+    def by_type(self, event_type: EventType, limit: int) -> list[Event]: ...
+    def by_source(self, source: ActorID, limit: int) -> list[Event]: ...
+    def by_conversation(self, conversation_id: ConversationID, limit: int) -> list[Event]: ...
+    def ancestors(self, event_id: EventID, max_depth: int) -> list[Event]: ...
+    def descendants(self, event_id: EventID, max_depth: int) -> list[Event]: ...
     def close(self) -> None: ...
 
 
@@ -81,6 +86,105 @@ class InMemoryStore:
         """Return the most recent events, newest first."""
         with self._lock:
             return list(reversed(self._events[-limit:]))
+
+    def by_type(self, event_type: EventType, limit: int) -> list[Event]:
+        """Return events of the given type, newest first, up to limit."""
+        with self._lock:
+            matches: list[Event] = []
+            for event in reversed(self._events):
+                if event.type.value == event_type.value:
+                    matches.append(event)
+                    if len(matches) >= limit:
+                        break
+            return matches
+
+    def by_source(self, source: ActorID, limit: int) -> list[Event]:
+        """Return events from the given source, newest first, up to limit."""
+        with self._lock:
+            matches: list[Event] = []
+            for event in reversed(self._events):
+                if event.source.value == source.value:
+                    matches.append(event)
+                    if len(matches) >= limit:
+                        break
+            return matches
+
+    def by_conversation(self, conversation_id: ConversationID, limit: int) -> list[Event]:
+        """Return events in the given conversation, newest first, up to limit."""
+        with self._lock:
+            matches: list[Event] = []
+            for event in reversed(self._events):
+                if event.conversation_id.value == conversation_id.value:
+                    matches.append(event)
+                    if len(matches) >= limit:
+                        break
+            return matches
+
+    def ancestors(self, event_id: EventID, max_depth: int) -> list[Event]:
+        """Return causal ancestors via BFS on causes, up to max_depth levels."""
+        with self._lock:
+            result: list[Event] = []
+            seen: set[str] = {event_id.value}
+            # Current frontier: causes of the starting event
+            pos = self._index.get(event_id.value)
+            if pos is None:
+                raise EventNotFoundError(event_id.value)
+            frontier: list[str] = [
+                c.value for c in self._events[pos].causes
+                if c.value != event_id.value  # skip bootstrap self-ref
+            ]
+            for _ in range(max_depth):
+                next_frontier: list[str] = []
+                for eid in frontier:
+                    if eid in seen:
+                        continue
+                    seen.add(eid)
+                    p = self._index.get(eid)
+                    if p is None:
+                        continue
+                    evt = self._events[p]
+                    result.append(evt)
+                    for c in evt.causes:
+                        if c.value not in seen:
+                            next_frontier.append(c.value)
+                frontier = next_frontier
+                if not frontier:
+                    break
+            return result
+
+    def descendants(self, event_id: EventID, max_depth: int) -> list[Event]:
+        """Return causal descendants via BFS on reverse-cause index, up to max_depth levels."""
+        with self._lock:
+            if self._index.get(event_id.value) is None:
+                raise EventNotFoundError(event_id.value)
+            # Build reverse index lazily
+            children: dict[str, list[str]] = {}
+            for evt in self._events:
+                for c in evt.causes:
+                    if c.value != evt.id.value:  # skip bootstrap self-ref
+                        children.setdefault(c.value, []).append(evt.id.value)
+
+            result: list[Event] = []
+            seen: set[str] = {event_id.value}
+            frontier = children.get(event_id.value, [])
+            for _ in range(max_depth):
+                next_frontier: list[str] = []
+                for eid in frontier:
+                    if eid in seen:
+                        continue
+                    seen.add(eid)
+                    p = self._index.get(eid)
+                    if p is None:
+                        continue
+                    evt = self._events[p]
+                    result.append(evt)
+                    for child_id in children.get(eid, []):
+                        if child_id not in seen:
+                            next_frontier.append(child_id)
+                frontier = next_frontier
+                if not frontier:
+                    break
+            return result
 
     def close(self) -> None:
         pass
