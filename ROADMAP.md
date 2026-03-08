@@ -255,7 +255,7 @@ The subscription contracts for all 201 primitives are specified in `docs/primiti
 
 ### Integration Test Scenarios — DONE
 
-13 end-to-end scenarios exercising the full primitive stack through concrete use cases. Each scenario uses social grammar operations + direct event recording through a domain-specific story. All tests in `go/pkg/integration/`.
+21 end-to-end scenarios exercising the full primitive stack through concrete use cases. Each scenario uses social grammar operations, composition grammars, and direct event recording through a domain-specific story. All tests in `go/pkg/integration/` and ported to all non-Go packages.
 
 | # | Scenario | Product Graph | Status |
 |---|----------|--------------|--------|
@@ -315,60 +315,72 @@ Sovereign systems communicating across graph boundaries.
 
 Each language package must pass the language-agnostic conformance test suite.
 
-### Rust — DONE (207 tests)
+### Rust — DONE (321 tests)
 - [x] Core event types + hash chain
 - [x] Store trait + InMemory implementation (with query methods: by_type, by_source, by_conversation, ancestors, descendants)
 - [x] Bus
 - [x] Primitive trait + Registry
 - [x] Tick engine
-- [x] Social grammar (7 vertex operations: emit, respond, derive, extend, retract, annotate, merge)
+- [x] Social grammar (15 operations: 7 vertex + 8 edge + 4 named functions)
 - [x] Actor module (ActorType, ActorStatus state machine, InMemoryActorStore)
 - [x] Trust module (DefaultTrustModel, directional trust, decay, domain scores)
 - [x] Decision module (decision trees, evaluate, evolve LLM→mechanical)
 - [x] Authority module (DefaultAuthorityChain, policy matching, trust-based downgrade)
 - [x] Graph facade (Graph, GraphQuery, bootstrap/record/evaluate/query lifecycle)
+- [x] 13 composition grammars (Work, Market, Social, Justice, Build, Knowledge, Alignment, Identity, Bond, Belonging, Meaning, Evolution, Being)
+- [x] EGIP inter-system protocol (identity, envelope, handler, treaty, trust, proofs, dedup, transport)
+- [x] 21 integration test scenarios
 - [x] Conformance tests (matching Go reference hashes)
 
-### Python — DONE (245 tests)
+### Python — DONE (427 tests)
 - [x] Core event types + hash chain
 - [x] Store protocol + InMemory implementation (with query methods: by_type, by_source, by_conversation, ancestors, descendants)
 - [x] Bus
 - [x] Primitive protocol + Registry
 - [x] Tick engine
-- [x] Social grammar (7 vertex operations: emit, respond, derive, extend, retract, annotate, merge)
+- [x] Social grammar (15 operations: 7 vertex + 8 edge + 4 named functions)
 - [x] Actor module (ActorType, ActorStatus state machine, InMemoryActorStore)
 - [x] Trust module (DefaultTrustModel, directional trust, decay, domain scores)
 - [x] Decision module (decision trees, evaluate, evolve LLM→mechanical)
 - [x] Authority module (DefaultAuthorityChain, policy matching, trust-based downgrade)
 - [x] Graph facade (Graph, Query, bootstrap/record/evaluate/query lifecycle)
+- [x] 13 composition grammars (Work, Market, Social, Justice, Build, Knowledge, Alignment, Identity, Bond, Belonging, Meaning, Evolution, Being)
+- [x] EGIP inter-system protocol (identity, envelope, handler, treaty, trust, proofs, dedup, transport)
+- [x] 21 integration test scenarios
 - [x] Conformance tests (matching Go reference hashes)
 
-### TypeScript/npm — DONE (261 tests)
+### TypeScript/npm — DONE (425 tests)
 - [x] Core event types + hash chain
 - [x] Store interface + InMemory implementation (with query methods: byType, bySource, byConversation, ancestors, descendants)
 - [x] Bus
 - [x] Primitive interface + Registry
 - [x] Tick engine
-- [x] Social grammar (7 vertex operations: emit, respond, derive, extend, retract, annotate, merge)
+- [x] Social grammar (15 operations: 7 vertex + 8 edge + 4 named functions)
 - [x] Actor module (ActorType, ActorStatus state machine, InMemoryActorStore)
 - [x] Trust module (DefaultTrustModel, directional trust, decay, domain scores)
 - [x] Decision module (decision trees, evaluate, evolve LLM→mechanical)
 - [x] Authority module (DefaultAuthorityChain, policy matching, trust-based downgrade)
 - [x] Graph facade (Graph, Query, bootstrap/record/evaluate/query lifecycle)
+- [x] 13 composition grammars (Work, Market, Social, Justice, Build, Knowledge, Alignment, Identity, Bond, Belonging, Meaning, Evolution, Being)
+- [x] EGIP inter-system protocol (identity, envelope, handler, treaty, trust, proofs, dedup, transport)
+- [x] 21 integration test scenarios
 - [x] Conformance tests (matching Go reference hashes)
 
-### .NET — DONE (222 tests)
+### .NET — DONE (367 tests)
 - [x] Core event types + hash chain
 - [x] IStore interface + InMemory implementation (with query methods: ByType, BySource, ByConversation, Ancestors, Descendants)
 - [x] Bus
 - [x] IPrimitive interface + Registry
 - [x] Tick engine
-- [x] Social grammar (7 vertex operations: Emit, Respond, Derive, Extend, Retract, Annotate, Merge)
+- [x] Social grammar (15 operations: 7 vertex + 8 edge + 4 named functions)
 - [x] Actor module (ActorType, ActorStatus state machine, InMemoryActorStore)
 - [x] Trust module (DefaultTrustModel, directional trust, decay, domain scores)
 - [x] Decision module (decision trees, evaluate, evolve LLM→mechanical)
 - [x] Authority module (DefaultAuthorityChain, policy matching, trust-based downgrade)
 - [x] Graph facade (Graph, GraphQuery, Bootstrap/Record/Evaluate/Query lifecycle)
+- [x] 13 composition grammars (Work, Market, Social, Justice, Build, Knowledge, Alignment, Identity, Bond, Belonging, Meaning, Evolution, Being)
+- [x] EGIP inter-system protocol (identity, envelope, handler, treaty, trust, proofs, dedup, transport)
+- [x] 21 integration test scenarios
 - [x] Conformance tests (matching Go reference hashes)
 
 ---
