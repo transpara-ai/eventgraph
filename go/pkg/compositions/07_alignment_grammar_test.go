@@ -44,6 +44,42 @@ func TestAlignmentGrammar(t *testing.T) {
 		env.verifyChain()
 	})
 
+	t.Run("FlagDilemma", func(t *testing.T) {
+		env := newTestEnv(t)
+		alignment := compositions.NewAlignmentGrammar(env.grammar)
+		agent := env.actor("Agent", 1, event.ActorTypeAI)
+
+		situation, _ := env.grammar.Emit(env.ctx, agent.ID(),
+			"user requests deletion of data that is also audit evidence",
+			env.convID, []types.EventID{env.boot.ID()}, signer)
+		dilemma, _ := alignment.FlagDilemma(env.ctx, agent.ID(),
+			"privacy (right to deletion) vs accountability (audit evidence preservation)",
+			situation.ID(), env.convID, signer)
+
+		ancestors := env.ancestors(dilemma.ID(), 5)
+		if !containsEvent(ancestors, situation.ID()) {
+			t.Error("dilemma should trace to situation")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("AssessFairness", func(t *testing.T) {
+		env := newTestEnv(t)
+		alignment := compositions.NewAlignmentGrammar(env.grammar)
+		auditor := env.actor("Auditor", 1, event.ActorTypeAI)
+
+		fairness, err := alignment.AssessFairness(env.ctx, auditor.ID(),
+			"500 decisions analysed, overall score 0.78",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("AssessFairness: %v", err)
+		}
+		if fairness.Source() != auditor.ID() {
+			t.Error("fairness source should be auditor")
+		}
+		env.verifyChain()
+	})
+
 	t.Run("WeighAndExplain", func(t *testing.T) {
 		env := newTestEnv(t)
 		alignment := compositions.NewAlignmentGrammar(env.grammar)
@@ -108,6 +144,14 @@ func TestAlignmentGrammar(t *testing.T) {
 		ancestors := env.ancestors(result.Report.ID(), 5)
 		if !containsEvent(ancestors, result.Fairness.ID()) {
 			t.Error("report should include fairness assessment")
+		}
+		if !containsEvent(ancestors, result.HarmScan.ID()) {
+			t.Error("report should include harm scan")
+		}
+		// Verify harm scan derives from fairness (not free-floating)
+		harmAncestors := env.ancestors(result.HarmScan.ID(), 5)
+		if !containsEvent(harmAncestors, result.Fairness.ID()) {
+			t.Error("harm scan should trace to fairness assessment")
 		}
 		env.verifyChain()
 	})

@@ -10,7 +10,7 @@ import (
 )
 
 // MarketGrammar provides Layer 2 (Exchange) composition operations.
-// 14 operations + 7 named functions for trust-based marketplaces.
+// 14 operations + 2 named functions for trust-based marketplaces.
 type MarketGrammar struct {
 	g *grammar.Grammar
 }
@@ -140,7 +140,7 @@ func (m *MarketGrammar) Release(
 	return m.g.Consent(ctx, partyA, partyB, "release: "+terms, scope, cause, convID, signer)
 }
 
-// --- Named Functions (7) ---
+// --- Named Functions (2) ---
 
 // AuctionResult holds the events produced by an Auction.
 type AuctionResult struct {

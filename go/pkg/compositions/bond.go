@@ -10,7 +10,7 @@ import (
 )
 
 // BondGrammar provides Layer 9 (Relationship) composition operations.
-// 10 operations + 5 named functions for deep relational bonds.
+// 10 operations + 3 named functions for deep relational bonds.
 type BondGrammar struct {
 	g *grammar.Grammar
 }
@@ -113,7 +113,7 @@ func (b *BondGrammar) Mourn(
 	return b.g.Emit(ctx, source, "mourn: "+loss, convID, causes, signer)
 }
 
-// --- Named Functions (5) ---
+// --- Named Functions (3) ---
 
 // BetrayalRepairResult holds the events produced by BetrayalRepair.
 type BetrayalRepairResult struct {

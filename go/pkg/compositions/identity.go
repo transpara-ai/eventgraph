@@ -10,7 +10,7 @@ import (
 )
 
 // IdentityGrammar provides Layer 8 (Identity) composition operations.
-// 10 operations + 5 named functions for self-sovereign identity.
+// 10 operations + 2 named functions for self-sovereign identity.
 type IdentityGrammar struct {
 	g *grammar.Grammar
 }
@@ -148,7 +148,9 @@ func (i *IdentityGrammar) Retirement(
 	scope types.DomainScope, weight types.Weight,
 	causes []types.EventID, convID types.ConversationID, signer event.Signer,
 ) (RetirementResult, error) {
-	mem, err := i.Memorialize(ctx, system, memorial, causes, convID, signer)
+	mem, err := i.Memorialize(ctx, system,
+		fmt.Sprintf("retirement of %s: %s", departing.Value(), memorial),
+		causes, convID, signer)
 	if err != nil {
 		return RetirementResult{}, fmt.Errorf("retirement/memorialize: %w", err)
 	}

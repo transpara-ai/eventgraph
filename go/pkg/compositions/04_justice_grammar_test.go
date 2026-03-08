@@ -129,4 +129,77 @@ func TestJusticeGrammar(t *testing.T) {
 		}
 		env.verifyChain()
 	})
+
+	t.Run("Repeal", func(t *testing.T) {
+		env := newTestEnv(t)
+		justice := compositions.NewJusticeGrammar(env.grammar)
+		admin := env.actor("Admin", 1, event.ActorTypeHuman)
+
+		rule, _ := justice.Legislate(env.ctx, admin.ID(), "mandatory Friday demos",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		repeal, _ := justice.Repeal(env.ctx, admin.ID(), rule.ID(),
+			"demos now async via recorded video", env.convID, signer)
+
+		ancestors := env.ancestors(repeal.ID(), 5)
+		if !containsEvent(ancestors, rule.ID()) {
+			t.Error("repeal should trace to original rule")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Enforce", func(t *testing.T) {
+		env := newTestEnv(t)
+		justice := compositions.NewJusticeGrammar(env.grammar)
+		judge := env.actor("Judge", 1, event.ActorTypeHuman)
+		executor := env.actor("Executor", 2, event.ActorTypeHuman)
+
+		ruling, _ := justice.Judge(env.ctx, judge.ID(), "access revoked for 30 days",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		enforcement, _ := justice.Enforce(env.ctx, judge.ID(), executor.ID(),
+			types.MustDomainScope("access_control"), types.MustWeight(0.8),
+			ruling.ID(), env.convID, signer)
+
+		ancestors := env.ancestors(enforcement.ID(), 5)
+		if !containsEvent(ancestors, ruling.ID()) {
+			t.Error("enforcement should trace to ruling")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Audit", func(t *testing.T) {
+		env := newTestEnv(t)
+		justice := compositions.NewJusticeGrammar(env.grammar)
+		auditor := env.actor("Auditor", 1, event.ActorTypeHuman)
+
+		action, _ := env.grammar.Emit(env.ctx, auditor.ID(), "deployment without review",
+			env.convID, []types.EventID{env.boot.ID()}, signer)
+		audit, _ := justice.Audit(env.ctx, auditor.ID(), action.ID(),
+			"violation of review policy, no approval found", env.convID, signer)
+
+		ancestors := env.ancestors(audit.ID(), 5)
+		if !containsEvent(ancestors, action.ID()) {
+			t.Error("audit should trace to audited action")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Reform", func(t *testing.T) {
+		env := newTestEnv(t)
+		justice := compositions.NewJusticeGrammar(env.grammar)
+		admin := env.actor("Admin", 1, event.ActorTypeHuman)
+		judge := env.actor("Judge", 2, event.ActorTypeHuman)
+
+		ruling, _ := justice.Judge(env.ctx, judge.ID(),
+			"insufficient: current rules don't address async collaboration",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		reform, _ := justice.Reform(env.ctx, admin.ID(),
+			"add async collaboration guidelines to code of conduct",
+			ruling.ID(), env.convID, signer)
+
+		ancestors := env.ancestors(reform.ID(), 5)
+		if !containsEvent(ancestors, ruling.ID()) {
+			t.Error("reform should trace to precedent ruling")
+		}
+		env.verifyChain()
+	})
 }

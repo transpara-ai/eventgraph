@@ -10,7 +10,7 @@ import (
 )
 
 // AlignmentGrammar provides Layer 7 (Ethics) composition operations.
-// 10 operations + 5 named functions for AI accountability.
+// 10 operations + 2 named functions for AI accountability.
 type AlignmentGrammar struct {
 	g *grammar.Grammar
 }
@@ -112,7 +112,9 @@ type EthicsAuditResult struct {
 	Report   event.Event
 }
 
-// EthicsAudit performs a comprehensive ethical review: AssessFairness + DetectHarm + Explain.
+// EthicsAudit performs a comprehensive ethical review: AssessFairness + DetectHarm + Merge report.
+// The fairness assessment is a free-standing evaluation; the harm scan derives from it
+// so the audit has a causal chain: fairness → harm → report.
 func (a *AlignmentGrammar) EthicsAudit(
 	ctx context.Context, auditor types.ActorID,
 	fairnessAssessment string, harmScan string, summary string,
@@ -123,7 +125,7 @@ func (a *AlignmentGrammar) EthicsAudit(
 		return EthicsAuditResult{}, fmt.Errorf("ethics-audit/fairness: %w", err)
 	}
 
-	harm, err := a.AssessFairness(ctx, auditor, harmScan, causes, convID, signer)
+	harm, err := a.DetectHarm(ctx, auditor, harmScan, fairness.ID(), convID, signer)
 	if err != nil {
 		return EthicsAuditResult{}, fmt.Errorf("ethics-audit/harm: %w", err)
 	}

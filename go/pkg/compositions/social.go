@@ -10,7 +10,7 @@ import (
 )
 
 // SocialGrammar provides Layer 3 (Society) composition operations.
-// 5 society-specific extensions + 3 named functions for user-owned social platforms.
+// 5 society-specific extensions + 2 named functions for user-owned social platforms.
 type SocialGrammar struct {
 	g *grammar.Grammar
 }

@@ -10,7 +10,7 @@ import (
 )
 
 // KnowledgeGrammar provides Layer 6 (Information) composition operations.
-// 12 operations + 6 named functions for verified, provenanced knowledge.
+// 12 operations + 2 named functions for verified, provenanced knowledge.
 type KnowledgeGrammar struct {
 	g *grammar.Grammar
 }
@@ -105,6 +105,14 @@ func (k *KnowledgeGrammar) Trace(
 	return k.g.Annotate(ctx, source, target, "provenance", provenance, convID, signer)
 }
 
+// Recall retrieves stored knowledge. (Memory recalled + Emit)
+func (k *KnowledgeGrammar) Recall(
+	ctx context.Context, source types.ActorID, query string,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (event.Event, error) {
+	return k.g.Emit(ctx, source, "recall: "+query, convID, causes, signer)
+}
+
 // Learn updates behaviour based on new knowledge. (Learning + Emit)
 func (k *KnowledgeGrammar) Learn(
 	ctx context.Context, source types.ActorID, learning string,
@@ -113,7 +121,7 @@ func (k *KnowledgeGrammar) Learn(
 	return k.g.Emit(ctx, source, "learn: "+learning, convID, causes, signer)
 }
 
-// --- Named Functions (6) ---
+// --- Named Functions (2) ---
 
 // Retract withdraws a claim with chain repair. (Challenge self + Correct)
 func (k *KnowledgeGrammar) Retract(
@@ -146,9 +154,8 @@ func (k *KnowledgeGrammar) FactCheck(
 		return FactCheckResult{}, fmt.Errorf("fact-check/bias: %w", err)
 	}
 
-	_ = trace
-	_ = bias
-	verdictEv, err := k.g.Derive(ctx, checker, "fact-check: "+verdict, claim, convID, signer)
+	verdictEv, err := k.g.Merge(ctx, checker, "fact-check: "+verdict,
+		[]types.EventID{trace.ID(), bias.ID()}, convID, signer)
 	if err != nil {
 		return FactCheckResult{}, fmt.Errorf("fact-check/verdict: %w", err)
 	}

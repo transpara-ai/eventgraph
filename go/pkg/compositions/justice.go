@@ -10,7 +10,7 @@ import (
 )
 
 // JusticeGrammar provides Layer 4 (Legal) composition operations.
-// 12 operations + 6 named functions for transparent dispute resolution.
+// 12 operations + 1 named function for transparent dispute resolution.
 type JusticeGrammar struct {
 	g *grammar.Grammar
 }
@@ -120,7 +120,7 @@ func (j *JusticeGrammar) Reform(
 	return j.g.Derive(ctx, source, "reform: "+proposal, precedent, convID, signer)
 }
 
-// --- Named Functions (6) ---
+// --- Named Functions (1) ---
 
 // TrialResult holds the events produced by a Trial.
 type TrialResult struct {

@@ -144,6 +144,24 @@ func TestBuildGrammar(t *testing.T) {
 		env.verifyChain()
 	})
 
+	t.Run("DefineAndAutomate", func(t *testing.T) {
+		env := newTestEnv(t)
+		build := compositions.NewBuildGrammar(env.grammar)
+		dev := env.actor("Developer", 1, event.ActorTypeHuman)
+
+		workflow, _ := build.Define(env.ctx, dev.ID(), "manual deploy: build, test, ship",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		automated, _ := build.Automate(env.ctx, dev.ID(),
+			"replaced manual deploy with CI pipeline",
+			workflow.ID(), env.convID, signer)
+
+		ancestors := env.ancestors(automated.ID(), 5)
+		if !containsEvent(ancestors, workflow.ID()) {
+			t.Error("automation should trace to workflow definition")
+		}
+		env.verifyChain()
+	})
+
 	t.Run("MeasureAndInnovate", func(t *testing.T) {
 		env := newTestEnv(t)
 		build := compositions.NewBuildGrammar(env.grammar)

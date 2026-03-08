@@ -10,7 +10,7 @@ import (
 )
 
 // BeingGrammar provides Layer 13 (Existence) composition operations.
-// 8 operations + 3 named functions for the system's relationship with its own existence.
+// 8 operations + 2 named functions for the system's relationship with its own existence.
 // This is the sparsest grammar — existence doesn't compose into complex workflows.
 type BeingGrammar struct {
 	g *grammar.Grammar

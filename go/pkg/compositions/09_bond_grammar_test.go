@@ -144,6 +144,25 @@ func TestBondGrammar(t *testing.T) {
 		env.verifyChain()
 	})
 
+	t.Run("Mourn", func(t *testing.T) {
+		env := newTestEnv(t)
+		bond := compositions.NewBondGrammar(env.grammar)
+		alice := env.actor("Alice", 1, event.ActorTypeHuman)
+
+		departure, _ := env.grammar.Emit(env.ctx, alice.ID(),
+			"Bob has left the organization permanently",
+			env.convID, []types.EventID{env.boot.ID()}, signer)
+		mourning, _ := bond.Mourn(env.ctx, alice.ID(),
+			"processing the loss of daily collaboration with Bob",
+			[]types.EventID{departure.ID()}, env.convID, signer)
+
+		ancestors := env.ancestors(mourning.ID(), 5)
+		if !containsEvent(ancestors, departure.ID()) {
+			t.Error("mourning should trace to departure")
+		}
+		env.verifyChain()
+	})
+
 	t.Run("Forgive", func(t *testing.T) {
 		env := newTestEnv(t)
 		bond := compositions.NewBondGrammar(env.grammar)

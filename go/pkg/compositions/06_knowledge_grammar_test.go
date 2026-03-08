@@ -138,6 +138,59 @@ func TestKnowledgeGrammar(t *testing.T) {
 		env.verifyChain()
 	})
 
+	t.Run("EncodeAndRecall", func(t *testing.T) {
+		env := newTestEnv(t)
+		knowledge := compositions.NewKnowledgeGrammar(env.grammar)
+		analyst := env.actor("Analyst", 1, event.ActorTypeAI)
+
+		claim, _ := knowledge.Claim(env.ctx, analyst.ID(),
+			"Go generics reduce boilerplate by ~40%",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		encoded, _ := knowledge.Encode(env.ctx, analyst.ID(),
+			"JSON: {\"language\":\"Go\",\"feature\":\"generics\",\"reduction\":0.4}",
+			claim.ID(), env.convID, signer)
+
+		ancestors := env.ancestors(encoded.ID(), 5)
+		if !containsEvent(ancestors, claim.ID()) {
+			t.Error("encoding should trace to original claim")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("RememberAndRecall", func(t *testing.T) {
+		env := newTestEnv(t)
+		knowledge := compositions.NewKnowledgeGrammar(env.grammar)
+		analyst := env.actor("Analyst", 1, event.ActorTypeAI)
+
+		memory, _ := knowledge.Remember(env.ctx, analyst.ID(),
+			"connection pool defaults: Postgres=100, MySQL=151",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		recall, _ := knowledge.Recall(env.ctx, analyst.ID(),
+			"what are the default connection pool sizes?",
+			[]types.EventID{memory.ID()}, env.convID, signer)
+
+		ancestors := env.ancestors(recall.ID(), 5)
+		if !containsEvent(ancestors, memory.ID()) {
+			t.Error("recall should trace to memory")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("AbstractRequiresTwo", func(t *testing.T) {
+		env := newTestEnv(t)
+		knowledge := compositions.NewKnowledgeGrammar(env.grammar)
+		analyst := env.actor("Analyst", 1, event.ActorTypeAI)
+
+		fact, _ := knowledge.Claim(env.ctx, analyst.ID(), "single fact",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		_, err := knowledge.Abstract(env.ctx, analyst.ID(),
+			"invalid generalization from one instance",
+			[]types.EventID{fact.ID()}, env.convID, signer)
+		if err == nil {
+			t.Error("Abstract with < 2 instances should fail")
+		}
+	})
+
 	t.Run("Retract", func(t *testing.T) {
 		env := newTestEnv(t)
 		knowledge := compositions.NewKnowledgeGrammar(env.grammar)

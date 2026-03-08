@@ -150,6 +150,51 @@ func TestMarketGrammar(t *testing.T) {
 		env.verifyChain()
 	})
 
+	t.Run("DeclineAndInvoice", func(t *testing.T) {
+		env := newTestEnv(t)
+		market := compositions.NewMarketGrammar(env.grammar)
+		seller := env.actor("Seller", 1, event.ActorTypeHuman)
+		buyer := env.actor("Buyer", 2, event.ActorTypeHuman)
+
+		listing, _ := market.List(env.ctx, seller.ID(), "consulting, $200/hr",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		decline, _ := market.Decline(env.ctx, buyer.ID(), "budget too high",
+			[]types.EventID{listing.ID()}, env.convID, signer)
+		invoice, _ := market.Invoice(env.ctx, seller.ID(), "$500 for initial assessment",
+			[]types.EventID{listing.ID()}, env.convID, signer)
+
+		ancestors := env.ancestors(decline.ID(), 5)
+		if !containsEvent(ancestors, listing.ID()) {
+			t.Error("decline should trace to listing")
+		}
+		_ = invoice
+		env.verifyChain()
+	})
+
+	t.Run("EscrowAndRelease", func(t *testing.T) {
+		env := newTestEnv(t)
+		market := compositions.NewMarketGrammar(env.grammar)
+		buyer := env.actor("Buyer", 1, event.ActorTypeHuman)
+		seller := env.actor("Seller", 2, event.ActorTypeHuman)
+		escrowAgent := env.actor("Escrow", 3, event.ActorTypeAI)
+
+		acceptance, _ := market.Accept(env.ctx, buyer.ID(), seller.ID(),
+			"$1000 engagement", types.MustDomainScope("consulting"),
+			env.boot.ID(), env.convID, signer)
+		escrow, _ := market.Escrow(env.ctx, buyer.ID(), escrowAgent.ID(),
+			types.MustDomainScope("consulting"), types.MustWeight(0.5),
+			acceptance.ID(), env.convID, signer)
+		release, _ := market.Release(env.ctx, escrowAgent.ID(), seller.ID(),
+			"work delivered and confirmed", types.MustDomainScope("consulting"),
+			escrow.ID(), env.convID, signer)
+
+		ancestors := env.ancestors(release.ID(), 10)
+		if !containsEvent(ancestors, acceptance.ID()) {
+			t.Error("release should trace to acceptance")
+		}
+		env.verifyChain()
+	})
+
 	t.Run("Milestone", func(t *testing.T) {
 		env := newTestEnv(t)
 		market := compositions.NewMarketGrammar(env.grammar)

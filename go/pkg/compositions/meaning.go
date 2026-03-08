@@ -10,7 +10,7 @@ import (
 )
 
 // MeaningGrammar provides Layer 11 (Culture) composition operations.
-// 10 operations + 5 named functions for cross-cultural communication.
+// 10 operations + 2 named functions for cross-cultural communication.
 type MeaningGrammar struct {
 	g *grammar.Grammar
 }

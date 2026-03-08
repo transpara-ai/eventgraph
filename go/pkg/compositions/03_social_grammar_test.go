@@ -66,6 +66,22 @@ func TestSocialGrammar(t *testing.T) {
 		env.verifyChain()
 	})
 
+	t.Run("Elect", func(t *testing.T) {
+		env := newTestEnv(t)
+		social := compositions.NewSocialGrammar(env.grammar)
+		community := env.actor("Community", 1, event.ActorTypeCommittee)
+		candidate := env.actor("Candidate", 2, event.ActorTypeHuman)
+
+		election, err := social.Elect(env.ctx, community.ID(), candidate.ID(),
+			"governance lead", types.MustDomainScope("governance"),
+			env.boot.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("Elect: %v", err)
+		}
+		_ = election
+		env.verifyChain()
+	})
+
 	t.Run("Poll", func(t *testing.T) {
 		env := newTestEnv(t)
 		social := compositions.NewSocialGrammar(env.grammar)

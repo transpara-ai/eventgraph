@@ -10,7 +10,7 @@ import (
 )
 
 // BuildGrammar provides Layer 5 (Technology) composition operations.
-// 12 operations + 5 named functions for development, CI/CD, and artefact lifecycle.
+// 12 operations + 2 named functions for development, CI/CD, and artefact lifecycle.
 type BuildGrammar struct {
 	g *grammar.Grammar
 }
@@ -192,7 +192,7 @@ func (b *BuildGrammar) PostMortem(
 	}
 	result.Analysis = analysisEv
 
-	improve, err := b.g.Derive(ctx, lead, "improvements: "+improvements, analysisEv.ID(), convID, signer)
+	improve, err := b.Iterate(ctx, lead, improvements, analysisEv.ID(), convID, signer)
 	if err != nil {
 		return PostMortemResult{}, fmt.Errorf("post-mortem/improvements: %w", err)
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 // WorkGrammar provides Layer 1 (Agency) composition operations.
-// 12 operations + 6 named functions for task management where AI agents
+// 12 operations + 3 named functions for task management where AI agents
 // and humans operate on the same graph.
 type WorkGrammar struct {
 	g *grammar.Grammar

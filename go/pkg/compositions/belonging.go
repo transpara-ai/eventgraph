@@ -10,7 +10,7 @@ import (
 )
 
 // BelongingGrammar provides Layer 10 (Community) composition operations.
-// 10 operations + 5 named functions for communities with shared resources.
+// 10 operations + 2 named functions for communities with shared resources.
 type BelongingGrammar struct {
 	g *grammar.Grammar
 }

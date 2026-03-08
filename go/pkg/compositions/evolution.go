@@ -10,7 +10,7 @@ import (
 )
 
 // EvolutionGrammar provides Layer 12 (Emergence) composition operations.
-// 10 operations + 4 named functions for system self-awareness and evolution.
+// 10 operations + 2 named functions for system self-awareness and evolution.
 type EvolutionGrammar struct {
 	g *grammar.Grammar
 }
