@@ -323,21 +323,21 @@ Each language package must pass the language-agnostic conformance test suite.
 - [ ] Tick engine
 - [ ] Conformance tests passing
 
-### Python
-- [ ] Core event types + hash chain
-- [ ] Store protocol + InMemory implementation
-- [ ] Bus
-- [ ] Primitive protocol + Registry
-- [ ] Tick engine
-- [ ] Conformance tests passing
+### Python — DONE (100 tests)
+- [x] Core event types + hash chain
+- [x] Store protocol + InMemory implementation
+- [x] Bus
+- [x] Primitive protocol + Registry
+- [x] Tick engine
+- [ ] Conformance tests (pending language-agnostic test vectors)
 
-### .NET
-- [ ] Core event types + hash chain
-- [ ] IStore interface + InMemory implementation
-- [ ] Bus
-- [ ] IPrimitive interface + Registry
-- [ ] Tick engine
-- [ ] Conformance tests passing
+### .NET — DONE (84 tests)
+- [x] Core event types + hash chain
+- [x] IStore interface + InMemory implementation
+- [x] Bus
+- [x] IPrimitive interface + Registry
+- [x] Tick engine
+- [ ] Conformance tests (pending language-agnostic test vectors)
 
 ---
 

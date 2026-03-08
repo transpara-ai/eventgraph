@@ -13,15 +13,16 @@ go/vendor/
 rust/target/
 
 # Python
-python/__pycache__/
-python/*.pyc
+__pycache__/
+*.pyc
 python/.venv/
 python/dist/
 python/*.egg-info/
+.pytest_cache/
 
 # .NET
-dotnet/bin/
-dotnet/obj/
+**/bin/
+**/obj/
 
 # IDE
 .idea/
@@ -36,6 +37,7 @@ Thumbs.db
 
 # Test coverage
 *.out
+*.html
 coverage/
 
 # Environment

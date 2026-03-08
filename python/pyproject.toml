@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eventgraph"
+version = "0.1.0"
+description = "Hash-chained, append-only, causal event graph"
+requires-python = ">=3.10"
+license = {text = "BSL-1.1"}
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
