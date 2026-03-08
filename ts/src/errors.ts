@@ -62,3 +62,17 @@ export class ChainIntegrityError extends EventGraphError {
     this.name = "ChainIntegrityError";
   }
 }
+
+export class ActorNotFoundError extends EventGraphError {
+  constructor(public readonly actorId: string) {
+    super(`Actor not found: ${actorId}`);
+    this.name = "ActorNotFoundError";
+  }
+}
+
+export class ActorKeyNotFoundError extends EventGraphError {
+  constructor(public readonly keyHex: string) {
+    super(`Actor not found for public key ${keyHex}`);
+    this.name = "ActorKeyNotFoundError";
+  }
+}

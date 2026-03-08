@@ -9,6 +9,8 @@ pub enum EventGraphError {
     EventNotFound { event_id: String },
     ChainIntegrity { position: usize, detail: String },
     GrammarViolation { detail: String },
+    ActorNotFound { actor_id: String },
+    ActorKeyNotFound { key_hex: String },
 }
 
 impl fmt::Display for EventGraphError {
@@ -28,6 +30,10 @@ impl fmt::Display for EventGraphError {
                 write!(f, "Chain integrity violation at position {position}: {detail}"),
             Self::GrammarViolation { detail } =>
                 write!(f, "Grammar violation: {detail}"),
+            Self::ActorNotFound { actor_id } =>
+                write!(f, "Actor not found: {actor_id}"),
+            Self::ActorKeyNotFound { key_hex } =>
+                write!(f, "Actor not found for public key {key_hex}"),
         }
     }
 }

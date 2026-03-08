@@ -69,6 +69,20 @@ public class EventNotFoundException : EventGraphException
     public EventNotFoundException(string eventId) : base($"Event {eventId} not found") => EventId = eventId;
 }
 
+/// <summary>An actor was not found in the store.</summary>
+public class ActorNotFoundException : EventGraphException
+{
+    public ActorId ActorId { get; }
+    public ActorNotFoundException(ActorId actorId) : base($"Actor {actorId.Value} not found") => ActorId = actorId;
+}
+
+/// <summary>An actor was not found by public key.</summary>
+public class ActorKeyNotFoundException : EventGraphException
+{
+    public string KeyHex { get; }
+    public ActorKeyNotFoundException(string keyHex) : base($"Actor not found for public key {keyHex}") => KeyHex = keyHex;
+}
+
 /// <summary>The hash chain integrity was violated.</summary>
 public class ChainIntegrityException : EventGraphException
 {

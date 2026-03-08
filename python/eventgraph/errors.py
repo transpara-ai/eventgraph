@@ -62,6 +62,22 @@ class EventNotFoundError(StoreError):
         super().__init__(f"event not found: {event_id}")
 
 
+class ActorNotFoundError(StoreError):
+    """An actor was not found in the store."""
+
+    def __init__(self, actor_id: str) -> None:
+        self.actor_id = actor_id
+        super().__init__(f"actor not found: {actor_id}")
+
+
+class ActorKeyNotFoundError(StoreError):
+    """An actor was not found by public key."""
+
+    def __init__(self, key_hex: str) -> None:
+        self.key_hex = key_hex
+        super().__init__(f"actor not found for public key: {key_hex}")
+
+
 class ChainIntegrityError(StoreError):
     """The hash chain is broken."""
 

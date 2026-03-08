@@ -1,7 +1,18 @@
 """EventGraph — hash-chained, append-only, causal event graph."""
 
+from .actor import (
+    Actor,
+    ActorFilter,
+    ActorStatus,
+    ActorStore,
+    ActorType,
+    ActorUpdate,
+    InMemoryActorStore,
+)
 from .bus import EventBus
 from .errors import (
+    ActorKeyNotFoundError,
+    ActorNotFoundError,
     ChainIntegrityError,
     EmptyRequiredError,
     EventGraphError,
@@ -50,6 +61,7 @@ from .types import (
     ActorID,
     Cadence,
     ConversationID,
+    Cursor,
     DomainScope,
     EdgeID,
     EnvelopeID,
@@ -59,6 +71,7 @@ from .types import (
     Layer,
     NonEmpty,
     Option,
+    Page,
     PublicKey,
     Score,
     Signature,

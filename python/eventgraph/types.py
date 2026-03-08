@@ -1,4 +1,4 @@
-"""Always-valid domain types — constrained numerics, typed IDs, Option, NonEmpty."""
+"""Always-valid domain types — constrained numerics, typed IDs, Option, NonEmpty, Page, Cursor."""
 
 from __future__ import annotations
 
@@ -398,6 +398,56 @@ class PublicKey:
 
     def __str__(self) -> str:
         return self._value.hex()
+
+
+# ── Cursor & Page ─────────────────────────────────────────────────────────
+
+@dataclass(frozen=True, slots=True)
+class Cursor:
+    """Opaque pagination token."""
+
+    _value: str
+
+    def __init__(self, value: str) -> None:
+        object.__setattr__(self, "_value", value)
+
+    @property
+    def value(self) -> str:
+        return self._value
+
+    def __str__(self) -> str:
+        return self._value
+
+
+@dataclass(frozen=True, slots=True)
+class Page(Generic[T]):
+    """Paginated result set with cursor-based navigation."""
+
+    _items: tuple[T, ...]
+    _cursor: Option[Cursor]
+    _has_more: bool
+
+    def __init__(
+        self,
+        items: Sequence[T],
+        cursor: Option[Cursor],
+        has_more: bool,
+    ) -> None:
+        object.__setattr__(self, "_items", tuple(items))
+        object.__setattr__(self, "_cursor", cursor)
+        object.__setattr__(self, "_has_more", has_more)
+
+    def items(self) -> tuple[T, ...]:
+        return self._items
+
+    def cursor(self) -> Option[Cursor]:
+        return self._cursor
+
+    def has_more(self) -> bool:
+        return self._has_more
+
+    def __len__(self) -> int:
+        return len(self._items)
 
 
 @dataclass(frozen=True, slots=True)
