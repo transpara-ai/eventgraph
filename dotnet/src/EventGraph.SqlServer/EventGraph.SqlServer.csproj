@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <PackageId>LovYou.EventGraph.SqlServer</PackageId>
+    <Version>0.2.0</Version>
+    <Authors>LovYou AI</Authors>
+    <Description>SQL Server store for EventGraph</Description>
+    <PackageTags>eventgraph;sqlserver;mssql;event-sourcing</PackageTags>
+    <RepositoryUrl>https://github.com/lovyou-ai/eventgraph</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EventGraph\EventGraph.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="6.0.1" />
+  </ItemGroup>
+
+</Project>

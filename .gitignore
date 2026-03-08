@@ -22,6 +22,7 @@ python/*.egg-info/
 
 # .NET
 **/bin/
+!rust/src/bin/
 **/obj/
 
 # Node/TypeScript

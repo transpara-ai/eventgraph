@@ -22,6 +22,9 @@ classifiers = [
 ]
 dependencies = []
 
+[project.scripts]
+eg = "eventgraph.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/lovyou-ai/eventgraph"
 Repository = "https://github.com/lovyou-ai/eventgraph"

@@ -3,6 +3,9 @@
   "version": "0.2.0",
   "description": "Hash-chained, append-only, causal event graph",
   "main": "dist/index.js",
+  "bin": {
+    "eg": "dist/cli.js"
+  },
   "types": "dist/index.d.ts",
   "type": "module",
   "exports": {

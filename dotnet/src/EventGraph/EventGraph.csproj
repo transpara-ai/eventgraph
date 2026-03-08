@@ -26,4 +26,11 @@
     <PackageReference Include="NSec.Cryptography" Version="25.4.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="EventGraph.Sqlite" />
+    <InternalsVisibleTo Include="EventGraph.Postgres" />
+    <InternalsVisibleTo Include="EventGraph.SqlServer" />
+    <InternalsVisibleTo Include="EventGraph.Tests" />
+  </ItemGroup>
+
 </Project>

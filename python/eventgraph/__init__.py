@@ -94,6 +94,10 @@ from .primitive import (
     UpdateLifecycle,
     UpdateState,
 )
+from .primitives import (
+    ALL_PRIMITIVE_CLASSES,
+    create_all_primitives,
+)
 from .grammar import Grammar
 from .compositions import (
     AlignmentGrammar,
@@ -182,6 +186,7 @@ from .graph import (
     GraphNotStartedError,
     Query,
 )
+from .sqlite_store import SQLiteStore
 from .store import ChainVerification, InMemoryStore, Store
 from .trust import DefaultTrustModel, TrustConfig, TrustMetrics
 from .tick import TickConfig, TickEngine, TickResult

@@ -13,3 +13,8 @@ pub mod decision;
 pub mod authority;
 pub mod graph;
 pub mod egip;
+pub mod primitives;
+#[cfg(feature = "sqlite")]
+pub mod sqlite_store;
+#[cfg(feature = "postgres")]
+pub mod postgres_store;

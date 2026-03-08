@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+
+    <PackageId>LovYou.EventGraph.Sqlite</PackageId>
+    <Version>0.2.0</Version>
+    <Authors>LovYou AI</Authors>
+    <Description>SQLite store for EventGraph</Description>
+    <PackageTags>eventgraph;sqlite;event-sourcing</PackageTags>
+    <RepositoryUrl>https://github.com/lovyou-ai/eventgraph</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\EventGraph\EventGraph.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.0" />
+  </ItemGroup>
+
+</Project>
