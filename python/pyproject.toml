@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "eventgraph"
+name = "lovyou-eventgraph"
 version = "0.1.0"
 description = "Hash-chained, append-only, causal event graph"
 readme = "README.md"

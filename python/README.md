@@ -5,7 +5,7 @@ A hash-chained, append-only, causal event graph. The foundation for building sys
 ## Install
 
 ```bash
-pip install eventgraph
+pip install lovyou-eventgraph
 ```
 
 ## Quick Start
