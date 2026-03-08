@@ -189,3 +189,73 @@ func (e *EvolutionGrammar) HealthCheck(
 		Purpose:    purp,
 	}, nil
 }
+
+// PruneResult holds the events produced by a Prune.
+type PruneResult struct {
+	Pattern        event.Event
+	Simplification event.Event
+	Verification   event.Event
+}
+
+// Prune removes unused complexity: DetectPattern (unused) + Simplify + Select (verify).
+func (e *EvolutionGrammar) Prune(
+	ctx context.Context, source types.ActorID,
+	unusedPattern string, simplification string, verification string,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (PruneResult, error) {
+	pattern, err := e.DetectPattern(ctx, source, "unused: "+unusedPattern, causes, convID, signer)
+	if err != nil {
+		return PruneResult{}, fmt.Errorf("prune/detect: %w", err)
+	}
+
+	simplify, err := e.Simplify(ctx, source, simplification, []types.EventID{pattern.ID()}, convID, signer)
+	if err != nil {
+		return PruneResult{}, fmt.Errorf("prune/simplify: %w", err)
+	}
+
+	verify, err := e.Select(ctx, source, verification, []types.EventID{simplify.ID()}, convID, signer)
+	if err != nil {
+		return PruneResult{}, fmt.Errorf("prune/verify: %w", err)
+	}
+
+	return PruneResult{Pattern: pattern, Simplification: simplify, Verification: verify}, nil
+}
+
+// PhaseTransitionResult holds the events produced by a PhaseTransition.
+type PhaseTransitionResult struct {
+	Threshold  event.Event
+	Model      event.Event
+	Adaptation event.Event
+	Selection  event.Event
+}
+
+// PhaseTransition manages a qualitative system change:
+// WatchThreshold + Model + Adapt + Select.
+func (e *EvolutionGrammar) PhaseTransition(
+	ctx context.Context, source types.ActorID,
+	target types.EventID, threshold string,
+	model string, adaptation string, selection string,
+	convID types.ConversationID, signer event.Signer,
+) (PhaseTransitionResult, error) {
+	thresh, err := e.WatchThreshold(ctx, source, target, threshold, convID, signer)
+	if err != nil {
+		return PhaseTransitionResult{}, fmt.Errorf("phase-transition/threshold: %w", err)
+	}
+
+	mod, err := e.Model(ctx, source, model, []types.EventID{thresh.ID()}, convID, signer)
+	if err != nil {
+		return PhaseTransitionResult{}, fmt.Errorf("phase-transition/model: %w", err)
+	}
+
+	adapt, err := e.Adapt(ctx, source, adaptation, []types.EventID{mod.ID()}, convID, signer)
+	if err != nil {
+		return PhaseTransitionResult{}, fmt.Errorf("phase-transition/adapt: %w", err)
+	}
+
+	sel, err := e.Select(ctx, source, selection, []types.EventID{adapt.ID()}, convID, signer)
+	if err != nil {
+		return PhaseTransitionResult{}, fmt.Errorf("phase-transition/select: %w", err)
+	}
+
+	return PhaseTransitionResult{Threshold: thresh, Model: mod, Adaptation: adapt, Selection: sel}, nil
+}

@@ -199,4 +199,101 @@ func TestWorkGrammar(t *testing.T) {
 		}
 		env.verifyChain()
 	})
+
+	t.Run("Standup", func(t *testing.T) {
+		env := newTestEnv(t)
+		work := compositions.NewWorkGrammar(env.grammar)
+		dev1 := env.actor("Dev1", 1, event.ActorTypeHuman)
+		dev2 := env.actor("Dev2", 2, event.ActorTypeHuman)
+		lead := env.actor("Lead", 3, event.ActorTypeHuman)
+
+		result, err := work.Standup(env.ctx,
+			[]types.ActorID{dev1.ID(), dev2.ID()},
+			[]string{"finished auth module", "started API tests"},
+			lead.ID(), "focus on API coverage today",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Standup: %v", err)
+		}
+
+		if len(result.Updates) != 2 {
+			t.Errorf("expected 2 updates, got %d", len(result.Updates))
+		}
+
+		ancestors := env.ancestors(result.Priority.ID(), 10)
+		if !containsEvent(ancestors, result.Updates[0].ID()) {
+			t.Error("priority should trace to updates")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Retrospective", func(t *testing.T) {
+		env := newTestEnv(t)
+		work := compositions.NewWorkGrammar(env.grammar)
+		dev1 := env.actor("Dev1", 1, event.ActorTypeHuman)
+		dev2 := env.actor("Dev2", 2, event.ActorTypeHuman)
+		lead := env.actor("Lead", 3, event.ActorTypeHuman)
+
+		task, _ := work.Intend(env.ctx, lead.ID(), "sprint 5 work",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+
+		result, err := work.Retrospective(env.ctx,
+			[]types.ActorID{dev1.ID(), dev2.ID()},
+			[]string{"CI was slow", "pairing worked well"},
+			lead.ID(), "invest in CI pipeline speed",
+			task.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("Retrospective: %v", err)
+		}
+
+		if len(result.Reviews) != 2 {
+			t.Errorf("expected 2 reviews, got %d", len(result.Reviews))
+		}
+
+		ancestors := env.ancestors(result.Improvement.ID(), 10)
+		if !containsEvent(ancestors, task.ID()) {
+			t.Error("improvement should trace to reviewed task")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Triage", func(t *testing.T) {
+		env := newTestEnv(t)
+		work := compositions.NewWorkGrammar(env.grammar)
+		lead := env.actor("Lead", 1, event.ActorTypeHuman)
+		dev1 := env.actor("Dev1", 2, event.ActorTypeHuman)
+		dev2 := env.actor("Dev2", 3, event.ActorTypeHuman)
+
+		t1, _ := work.Intend(env.ctx, lead.ID(), "fix login bug",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		t2, _ := work.Intend(env.ctx, lead.ID(), "add rate limiting",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+
+		result, err := work.Triage(env.ctx, lead.ID(),
+			[]types.EventID{t1.ID(), t2.ID()},
+			[]string{"critical", "high"},
+			[]types.ActorID{dev1.ID(), dev2.ID()},
+			[]types.DomainScope{types.MustDomainScope("auth"), types.MustDomainScope("rate_limiting")},
+			[]types.Weight{types.MustWeight(0.9), types.MustWeight(0.6)},
+			env.convID, signer)
+		if err != nil {
+			t.Fatalf("Triage: %v", err)
+		}
+
+		if len(result.Priorities) != 2 {
+			t.Errorf("expected 2 priorities, got %d", len(result.Priorities))
+		}
+		if len(result.Assignments) != 2 {
+			t.Errorf("expected 2 assignments, got %d", len(result.Assignments))
+		}
+		if len(result.Scopes) != 2 {
+			t.Errorf("expected 2 scopes, got %d", len(result.Scopes))
+		}
+
+		ancestors := env.ancestors(result.Scopes[1].ID(), 10)
+		if !containsEvent(ancestors, result.Assignments[1].ID()) {
+			t.Error("scope should trace to assignment")
+		}
+		env.verifyChain()
+	})
 }

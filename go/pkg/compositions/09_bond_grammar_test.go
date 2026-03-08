@@ -163,6 +163,68 @@ func TestBondGrammar(t *testing.T) {
 		env.verifyChain()
 	})
 
+	t.Run("Mentorship", func(t *testing.T) {
+		env := newTestEnv(t)
+		bond := compositions.NewBondGrammar(env.grammar)
+		mentor := env.actor("Mentor", 1, event.ActorTypeHuman)
+		mentee := env.actor("Mentee", 2, event.ActorTypeHuman)
+
+		result, err := bond.Mentorship(env.ctx, mentor.ID(), mentee.ID(),
+			"deep experience in distributed systems",
+			"mentee learns best through pair programming",
+			types.MustDomainScope("distributed_systems"),
+			types.Some(types.MustDomainScope("architecture")),
+			env.boot.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("Mentorship: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Teaching.ID(), 10)
+		if !containsEvent(ancestors, result.Connection.ID()) {
+			t.Error("teaching should trace to connection")
+		}
+		if !containsEvent(ancestors, result.Deepening.ID()) {
+			t.Error("teaching should trace to deepening")
+		}
+		if !containsEvent(ancestors, result.Attunement.ID()) {
+			t.Error("teaching should trace to attunement")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Farewell", func(t *testing.T) {
+		env := newTestEnv(t)
+		bond := compositions.NewBondGrammar(env.grammar)
+		alice := env.actor("Alice", 1, event.ActorTypeHuman)
+		bob := env.actor("Bob", 2, event.ActorTypeHuman)
+
+		departure, _ := env.grammar.Emit(env.ctx, alice.ID(),
+			"Bob is leaving the team after 3 years",
+			env.convID, []types.EventID{env.boot.ID()}, signer)
+
+		result, err := bond.Farewell(env.ctx, alice.ID(), bob.ID(),
+			"losing a trusted collaborator and friend",
+			"three years of shared breakthroughs and late night debugging",
+			types.MustWeight(0.9),
+			types.Some(types.MustDomainScope("engineering")),
+			[]types.EventID{departure.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Farewell: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Gratitude.ID(), 10)
+		if !containsEvent(ancestors, result.Mourning.ID()) {
+			t.Error("gratitude should trace to mourning")
+		}
+		if !containsEvent(ancestors, result.Memorial.ID()) {
+			t.Error("gratitude should trace to memorial")
+		}
+		if !containsEvent(ancestors, departure.ID()) {
+			t.Error("gratitude should trace to departure event")
+		}
+		env.verifyChain()
+	})
+
 	t.Run("Forgive", func(t *testing.T) {
 		env := newTestEnv(t)
 		bond := compositions.NewBondGrammar(env.grammar)

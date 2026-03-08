@@ -212,4 +212,131 @@ func TestKnowledgeGrammar(t *testing.T) {
 		}
 		env.verifyChain()
 	})
+
+	t.Run("Verify", func(t *testing.T) {
+		env := newTestEnv(t)
+		knowledge := compositions.NewKnowledgeGrammar(env.grammar)
+		analyst := env.actor("Analyst", 1, event.ActorTypeAI)
+
+		result, err := knowledge.Verify(env.ctx, analyst.ID(),
+			"Go 1.24 supports range over int, confirmed in release notes",
+			"source: go.dev/doc/go1.24, section 'Language Changes'",
+			"independently verified via playground test and spec diff",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Verify: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Corroboration.ID(), 10)
+		if !containsEvent(ancestors, result.Claim.ID()) {
+			t.Error("corroboration should trace to claim")
+		}
+		if !containsEvent(ancestors, result.Provenance.ID()) {
+			t.Error("corroboration should trace to provenance")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Survey", func(t *testing.T) {
+		env := newTestEnv(t)
+		knowledge := compositions.NewKnowledgeGrammar(env.grammar)
+		analyst := env.actor("Analyst", 1, event.ActorTypeAI)
+
+		result, err := knowledge.Survey(env.ctx, analyst.ID(),
+			[]string{
+				"what is the p99 latency of service_alpha?",
+				"what is the p99 latency of service_beta?",
+				"what is the p99 latency of service_gamma?",
+			},
+			"Go services in this cluster have p99 latency between 10ms and 30ms",
+			"cluster wide latency is well within SLA, no action needed",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Survey: %v", err)
+		}
+
+		if len(result.Recalls) != 3 {
+			t.Errorf("expected 3 recall events, got %d", len(result.Recalls))
+		}
+		ancestors := env.ancestors(result.Synthesis.ID(), 10)
+		if !containsEvent(ancestors, result.Abstraction.ID()) {
+			t.Error("synthesis should trace to abstraction")
+		}
+		if !containsEvent(ancestors, result.Recalls[0].ID()) {
+			t.Error("synthesis should trace to first recall")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("SurveyRequiresTwoQueries", func(t *testing.T) {
+		env := newTestEnv(t)
+		knowledge := compositions.NewKnowledgeGrammar(env.grammar)
+		analyst := env.actor("Analyst", 1, event.ActorTypeAI)
+
+		_, err := knowledge.Survey(env.ctx, analyst.ID(),
+			[]string{"only one query"},
+			"invalid generalization",
+			"invalid synthesis",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err == nil {
+			t.Error("Survey with < 2 queries should fail")
+		}
+	})
+
+	t.Run("KnowledgeBase", func(t *testing.T) {
+		env := newTestEnv(t)
+		knowledge := compositions.NewKnowledgeGrammar(env.grammar)
+		analyst := env.actor("Analyst", 1, event.ActorTypeAI)
+
+		result, err := knowledge.KnowledgeBase(env.ctx, analyst.ID(),
+			[]string{
+				"Go uses goroutines for concurrency",
+				"Rust uses async/await for concurrency",
+			},
+			[]string{
+				"programming_languages/go/concurrency",
+				"programming_languages/rust/concurrency",
+			},
+			"concurrency_models_comparison",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("KnowledgeBase: %v", err)
+		}
+
+		if len(result.Claims) != 2 {
+			t.Errorf("expected 2 claim events, got %d", len(result.Claims))
+		}
+		if len(result.Categories) != 2 {
+			t.Errorf("expected 2 category events, got %d", len(result.Categories))
+		}
+		ancestors := env.ancestors(result.Memory.ID(), 10)
+		if !containsEvent(ancestors, result.Claims[0].ID()) {
+			t.Error("memory should trace to first claim")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Transfer", func(t *testing.T) {
+		env := newTestEnv(t)
+		knowledge := compositions.NewKnowledgeGrammar(env.grammar)
+		analyst := env.actor("Analyst", 1, event.ActorTypeAI)
+
+		result, err := knowledge.Transfer(env.ctx, analyst.ID(),
+			"what are best practices for connection pool sizing?",
+			"JSON: {\"min\":10,\"max\":100,\"per_core\":5,\"idle_timeout_s\":300}",
+			"connection pools should scale with core count, not request volume",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Transfer: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Learn.ID(), 10)
+		if !containsEvent(ancestors, result.Recall.ID()) {
+			t.Error("learn should trace to recall")
+		}
+		if !containsEvent(ancestors, result.Encode.ID()) {
+			t.Error("learn should trace to encode")
+		}
+		env.verifyChain()
+	})
 }

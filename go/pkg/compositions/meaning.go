@@ -109,6 +109,106 @@ func (m *MeaningGrammar) Prophesy(
 
 // --- Named Functions (5) ---
 
+// DesignReviewResult holds the events produced by a DesignReview.
+type DesignReviewResult struct {
+	Beauty   event.Event
+	Reframe  event.Event
+	Question event.Event
+	Wisdom   event.Event
+}
+
+// DesignReview assesses elegance and meaning: Beautify + Reframe + Question + Distill.
+func (m *MeaningGrammar) DesignReview(
+	ctx context.Context, source types.ActorID,
+	beauty string, reframing string, question string, wisdom string,
+	cause types.EventID, convID types.ConversationID, signer event.Signer,
+) (DesignReviewResult, error) {
+	beautify, err := m.Beautify(ctx, source, beauty, []types.EventID{cause}, convID, signer)
+	if err != nil {
+		return DesignReviewResult{}, fmt.Errorf("design-review/beautify: %w", err)
+	}
+
+	reframe, err := m.Reframe(ctx, source, reframing, beautify.ID(), convID, signer)
+	if err != nil {
+		return DesignReviewResult{}, fmt.Errorf("design-review/reframe: %w", err)
+	}
+
+	q, err := m.Question(ctx, source, question, reframe.ID(), convID, signer)
+	if err != nil {
+		return DesignReviewResult{}, fmt.Errorf("design-review/question: %w", err)
+	}
+
+	w, err := m.Distill(ctx, source, wisdom, q.ID(), convID, signer)
+	if err != nil {
+		return DesignReviewResult{}, fmt.Errorf("design-review/distill: %w", err)
+	}
+
+	return DesignReviewResult{Beauty: beautify, Reframe: reframe, Question: q, Wisdom: w}, nil
+}
+
+// CulturalOnboardingResult holds the events produced by a CulturalOnboarding.
+type CulturalOnboardingResult struct {
+	Translation event.Event
+	Teaching    event.Event
+	Examination event.Event
+}
+
+// CulturalOnboarding introduces cultural context: Translate + Teach + Examine.
+func (m *MeaningGrammar) CulturalOnboarding(
+	ctx context.Context, guide types.ActorID, newcomer types.ActorID,
+	translation string, teachingScope types.Option[types.DomainScope],
+	examination string,
+	cause types.EventID, convID types.ConversationID, signer event.Signer,
+) (CulturalOnboardingResult, error) {
+	translate, err := m.Translate(ctx, guide, translation, cause, convID, signer)
+	if err != nil {
+		return CulturalOnboardingResult{}, fmt.Errorf("cultural-onboarding/translate: %w", err)
+	}
+
+	teach, err := m.Teach(ctx, guide, newcomer, teachingScope, translate.ID(), convID, signer)
+	if err != nil {
+		return CulturalOnboardingResult{}, fmt.Errorf("cultural-onboarding/teach: %w", err)
+	}
+
+	examine, err := m.Examine(ctx, newcomer, examination, []types.EventID{teach.ID()}, convID, signer)
+	if err != nil {
+		return CulturalOnboardingResult{}, fmt.Errorf("cultural-onboarding/examine: %w", err)
+	}
+
+	return CulturalOnboardingResult{Translation: translate, Teaching: teach, Examination: examine}, nil
+}
+
+// ForecastResult holds the events produced by a Forecast.
+type ForecastResult struct {
+	Prophecy    event.Event
+	Examination event.Event
+	Wisdom      event.Event
+}
+
+// Forecast extrapolates trends: Prophesy + Examine (assumptions) + Distill (confidence).
+func (m *MeaningGrammar) Forecast(
+	ctx context.Context, source types.ActorID,
+	prediction string, assumptions string, confidence string,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (ForecastResult, error) {
+	prophesy, err := m.Prophesy(ctx, source, prediction, causes, convID, signer)
+	if err != nil {
+		return ForecastResult{}, fmt.Errorf("forecast/prophesy: %w", err)
+	}
+
+	examine, err := m.Examine(ctx, source, assumptions, []types.EventID{prophesy.ID()}, convID, signer)
+	if err != nil {
+		return ForecastResult{}, fmt.Errorf("forecast/examine: %w", err)
+	}
+
+	distill, err := m.Distill(ctx, source, confidence, examine.ID(), convID, signer)
+	if err != nil {
+		return ForecastResult{}, fmt.Errorf("forecast/distill: %w", err)
+	}
+
+	return ForecastResult{Prophecy: prophesy, Examination: examine, Wisdom: distill}, nil
+}
+
 // MeaningPostMortemResult holds the events produced by a PostMortem.
 type MeaningPostMortemResult struct {
 	Examination event.Event

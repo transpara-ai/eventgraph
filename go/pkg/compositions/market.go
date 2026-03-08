@@ -144,7 +144,7 @@ func (m *MarketGrammar) Release(
 	return m.g.Consent(ctx, partyA, partyB, "release: "+terms, scope, cause, convID, signer)
 }
 
-// --- Named Functions (2) ---
+// --- Named Functions (7) ---
 
 // AuctionResult holds the events produced by an Auction.
 type AuctionResult struct {
@@ -233,4 +233,169 @@ func (m *MarketGrammar) Milestone(
 	}
 
 	return result, nil
+}
+
+// BarterResult holds the events produced by a Barter.
+type BarterResult struct {
+	Listing      event.Event
+	CounterOffer event.Event
+	Acceptance   event.Event
+}
+
+// Barter exchanges goods for goods: List + Bid (goods) + Accept.
+func (m *MarketGrammar) Barter(
+	ctx context.Context, partyA types.ActorID, partyB types.ActorID,
+	offerA string, offerB string, scope types.DomainScope,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (BarterResult, error) {
+	listing, err := m.List(ctx, partyA, offerA, causes, convID, signer)
+	if err != nil {
+		return BarterResult{}, fmt.Errorf("barter/list: %w", err)
+	}
+
+	counter, err := m.Bid(ctx, partyB, offerB, listing.ID(), convID, signer)
+	if err != nil {
+		return BarterResult{}, fmt.Errorf("barter/bid: %w", err)
+	}
+
+	acceptance, err := m.Accept(ctx, partyA, partyB, "barter: "+offerA+" for "+offerB, scope, counter.ID(), convID, signer)
+	if err != nil {
+		return BarterResult{}, fmt.Errorf("barter/accept: %w", err)
+	}
+
+	return BarterResult{Listing: listing, CounterOffer: counter, Acceptance: acceptance}, nil
+}
+
+// SubscriptionResult holds the events produced by a Subscription.
+type SubscriptionResult struct {
+	Acceptance event.Event
+	Payments   []event.Event
+	Deliveries []event.Event
+}
+
+// Subscription creates recurring delivery and payment: Accept + Pay + Deliver (repeated).
+func (m *MarketGrammar) Subscription(
+	ctx context.Context, subscriber types.ActorID, provider types.ActorID,
+	terms string, periods []string, deliveries []string,
+	scope types.DomainScope,
+	cause types.EventID, convID types.ConversationID, signer event.Signer,
+) (SubscriptionResult, error) {
+	if len(periods) != len(deliveries) {
+		return SubscriptionResult{}, fmt.Errorf("subscription: periods and deliveries must have equal length")
+	}
+
+	acceptance, err := m.Accept(ctx, subscriber, provider, terms, scope, cause, convID, signer)
+	if err != nil {
+		return SubscriptionResult{}, fmt.Errorf("subscription/accept: %w", err)
+	}
+
+	result := SubscriptionResult{Acceptance: acceptance}
+	prev := acceptance.ID()
+	for i := range periods {
+		payment, err := m.Pay(ctx, subscriber, periods[i], []types.EventID{prev}, convID, signer)
+		if err != nil {
+			return SubscriptionResult{}, fmt.Errorf("subscription/pay[%d]: %w", i, err)
+		}
+		result.Payments = append(result.Payments, payment)
+
+		delivery, err := m.Deliver(ctx, provider, deliveries[i], []types.EventID{payment.ID()}, convID, signer)
+		if err != nil {
+			return SubscriptionResult{}, fmt.Errorf("subscription/deliver[%d]: %w", i, err)
+		}
+		result.Deliveries = append(result.Deliveries, delivery)
+		prev = delivery.ID()
+	}
+
+	return result, nil
+}
+
+// RefundResult holds the events produced by a Refund.
+type RefundResult struct {
+	Dispute    event.Event
+	Resolution event.Event
+	Reversal   event.Event
+}
+
+// Refund processes a return: Dispute + resolution + Pay (reversed).
+func (m *MarketGrammar) Refund(
+	ctx context.Context, buyer types.ActorID, seller types.ActorID,
+	complaint string, resolution string, refundAmount string,
+	target types.EventID, convID types.ConversationID, signer event.Signer,
+) (RefundResult, error) {
+	dispute, err := m.Dispute(ctx, buyer, complaint, target, convID, signer)
+	if err != nil {
+		return RefundResult{}, fmt.Errorf("refund/dispute: %w", err)
+	}
+
+	resolutionEv, err := m.g.Emit(ctx, seller, "resolution: "+resolution, convID, []types.EventID{dispute.ID()}, signer)
+	if err != nil {
+		return RefundResult{}, fmt.Errorf("refund/resolution: %w", err)
+	}
+
+	reversal, err := m.Pay(ctx, seller, "refund: "+refundAmount, []types.EventID{resolutionEv.ID()}, convID, signer)
+	if err != nil {
+		return RefundResult{}, fmt.Errorf("refund/pay: %w", err)
+	}
+
+	return RefundResult{Dispute: dispute, Resolution: resolutionEv, Reversal: reversal}, nil
+}
+
+// ReputationTransferResult holds the events produced by a ReputationTransfer.
+type ReputationTransferResult struct {
+	Ratings []event.Event
+}
+
+// ReputationTransfer collects ratings from multiple parties: Rate (batch).
+func (m *MarketGrammar) ReputationTransfer(
+	ctx context.Context,
+	raters []types.ActorID, targets []types.EventID, targetActor types.ActorID,
+	weights []types.Weight, scope types.Option[types.DomainScope],
+	convID types.ConversationID, signer event.Signer,
+) (ReputationTransferResult, error) {
+	if len(raters) != len(targets) || len(raters) != len(weights) {
+		return ReputationTransferResult{}, fmt.Errorf("reputation-transfer: raters, targets, and weights must have equal length")
+	}
+
+	result := ReputationTransferResult{}
+	for i, rater := range raters {
+		rating, err := m.Rate(ctx, rater, targets[i], targetActor, weights[i], scope, convID, signer)
+		if err != nil {
+			return ReputationTransferResult{}, fmt.Errorf("reputation-transfer/rate[%d]: %w", i, err)
+		}
+		result.Ratings = append(result.Ratings, rating)
+	}
+
+	return result, nil
+}
+
+// ArbitrationResult holds the events produced by an Arbitration.
+type ArbitrationResult struct {
+	Dispute event.Event
+	Escrow  event.Event
+	Release event.Event
+}
+
+// Arbitration resolves a dispute with escrow: Dispute + Escrow + Release.
+func (m *MarketGrammar) Arbitration(
+	ctx context.Context, plaintiff types.ActorID, defendant types.ActorID,
+	arbiter types.ActorID, complaint string,
+	scope types.DomainScope, weight types.Weight,
+	target types.EventID, convID types.ConversationID, signer event.Signer,
+) (ArbitrationResult, error) {
+	dispute, err := m.Dispute(ctx, plaintiff, complaint, target, convID, signer)
+	if err != nil {
+		return ArbitrationResult{}, fmt.Errorf("arbitration/dispute: %w", err)
+	}
+
+	escrow, err := m.Escrow(ctx, defendant, arbiter, scope, weight, dispute.ID(), convID, signer)
+	if err != nil {
+		return ArbitrationResult{}, fmt.Errorf("arbitration/escrow: %w", err)
+	}
+
+	release, err := m.Release(ctx, arbiter, plaintiff, "arbitration resolved", scope, escrow.ID(), convID, signer)
+	if err != nil {
+		return ArbitrationResult{}, fmt.Errorf("arbitration/release: %w", err)
+	}
+
+	return ArbitrationResult{Dispute: dispute, Escrow: escrow, Release: release}, nil
 }

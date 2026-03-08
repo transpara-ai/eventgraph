@@ -107,6 +107,112 @@ func (b *BelongingGrammar) Gift(
 
 // --- Named Functions (5) ---
 
+// FestivalResult holds the events produced by a Festival.
+type FestivalResult struct {
+	Celebration event.Event
+	Practice    event.Event
+	Story       event.Event
+	Gift        event.Event
+}
+
+// Festival is a collective celebration: Celebrate + Practice + Tell + Gift.
+func (b *BelongingGrammar) Festival(
+	ctx context.Context, source types.ActorID,
+	celebration string, tradition string, story string, gift string,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (FestivalResult, error) {
+	celebrate, err := b.Celebrate(ctx, source, celebration, causes, convID, signer)
+	if err != nil {
+		return FestivalResult{}, fmt.Errorf("festival/celebrate: %w", err)
+	}
+
+	practice, err := b.Practice(ctx, source, tradition, []types.EventID{celebrate.ID()}, convID, signer)
+	if err != nil {
+		return FestivalResult{}, fmt.Errorf("festival/practice: %w", err)
+	}
+
+	tell, err := b.Tell(ctx, source, story, []types.EventID{practice.ID()}, convID, signer)
+	if err != nil {
+		return FestivalResult{}, fmt.Errorf("festival/tell: %w", err)
+	}
+
+	giftEv, err := b.Gift(ctx, source, gift, []types.EventID{tell.ID()}, convID, signer)
+	if err != nil {
+		return FestivalResult{}, fmt.Errorf("festival/gift: %w", err)
+	}
+
+	return FestivalResult{Celebration: celebrate, Practice: practice, Story: tell, Gift: giftEv}, nil
+}
+
+// CommonsGovernanceResult holds the events produced by CommonsGovernance.
+type CommonsGovernanceResult struct {
+	Stewardship event.Event
+	Assessment  event.Event
+	Legislation event.Event
+	Audit       event.Event
+}
+
+// CommonsGovernance manages shared resources: Steward + Sustain + Legislate (via Emit) + Audit (via Annotate).
+func (b *BelongingGrammar) CommonsGovernance(
+	ctx context.Context, source types.ActorID, steward types.ActorID,
+	scope types.DomainScope, weight types.Weight,
+	assessment string, rule string, findings string,
+	cause types.EventID, convID types.ConversationID, signer event.Signer,
+) (CommonsGovernanceResult, error) {
+	stewardship, err := b.Steward(ctx, source, steward, scope, weight, cause, convID, signer)
+	if err != nil {
+		return CommonsGovernanceResult{}, fmt.Errorf("commons/steward: %w", err)
+	}
+
+	sustain, err := b.Sustain(ctx, steward, assessment, []types.EventID{stewardship.ID()}, convID, signer)
+	if err != nil {
+		return CommonsGovernanceResult{}, fmt.Errorf("commons/sustain: %w", err)
+	}
+
+	legislate, err := b.g.Emit(ctx, source, "legislate: "+rule, convID, []types.EventID{sustain.ID()}, signer)
+	if err != nil {
+		return CommonsGovernanceResult{}, fmt.Errorf("commons/legislate: %w", err)
+	}
+
+	audit, err := b.g.Annotate(ctx, steward, legislate.ID(), "audit", findings, convID, signer)
+	if err != nil {
+		return CommonsGovernanceResult{}, fmt.Errorf("commons/audit: %w", err)
+	}
+
+	return CommonsGovernanceResult{Stewardship: stewardship, Assessment: sustain, Legislation: legislate, Audit: audit}, nil
+}
+
+// RenewalResult holds the events produced by a Renewal.
+type RenewalResult struct {
+	Assessment event.Event
+	Practice   event.Event
+	Story      event.Event
+}
+
+// Renewal refreshes a community after crisis: Sustain + Practice (evolved) + Tell (new chapter).
+func (b *BelongingGrammar) Renewal(
+	ctx context.Context, source types.ActorID,
+	assessment string, evolvedPractice string, newStory string,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (RenewalResult, error) {
+	sustain, err := b.Sustain(ctx, source, assessment, causes, convID, signer)
+	if err != nil {
+		return RenewalResult{}, fmt.Errorf("renewal/sustain: %w", err)
+	}
+
+	practice, err := b.Practice(ctx, source, evolvedPractice, []types.EventID{sustain.ID()}, convID, signer)
+	if err != nil {
+		return RenewalResult{}, fmt.Errorf("renewal/practice: %w", err)
+	}
+
+	story, err := b.Tell(ctx, source, newStory, []types.EventID{practice.ID()}, convID, signer)
+	if err != nil {
+		return RenewalResult{}, fmt.Errorf("renewal/tell: %w", err)
+	}
+
+	return RenewalResult{Assessment: sustain, Practice: practice, Story: story}, nil
+}
+
 // OnboardResult holds the events produced by an Onboard.
 type OnboardResult struct {
 	Inclusion    event.Event

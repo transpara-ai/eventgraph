@@ -155,4 +155,69 @@ func TestMeaningGrammar(t *testing.T) {
 		}
 		env.verifyChain()
 	})
+
+	t.Run("DesignReview", func(t *testing.T) {
+		env := newTestEnv(t)
+		meaning := compositions.NewMeaningGrammar(env.grammar)
+		reviewer := env.actor("Reviewer", 1, event.ActorTypeHuman)
+
+		result, err := meaning.DesignReview(env.ctx, reviewer.ID(),
+			"the API surface is minimal yet expressive — every method earns its place",
+			"instead of adding config options, make the defaults intelligent",
+			"does the current abstraction scale to 10x the primitives?",
+			"simplicity is the ultimate sophistication — fewer knobs, more insight",
+			env.boot.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("DesignReview: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Wisdom.ID(), 10)
+		if !containsEvent(ancestors, result.Beauty.ID()) {
+			t.Error("wisdom should trace to beauty")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("CulturalOnboarding", func(t *testing.T) {
+		env := newTestEnv(t)
+		meaning := compositions.NewMeaningGrammar(env.grammar)
+		guide := env.actor("Guide", 1, event.ActorTypeHuman)
+		newcomer := env.actor("Newcomer", 2, event.ActorTypeHuman)
+
+		result, err := meaning.CulturalOnboarding(env.ctx, guide.ID(), newcomer.ID(),
+			"in this system, every action is an event — nothing happens silently",
+			types.Some(types.MustDomainScope("event_sourcing")),
+			"what assumptions does the newcomer bring from traditional CRUD systems?",
+			env.boot.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("CulturalOnboarding: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Examination.ID(), 10)
+		if !containsEvent(ancestors, result.Translation.ID()) {
+			t.Error("examination should trace to translation")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Forecast", func(t *testing.T) {
+		env := newTestEnv(t)
+		meaning := compositions.NewMeaningGrammar(env.grammar)
+		analyst := env.actor("Analyst", 1, event.ActorTypeAI)
+
+		result, err := meaning.Forecast(env.ctx, analyst.ID(),
+			"event graph adoption will double in the next quarter based on current trajectory",
+			"assumes continued community growth and no breaking changes to the spec",
+			"high confidence: 85% — supported by 3 months of consistent growth data",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Forecast: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Wisdom.ID(), 10)
+		if !containsEvent(ancestors, result.Prophecy.ID()) {
+			t.Error("wisdom should trace to prophecy")
+		}
+		env.verifyChain()
+	})
 }

@@ -114,7 +114,7 @@ func (b *BondGrammar) Mourn(
 	return b.g.Emit(ctx, source, "mourn: "+loss, convID, causes, signer)
 }
 
-// --- Named Functions (3) ---
+// --- Named Functions (5) ---
 
 // BetrayalRepairResult holds the events produced by BetrayalRepair.
 type BetrayalRepairResult struct {
@@ -189,6 +189,76 @@ func (b *BondGrammar) CheckIn(
 	}
 
 	return CheckInResult{Balance: bal, Attunement: att, Empathy: emp}, nil
+}
+
+// BondMentorshipResult holds the events produced by a Mentorship.
+type BondMentorshipResult struct {
+	Connection event.Event
+	Deepening  event.Event
+	Attunement event.Event
+	Teaching   event.Event
+}
+
+// Mentorship establishes a mentor-mentee bond: Connect (one-way) + Deepen + Attune + Channel (teaching).
+func (b *BondGrammar) Mentorship(
+	ctx context.Context, mentor types.ActorID, mentee types.ActorID,
+	basis string, understanding string,
+	scope types.DomainScope, teachingScope types.Option[types.DomainScope],
+	cause types.EventID, convID types.ConversationID, signer event.Signer,
+) (BondMentorshipResult, error) {
+	connect, err := b.g.Subscribe(ctx, mentee, mentor, teachingScope, cause, convID, signer)
+	if err != nil {
+		return BondMentorshipResult{}, fmt.Errorf("mentorship/connect: %w", err)
+	}
+
+	deepen, err := b.Deepen(ctx, mentor, mentee, basis, scope, connect.ID(), convID, signer)
+	if err != nil {
+		return BondMentorshipResult{}, fmt.Errorf("mentorship/deepen: %w", err)
+	}
+
+	attune, err := b.Attune(ctx, mentor, understanding, []types.EventID{deepen.ID()}, convID, signer)
+	if err != nil {
+		return BondMentorshipResult{}, fmt.Errorf("mentorship/attune: %w", err)
+	}
+
+	teach, err := b.g.Channel(ctx, mentor, mentee, teachingScope, attune.ID(), convID, signer)
+	if err != nil {
+		return BondMentorshipResult{}, fmt.Errorf("mentorship/teach: %w", err)
+	}
+
+	return BondMentorshipResult{Connection: connect, Deepening: deepen, Attunement: attune, Teaching: teach}, nil
+}
+
+// BondFarewellResult holds the events produced by a Farewell.
+type BondFarewellResult struct {
+	Mourning  event.Event
+	Memorial  event.Event
+	Gratitude event.Event
+}
+
+// Farewell processes the end of a bond: Mourn + Memorialize (via Emit) + Gratitude (via Endorse).
+func (b *BondGrammar) Farewell(
+	ctx context.Context, source types.ActorID, departing types.ActorID,
+	loss string, memorial string, gratitudeWeight types.Weight,
+	scope types.Option[types.DomainScope],
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (BondFarewellResult, error) {
+	mourn, err := b.Mourn(ctx, source, loss, causes, convID, signer)
+	if err != nil {
+		return BondFarewellResult{}, fmt.Errorf("farewell/mourn: %w", err)
+	}
+
+	mem, err := b.g.Emit(ctx, source, "memorialize: "+memorial, convID, []types.EventID{mourn.ID()}, signer)
+	if err != nil {
+		return BondFarewellResult{}, fmt.Errorf("farewell/memorialize: %w", err)
+	}
+
+	gratitude, err := b.g.Endorse(ctx, source, mem.ID(), departing, gratitudeWeight, scope, convID, signer)
+	if err != nil {
+		return BondFarewellResult{}, fmt.Errorf("farewell/gratitude: %w", err)
+	}
+
+	return BondFarewellResult{Mourning: mourn, Memorial: mem, Gratitude: gratitude}, nil
 }
 
 // Forgive re-establishes connection after sever: Subscribe after Sever.

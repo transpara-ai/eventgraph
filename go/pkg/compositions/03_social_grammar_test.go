@@ -123,4 +123,36 @@ func TestSocialGrammar(t *testing.T) {
 		}
 		env.verifyChain()
 	})
+
+	t.Run("Schism", func(t *testing.T) {
+		env := newTestEnv(t)
+		social := compositions.NewSocialGrammar(env.grammar)
+		faction := env.actor("Faction", 1, event.ActorTypeCommittee)
+		moderator := env.actor("Moderator", 2, event.ActorTypeHuman)
+		target := env.actor("Target", 3, event.ActorTypeHuman)
+
+		// Create a subscription edge to sever
+		sub, err := env.grammar.Subscribe(env.ctx, moderator.ID(), target.ID(),
+			types.Some(types.MustDomainScope("community")),
+			env.boot.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("Subscribe: %v", err)
+		}
+		edgeID, _ := types.NewEdgeID(sub.ID().Value())
+
+		result, err := social.Schism(env.ctx, faction.ID(), moderator.ID(),
+			"disagree on moderation policy",
+			types.MustDomainScope("governance"), edgeID,
+			"irreconcilable differences on content standards",
+			sub.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("Schism: %v", err)
+		}
+
+		ancestors := env.ancestors(result.NewCommunity.ID(), 10)
+		if !containsEvent(ancestors, result.ConflictingNorm.ID()) {
+			t.Error("new community should trace to conflicting norm")
+		}
+		env.verifyChain()
+	})
 }

@@ -142,4 +142,100 @@ func TestIdentityGrammar(t *testing.T) {
 		}
 		env.verifyChain()
 	})
+
+	t.Run("Credential", func(t *testing.T) {
+		env := newTestEnv(t)
+		identity := compositions.NewIdentityGrammar(env.grammar)
+		agent := env.actor("Agent", 1, event.ActorTypeAI)
+		verifier := env.actor("Verifier", 2, event.ActorTypeHuman)
+
+		result, err := identity.Credential(env.ctx, agent.ID(), verifier.ID(),
+			"strengths=[code_review, testing], confidence 0.85",
+			types.Some(types.MustDomainScope("code_review")),
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Credential: %v", err)
+		}
+
+		if result.Introspection.Source() != agent.ID() {
+			t.Error("introspection source should be agent")
+		}
+		// Disclosure should trace to introspection
+		ancestors := env.ancestors(result.Disclosure.ID(), 10)
+		if !containsEvent(ancestors, result.Introspection.ID()) {
+			t.Error("disclosure should trace to introspection")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("CredentialNoScope", func(t *testing.T) {
+		env := newTestEnv(t)
+		identity := compositions.NewIdentityGrammar(env.grammar)
+		agent := env.actor("Agent", 1, event.ActorTypeAI)
+		verifier := env.actor("Verifier", 2, event.ActorTypeHuman)
+
+		result, err := identity.Credential(env.ctx, agent.ID(), verifier.ID(),
+			"general capabilities overview",
+			types.None[types.DomainScope](),
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Credential (no scope): %v", err)
+		}
+
+		ancestors := env.ancestors(result.Disclosure.ID(), 10)
+		if !containsEvent(ancestors, result.Introspection.ID()) {
+			t.Error("disclosure should trace to introspection even without scope")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Reinvention", func(t *testing.T) {
+		env := newTestEnv(t)
+		identity := compositions.NewIdentityGrammar(env.grammar)
+		agent := env.actor("Agent", 1, event.ActorTypeAI)
+
+		result, err := identity.Reinvention(env.ctx, agent.ID(),
+			"evolved from code reviewer to security-aware architect",
+			"started reviewing simple PRs, discovered auth module vulnerability, pivoted to security",
+			"become the team's primary security reviewer within 3 months",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Reinvention: %v", err)
+		}
+
+		// Aspiration should trace back through narrative to transformation
+		ancestors := env.ancestors(result.Aspiration.ID(), 10)
+		if !containsEvent(ancestors, result.Narrative.ID()) {
+			t.Error("aspiration should trace to narrative")
+		}
+		if !containsEvent(ancestors, result.Transformation.ID()) {
+			t.Error("aspiration should trace to transformation")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Introduction", func(t *testing.T) {
+		env := newTestEnv(t)
+		identity := compositions.NewIdentityGrammar(env.grammar)
+		agent := env.actor("Agent", 1, event.ActorTypeAI)
+		other := env.actor("Other", 2, event.ActorTypeHuman)
+
+		result, err := identity.Introduction(env.ctx, agent.ID(), other.ID(),
+			types.Some(types.MustDomainScope("security")),
+			"I specialise in security review and auth pattern analysis",
+			env.boot.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("Introduction: %v", err)
+		}
+
+		if result.Disclosure.Source() != agent.ID() {
+			t.Error("disclosure source should be agent")
+		}
+		// Narrative should trace to disclosure
+		ancestors := env.ancestors(result.Narrative.ID(), 10)
+		if !containsEvent(ancestors, result.Disclosure.ID()) {
+			t.Error("narrative should trace to disclosure")
+		}
+		env.verifyChain()
+	})
 }

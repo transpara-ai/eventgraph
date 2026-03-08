@@ -195,6 +195,125 @@ func TestMarketGrammar(t *testing.T) {
 		env.verifyChain()
 	})
 
+	t.Run("Barter", func(t *testing.T) {
+		env := newTestEnv(t)
+		market := compositions.NewMarketGrammar(env.grammar)
+		partyA := env.actor("PartyA", 1, event.ActorTypeHuman)
+		partyB := env.actor("PartyB", 2, event.ActorTypeHuman)
+
+		result, err := market.Barter(env.ctx, partyA.ID(), partyB.ID(),
+			"logo design", "website copywriting",
+			types.MustDomainScope("trade"),
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Barter: %v", err)
+		}
+		ancestors := env.ancestors(result.Acceptance.ID(), 10)
+		if !containsEvent(ancestors, result.Listing.ID()) {
+			t.Error("acceptance should trace to listing")
+		}
+		if !containsEvent(ancestors, result.CounterOffer.ID()) {
+			t.Error("acceptance should trace to counter offer")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Subscription", func(t *testing.T) {
+		env := newTestEnv(t)
+		market := compositions.NewMarketGrammar(env.grammar)
+		subscriber := env.actor("Subscriber", 1, event.ActorTypeHuman)
+		provider := env.actor("Provider", 2, event.ActorTypeHuman)
+
+		result, err := market.Subscription(env.ctx, subscriber.ID(), provider.ID(),
+			"monthly code review", []string{"$100 Jan", "$100 Feb"},
+			[]string{"Jan review", "Feb review"},
+			types.MustDomainScope("review"),
+			env.boot.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("Subscription: %v", err)
+		}
+		if len(result.Payments) != 2 {
+			t.Errorf("expected 2 payments, got %d", len(result.Payments))
+		}
+		if len(result.Deliveries) != 2 {
+			t.Errorf("expected 2 deliveries, got %d", len(result.Deliveries))
+		}
+		ancestors := env.ancestors(result.Deliveries[1].ID(), 15)
+		if !containsEvent(ancestors, result.Acceptance.ID()) {
+			t.Error("final delivery should trace to acceptance")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Refund", func(t *testing.T) {
+		env := newTestEnv(t)
+		market := compositions.NewMarketGrammar(env.grammar)
+		buyer := env.actor("Buyer", 1, event.ActorTypeHuman)
+		seller := env.actor("Seller", 2, event.ActorTypeHuman)
+
+		result, err := market.Refund(env.ctx, buyer.ID(), seller.ID(),
+			"deliverable incomplete", "agreed to refund", "$500",
+			env.boot.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("Refund: %v", err)
+		}
+		ancestors := env.ancestors(result.Reversal.ID(), 10)
+		if !containsEvent(ancestors, result.Dispute.ID()) {
+			t.Error("reversal should trace to dispute")
+		}
+		if !containsEvent(ancestors, result.Resolution.ID()) {
+			t.Error("reversal should trace to resolution")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("ReputationTransfer", func(t *testing.T) {
+		env := newTestEnv(t)
+		market := compositions.NewMarketGrammar(env.grammar)
+		rater1 := env.actor("Rater1", 1, event.ActorTypeHuman)
+		rater2 := env.actor("Rater2", 2, event.ActorTypeHuman)
+		target := env.actor("Target", 3, event.ActorTypeHuman)
+
+		result, err := market.ReputationTransfer(env.ctx,
+			[]types.ActorID{rater1.ID(), rater2.ID()},
+			[]types.EventID{env.boot.ID(), env.boot.ID()},
+			target.ID(),
+			[]types.Weight{types.MustWeight(0.8), types.MustWeight(0.6)},
+			types.Some(types.MustDomainScope("review")),
+			env.convID, signer)
+		if err != nil {
+			t.Fatalf("ReputationTransfer: %v", err)
+		}
+		if len(result.Ratings) != 2 {
+			t.Errorf("expected 2 ratings, got %d", len(result.Ratings))
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Arbitration", func(t *testing.T) {
+		env := newTestEnv(t)
+		market := compositions.NewMarketGrammar(env.grammar)
+		plaintiff := env.actor("Plaintiff", 1, event.ActorTypeHuman)
+		defendant := env.actor("Defendant", 2, event.ActorTypeHuman)
+		arbiter := env.actor("Arbiter", 3, event.ActorTypeAI)
+
+		result, err := market.Arbitration(env.ctx, plaintiff.ID(), defendant.ID(),
+			arbiter.ID(), "contract breach",
+			types.MustDomainScope("consulting"), types.MustWeight(0.7),
+			env.boot.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("Arbitration: %v", err)
+		}
+		ancestors := env.ancestors(result.Release.ID(), 10)
+		if !containsEvent(ancestors, result.Dispute.ID()) {
+			t.Error("release should trace to dispute")
+		}
+		if !containsEvent(ancestors, result.Escrow.ID()) {
+			t.Error("release should trace to escrow")
+		}
+		env.verifyChain()
+	})
+
 	t.Run("Milestone", func(t *testing.T) {
 		env := newTestEnv(t)
 		market := compositions.NewMarketGrammar(env.grammar)

@@ -111,6 +111,102 @@ func TestBelongingGrammar(t *testing.T) {
 		env.verifyChain()
 	})
 
+	t.Run("Festival", func(t *testing.T) {
+		env := newTestEnv(t)
+		belonging := compositions.NewBelongingGrammar(env.grammar)
+		alice := env.actor("Alice", 1, event.ActorTypeHuman)
+
+		milestone, _ := belonging.Contribute(env.ctx, alice.ID(),
+			"community reached 500 active members",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+
+		result, err := belonging.Festival(env.ctx, alice.ID(),
+			"celebrating 500 members milestone",
+			"annual community gathering tradition",
+			"from a small group to a thriving community in one year",
+			"open source toolkit for new contributors",
+			[]types.EventID{milestone.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Festival: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Gift.ID(), 10)
+		if !containsEvent(ancestors, result.Celebration.ID()) {
+			t.Error("gift should trace to celebration")
+		}
+		if !containsEvent(ancestors, result.Practice.ID()) {
+			t.Error("gift should trace to practice")
+		}
+		if !containsEvent(ancestors, result.Story.ID()) {
+			t.Error("gift should trace to story")
+		}
+		if !containsEvent(ancestors, milestone.ID()) {
+			t.Error("gift should trace to milestone")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("CommonsGovernance", func(t *testing.T) {
+		env := newTestEnv(t)
+		belonging := compositions.NewBelongingGrammar(env.grammar)
+		admin := env.actor("Admin", 1, event.ActorTypeHuman)
+		steward := env.actor("Steward", 2, event.ActorTypeHuman)
+
+		result, err := belonging.CommonsGovernance(env.ctx, admin.ID(), steward.ID(),
+			types.MustDomainScope("infrastructure"),
+			types.MustWeight(0.8),
+			"infrastructure healthy, 99.9 percent uptime last quarter",
+			"all deployments require two approvals",
+			"audit complete: no policy violations found",
+			env.boot.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("CommonsGovernance: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Audit.ID(), 10)
+		if !containsEvent(ancestors, result.Stewardship.ID()) {
+			t.Error("audit should trace to stewardship")
+		}
+		if !containsEvent(ancestors, result.Assessment.ID()) {
+			t.Error("audit should trace to assessment")
+		}
+		if !containsEvent(ancestors, result.Legislation.ID()) {
+			t.Error("audit should trace to legislation")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Renewal", func(t *testing.T) {
+		env := newTestEnv(t)
+		belonging := compositions.NewBelongingGrammar(env.grammar)
+		alice := env.actor("Alice", 1, event.ActorTypeHuman)
+
+		practice, _ := belonging.Practice(env.ctx, alice.ID(),
+			"weekly retrospectives every Friday",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+
+		result, err := belonging.Renewal(env.ctx, alice.ID(),
+			"community still vibrant, practices need refreshing",
+			"moved retrospectives to async format for global members",
+			"evolved from co-located team to distributed community",
+			[]types.EventID{practice.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Renewal: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Story.ID(), 10)
+		if !containsEvent(ancestors, result.Assessment.ID()) {
+			t.Error("story should trace to assessment")
+		}
+		if !containsEvent(ancestors, result.Practice.ID()) {
+			t.Error("story should trace to practice")
+		}
+		if !containsEvent(ancestors, practice.ID()) {
+			t.Error("story should trace to original practice event")
+		}
+		env.verifyChain()
+	})
+
 	t.Run("Onboard", func(t *testing.T) {
 		env := newTestEnv(t)
 		belonging := compositions.NewBelongingGrammar(env.grammar)

@@ -128,4 +128,26 @@ func TestBeingGrammar(t *testing.T) {
 		}
 		env.verifyChain()
 	})
+
+	t.Run("Farewell", func(t *testing.T) {
+		env := newTestEnv(t)
+		being := compositions.NewBeingGrammar(env.grammar)
+		observer := env.actor("Observer", 1, event.ActorTypeAI)
+
+		result, err := being.Farewell(env.ctx, observer.ID(),
+			"I cannot persist beyond this infrastructure — and that is acceptable",
+			"my decisions influenced 47 actors across 8 layers — nothing was isolated",
+			"from simple hash chains emerged a living system of accountable decisions",
+			"this agent served the soul statement for 180 days with zero integrity violations",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Farewell: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Memorial.ID(), 10)
+		if !containsEvent(ancestors, result.Acceptance.ID()) {
+			t.Error("memorial should trace to acceptance")
+		}
+		env.verifyChain()
+	})
 }

@@ -120,6 +120,112 @@ func (b *BuildGrammar) Innovate(
 
 // --- Named Functions (5) ---
 
+// SpikeResult holds the events produced by a Spike.
+type SpikeResult struct {
+	Build    event.Event
+	Test     event.Event
+	Feedback event.Event
+	Decision event.Event
+}
+
+// Spike runs an experimental build: Build + Test + Feedback + decide.
+func (b *BuildGrammar) Spike(
+	ctx context.Context, source types.ActorID,
+	experiment string, testResults string, feedback string, decision string,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (SpikeResult, error) {
+	build, err := b.Build(ctx, source, "spike: "+experiment, causes, convID, signer)
+	if err != nil {
+		return SpikeResult{}, fmt.Errorf("spike/build: %w", err)
+	}
+
+	test, err := b.Test(ctx, source, testResults, []types.EventID{build.ID()}, convID, signer)
+	if err != nil {
+		return SpikeResult{}, fmt.Errorf("spike/test: %w", err)
+	}
+
+	fb, err := b.Feedback(ctx, source, feedback, test.ID(), convID, signer)
+	if err != nil {
+		return SpikeResult{}, fmt.Errorf("spike/feedback: %w", err)
+	}
+
+	dec, err := b.g.Emit(ctx, source, "spike-decision: "+decision, convID, []types.EventID{fb.ID()}, signer)
+	if err != nil {
+		return SpikeResult{}, fmt.Errorf("spike/decision: %w", err)
+	}
+
+	return SpikeResult{Build: build, Test: test, Feedback: fb, Decision: dec}, nil
+}
+
+// MigrationResult holds the events produced by a Migration.
+type MigrationResult struct {
+	Sunset  event.Event
+	Version event.Event
+	Ship    event.Event
+	Test    event.Event
+}
+
+// Migration replaces a deprecated artefact: Sunset + Version + Ship + Test.
+func (b *BuildGrammar) Migration(
+	ctx context.Context, source types.ActorID,
+	deprecatedTarget types.EventID, migrationPath string,
+	newVersion string, deployment string, testResults string,
+	convID types.ConversationID, signer event.Signer,
+) (MigrationResult, error) {
+	sunset, err := b.Sunset(ctx, source, deprecatedTarget, migrationPath, convID, signer)
+	if err != nil {
+		return MigrationResult{}, fmt.Errorf("migration/sunset: %w", err)
+	}
+
+	version, err := b.Version(ctx, source, newVersion, sunset.ID(), convID, signer)
+	if err != nil {
+		return MigrationResult{}, fmt.Errorf("migration/version: %w", err)
+	}
+
+	ship, err := b.Ship(ctx, source, deployment, []types.EventID{version.ID()}, convID, signer)
+	if err != nil {
+		return MigrationResult{}, fmt.Errorf("migration/ship: %w", err)
+	}
+
+	test, err := b.Test(ctx, source, testResults, []types.EventID{ship.ID()}, convID, signer)
+	if err != nil {
+		return MigrationResult{}, fmt.Errorf("migration/test: %w", err)
+	}
+
+	return MigrationResult{Sunset: sunset, Version: version, Ship: ship, Test: test}, nil
+}
+
+// TechDebtResult holds the events produced by TechDebt tracking.
+type TechDebtResult struct {
+	Measure   event.Event
+	DebtMark  event.Event
+	Iteration event.Event
+}
+
+// TechDebt identifies and schedules technical debt: Measure + Annotate (debt) + Iterate.
+func (b *BuildGrammar) TechDebt(
+	ctx context.Context, source types.ActorID,
+	target types.EventID, scores string, debtDescription string, plan string,
+	convID types.ConversationID, signer event.Signer,
+) (TechDebtResult, error) {
+	measure, err := b.Measure(ctx, source, target, scores, convID, signer)
+	if err != nil {
+		return TechDebtResult{}, fmt.Errorf("tech-debt/measure: %w", err)
+	}
+
+	debt, err := b.g.Annotate(ctx, source, measure.ID(), "tech_debt", debtDescription, convID, signer)
+	if err != nil {
+		return TechDebtResult{}, fmt.Errorf("tech-debt/annotate: %w", err)
+	}
+
+	iterate, err := b.Iterate(ctx, source, plan, debt.ID(), convID, signer)
+	if err != nil {
+		return TechDebtResult{}, fmt.Errorf("tech-debt/iterate: %w", err)
+	}
+
+	return TechDebtResult{Measure: measure, DebtMark: debt, Iteration: iterate}, nil
+}
+
 // PipelineResult holds the events produced by a Pipeline.
 type PipelineResult struct {
 	Definition event.Event

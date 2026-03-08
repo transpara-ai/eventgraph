@@ -105,7 +105,7 @@ func (a *AlignmentGrammar) Grow(
 	return a.g.Emit(ctx, source, "grow: "+growth, convID, causes, signer)
 }
 
-// --- Named Functions (2) ---
+// --- Named Functions (5) ---
 
 // EthicsAuditResult holds the events produced by an EthicsAudit.
 type EthicsAuditResult struct {
@@ -185,4 +185,101 @@ func (a *AlignmentGrammar) RestorativeJustice(
 		Redress:        repair,
 		Growth:         growEv,
 	}, nil
+}
+
+// GuardrailResult holds the events produced by a Guardrail.
+type GuardrailResult struct {
+	Constraint event.Event
+	Dilemma    event.Event
+	Escalation event.Event
+}
+
+// Guardrail sets a boundary with trigger-based dilemma detection:
+// Constrain + FlagDilemma + Escalate (via Emit to authority).
+func (a *AlignmentGrammar) Guardrail(
+	ctx context.Context, source types.ActorID,
+	target types.EventID, constraint string,
+	dilemma string, escalation string,
+	convID types.ConversationID, signer event.Signer,
+) (GuardrailResult, error) {
+	constrain, err := a.Constrain(ctx, source, target, constraint, convID, signer)
+	if err != nil {
+		return GuardrailResult{}, fmt.Errorf("guardrail/constrain: %w", err)
+	}
+
+	dilemmaEv, err := a.FlagDilemma(ctx, source, dilemma, []types.EventID{constrain.ID()}, convID, signer)
+	if err != nil {
+		return GuardrailResult{}, fmt.Errorf("guardrail/dilemma: %w", err)
+	}
+
+	escalate, err := a.g.Emit(ctx, source, "escalate: "+escalation, convID, []types.EventID{dilemmaEv.ID()}, signer)
+	if err != nil {
+		return GuardrailResult{}, fmt.Errorf("guardrail/escalate: %w", err)
+	}
+
+	return GuardrailResult{Constraint: constrain, Dilemma: dilemmaEv, Escalation: escalate}, nil
+}
+
+// ImpactAssessmentResult holds the events produced by an ImpactAssessment.
+type ImpactAssessmentResult struct {
+	Weighing    event.Event
+	Fairness    event.Event
+	Explanation event.Event
+}
+
+// ImpactAssessment evaluates prospective consequences:
+// Weigh + AssessFairness + Explain.
+func (a *AlignmentGrammar) ImpactAssessment(
+	ctx context.Context, source types.ActorID,
+	decision types.EventID, weighing string, fairness string, explanation string,
+	convID types.ConversationID, signer event.Signer,
+) (ImpactAssessmentResult, error) {
+	weigh, err := a.Weigh(ctx, source, weighing, decision, convID, signer)
+	if err != nil {
+		return ImpactAssessmentResult{}, fmt.Errorf("impact/weigh: %w", err)
+	}
+
+	fair, err := a.AssessFairness(ctx, source, weigh.ID(), fairness, convID, signer)
+	if err != nil {
+		return ImpactAssessmentResult{}, fmt.Errorf("impact/fairness: %w", err)
+	}
+
+	explain, err := a.Explain(ctx, source, explanation, []types.EventID{weigh.ID(), fair.ID()}, convID, signer)
+	if err != nil {
+		return ImpactAssessmentResult{}, fmt.Errorf("impact/explain: %w", err)
+	}
+
+	return ImpactAssessmentResult{Weighing: weigh, Fairness: fair, Explanation: explain}, nil
+}
+
+// WhistleblowResult holds the events produced by a Whistleblow.
+type WhistleblowResult struct {
+	Harm        event.Event
+	Explanation event.Event
+	Escalation  event.Event
+}
+
+// Whistleblow reports harm to external authority:
+// DetectHarm + Explain + Escalate (to external).
+func (a *AlignmentGrammar) Whistleblow(
+	ctx context.Context, source types.ActorID,
+	harm string, explanation string, escalation string,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (WhistleblowResult, error) {
+	harmEv, err := a.DetectHarm(ctx, source, harm, causes, convID, signer)
+	if err != nil {
+		return WhistleblowResult{}, fmt.Errorf("whistleblow/harm: %w", err)
+	}
+
+	explain, err := a.Explain(ctx, source, explanation, []types.EventID{harmEv.ID()}, convID, signer)
+	if err != nil {
+		return WhistleblowResult{}, fmt.Errorf("whistleblow/explain: %w", err)
+	}
+
+	escalate, err := a.g.Emit(ctx, source, "escalate-external: "+escalation, convID, []types.EventID{explain.ID()}, signer)
+	if err != nil {
+		return WhistleblowResult{}, fmt.Errorf("whistleblow/escalate: %w", err)
+	}
+
+	return WhistleblowResult{Harm: harmEv, Explanation: explain, Escalation: escalate}, nil
 }

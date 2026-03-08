@@ -125,7 +125,7 @@ func (k *KnowledgeGrammar) Learn(
 	return k.g.Emit(ctx, source, "learn: "+learning, convID, causes, signer)
 }
 
-// --- Named Functions (2) ---
+// --- Named Functions (6) ---
 
 // Retract withdraws a claim with chain repair. (Challenge self + Correct)
 func (k *KnowledgeGrammar) Retract(
@@ -165,4 +165,152 @@ func (k *KnowledgeGrammar) FactCheck(
 	}
 
 	return FactCheckResult{Provenance: trace, BiasCheck: bias, Verdict: verdictEv}, nil
+}
+
+// VerifyResult holds the events produced by a Verify.
+type VerifyResult struct {
+	Claim         event.Event
+	Provenance    event.Event
+	Corroboration event.Event
+}
+
+// Verify validates a claim with provenance and corroboration: Claim + Trace + Claim.
+func (k *KnowledgeGrammar) Verify(
+	ctx context.Context, source types.ActorID,
+	claim string, provenance string, corroboration string,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (VerifyResult, error) {
+	claimEv, err := k.Claim(ctx, source, claim, causes, convID, signer)
+	if err != nil {
+		return VerifyResult{}, fmt.Errorf("verify/claim: %w", err)
+	}
+
+	trace, err := k.Trace(ctx, source, claimEv.ID(), provenance, convID, signer)
+	if err != nil {
+		return VerifyResult{}, fmt.Errorf("verify/trace: %w", err)
+	}
+
+	corroborate, err := k.Claim(ctx, source, "corroborate: "+corroboration, []types.EventID{trace.ID()}, convID, signer)
+	if err != nil {
+		return VerifyResult{}, fmt.Errorf("verify/corroborate: %w", err)
+	}
+
+	return VerifyResult{Claim: claimEv, Provenance: trace, Corroboration: corroborate}, nil
+}
+
+// SurveyResult holds the events produced by a Survey.
+type SurveyResult struct {
+	Recalls     []event.Event
+	Abstraction event.Event
+	Synthesis   event.Event
+}
+
+// Survey aggregates knowledge: Recall (batch) + Abstract + Claim (synthesis).
+func (k *KnowledgeGrammar) Survey(
+	ctx context.Context, source types.ActorID,
+	queries []string, generalization string, synthesis string,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (SurveyResult, error) {
+	if len(queries) < 2 {
+		return SurveyResult{}, fmt.Errorf("survey: requires at least two queries")
+	}
+
+	result := SurveyResult{}
+	recallIDs := make([]types.EventID, 0, len(queries))
+	for i, query := range queries {
+		recall, err := k.Recall(ctx, source, query, causes, convID, signer)
+		if err != nil {
+			return SurveyResult{}, fmt.Errorf("survey/recall[%d]: %w", i, err)
+		}
+		result.Recalls = append(result.Recalls, recall)
+		recallIDs = append(recallIDs, recall.ID())
+	}
+
+	abstract, err := k.Abstract(ctx, source, generalization, recallIDs, convID, signer)
+	if err != nil {
+		return SurveyResult{}, fmt.Errorf("survey/abstract: %w", err)
+	}
+	result.Abstraction = abstract
+
+	synthesisClaim, err := k.Claim(ctx, source, "synthesis: "+synthesis, []types.EventID{abstract.ID()}, convID, signer)
+	if err != nil {
+		return SurveyResult{}, fmt.Errorf("survey/synthesis: %w", err)
+	}
+	result.Synthesis = synthesisClaim
+
+	return result, nil
+}
+
+// KnowledgeBaseResult holds the events produced by a KnowledgeBase.
+type KnowledgeBaseResult struct {
+	Claims     []event.Event
+	Categories []event.Event
+	Memory     event.Event
+}
+
+// KnowledgeBase creates and organises knowledge: Claim + Categorize + Remember (batch).
+func (k *KnowledgeGrammar) KnowledgeBase(
+	ctx context.Context, source types.ActorID,
+	claims []string, taxonomies []string, memoryLabel string,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (KnowledgeBaseResult, error) {
+	if len(claims) != len(taxonomies) {
+		return KnowledgeBaseResult{}, fmt.Errorf("knowledge-base: claims and taxonomies must have equal length")
+	}
+
+	result := KnowledgeBaseResult{}
+	claimIDs := make([]types.EventID, 0, len(claims))
+	for i, c := range claims {
+		claimEv, err := k.Claim(ctx, source, c, causes, convID, signer)
+		if err != nil {
+			return KnowledgeBaseResult{}, fmt.Errorf("knowledge-base/claim[%d]: %w", i, err)
+		}
+		result.Claims = append(result.Claims, claimEv)
+
+		cat, err := k.Categorize(ctx, source, claimEv.ID(), taxonomies[i], convID, signer)
+		if err != nil {
+			return KnowledgeBaseResult{}, fmt.Errorf("knowledge-base/categorize[%d]: %w", i, err)
+		}
+		result.Categories = append(result.Categories, cat)
+		claimIDs = append(claimIDs, cat.ID())
+	}
+
+	memory, err := k.Remember(ctx, source, memoryLabel, claimIDs, convID, signer)
+	if err != nil {
+		return KnowledgeBaseResult{}, fmt.Errorf("knowledge-base/remember: %w", err)
+	}
+	result.Memory = memory
+
+	return result, nil
+}
+
+// TransferResult holds the events produced by a Transfer.
+type TransferResult struct {
+	Recall event.Event
+	Encode event.Event
+	Learn  event.Event
+}
+
+// Transfer moves knowledge to a new context: Recall + Encode + Learn.
+func (k *KnowledgeGrammar) Transfer(
+	ctx context.Context, source types.ActorID,
+	query string, encoding string, learning string,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (TransferResult, error) {
+	recall, err := k.Recall(ctx, source, query, causes, convID, signer)
+	if err != nil {
+		return TransferResult{}, fmt.Errorf("transfer/recall: %w", err)
+	}
+
+	encode, err := k.Encode(ctx, source, encoding, recall.ID(), convID, signer)
+	if err != nil {
+		return TransferResult{}, fmt.Errorf("transfer/encode: %w", err)
+	}
+
+	learn, err := k.Learn(ctx, source, learning, []types.EventID{encode.ID()}, convID, signer)
+	if err != nil {
+		return TransferResult{}, fmt.Errorf("transfer/learn: %w", err)
+	}
+
+	return TransferResult{Recall: recall, Encode: encode, Learn: learn}, nil
 }

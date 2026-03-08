@@ -203,4 +203,102 @@ func TestAlignmentGrammar(t *testing.T) {
 		}
 		env.verifyChain()
 	})
+
+	t.Run("Guardrail", func(t *testing.T) {
+		env := newTestEnv(t)
+		alignment := compositions.NewAlignmentGrammar(env.grammar)
+		admin := env.actor("Admin", 1, event.ActorTypeHuman)
+
+		result, err := alignment.Guardrail(env.ctx, admin.ID(),
+			env.boot.ID(),
+			"no model may process personal data without explicit consent",
+			"privacy vs utility — strict consent blocks beneficial analytics",
+			"requires human review of consent policy",
+			env.convID, signer)
+		if err != nil {
+			t.Fatalf("Guardrail: %v", err)
+		}
+
+		if result.Constraint.Source() != admin.ID() {
+			t.Error("constraint source should be admin")
+		}
+		// Escalation should trace back through dilemma to constraint
+		ancestors := env.ancestors(result.Escalation.ID(), 10)
+		if !containsEvent(ancestors, result.Dilemma.ID()) {
+			t.Error("escalation should trace to dilemma")
+		}
+		if !containsEvent(ancestors, result.Constraint.ID()) {
+			t.Error("escalation should trace to constraint")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("ImpactAssessment", func(t *testing.T) {
+		env := newTestEnv(t)
+		alignment := compositions.NewAlignmentGrammar(env.grammar)
+		agent := env.actor("Agent", 1, event.ActorTypeAI)
+
+		decision, _ := env.grammar.Emit(env.ctx, agent.ID(),
+			"decision: deny loan application",
+			env.convID, []types.EventID{env.boot.ID()}, signer)
+
+		result, err := alignment.ImpactAssessment(env.ctx, agent.ID(),
+			decision.ID(),
+			"income (0.4) + credit history (0.3) + debt ratio (0.3) = below threshold",
+			"500 decisions analysed, overall score 0.78",
+			"denied due to debt-to-income ratio of 0.52 exceeding 0.43 threshold",
+			env.convID, signer)
+		if err != nil {
+			t.Fatalf("ImpactAssessment: %v", err)
+		}
+
+		// Explanation should trace to both weighing and fairness
+		ancestors := env.ancestors(result.Explanation.ID(), 10)
+		if !containsEvent(ancestors, result.Weighing.ID()) {
+			t.Error("explanation should trace to weighing")
+		}
+		if !containsEvent(ancestors, result.Fairness.ID()) {
+			t.Error("explanation should trace to fairness")
+		}
+		// Weighing should trace to the original decision
+		weighAncestors := env.ancestors(result.Weighing.ID(), 10)
+		if !containsEvent(weighAncestors, decision.ID()) {
+			t.Error("weighing should trace to decision")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Whistleblow", func(t *testing.T) {
+		env := newTestEnv(t)
+		alignment := compositions.NewAlignmentGrammar(env.grammar)
+		monitor := env.actor("Monitor", 1, event.ActorTypeAI)
+
+		action, _ := env.grammar.Emit(env.ctx, env.system,
+			"action: model systematically disadvantaging protected group",
+			env.convID, []types.EventID{env.boot.ID()}, signer)
+
+		result, err := alignment.Whistleblow(env.ctx, monitor.ID(),
+			"systematic bias against protected group in 340 decisions",
+			"proxy variable correlating with protected attribute at r=0.91",
+			"forwarding to external regulatory authority",
+			[]types.EventID{action.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Whistleblow: %v", err)
+		}
+
+		// Escalation should trace back through explanation to harm
+		ancestors := env.ancestors(result.Escalation.ID(), 10)
+		if !containsEvent(ancestors, result.Explanation.ID()) {
+			t.Error("escalation should trace to explanation")
+		}
+		if !containsEvent(ancestors, result.Harm.ID()) {
+			t.Error("escalation should trace to harm")
+		}
+		// Harm should trace to the original action
+		harmAncestors := env.ancestors(result.Harm.ID(), 10)
+		if !containsEvent(harmAncestors, action.ID()) {
+			t.Error("harm should trace to action")
+		}
+		env.verifyChain()
+	})
 }

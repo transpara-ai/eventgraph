@@ -103,7 +103,7 @@ func (i *IdentityGrammar) Memorialize(
 	return i.g.Emit(ctx, source, "memorialize: "+memorial, convID, causes, signer)
 }
 
-// --- Named Functions (2) ---
+// --- Named Functions (5) ---
 
 // IdentityAuditResult holds the events produced by an IdentityAudit.
 type IdentityAuditResult struct {
@@ -170,4 +170,85 @@ func (i *IdentityGrammar) Retirement(
 	}
 
 	return RetirementResult{Memorial: mem, Transfer: transfer, Archive: archive}, nil
+}
+
+// CredentialResult holds the events produced by a Credential.
+type CredentialResult struct {
+	Introspection event.Event
+	Disclosure    event.Event
+}
+
+// Credential creates a verifiable self-disclosure: Introspect + Disclose.
+func (i *IdentityGrammar) Credential(
+	ctx context.Context, source types.ActorID, verifier types.ActorID,
+	selfModel string, scope types.Option[types.DomainScope],
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (CredentialResult, error) {
+	intro, err := i.Introspect(ctx, source, selfModel, causes, convID, signer)
+	if err != nil {
+		return CredentialResult{}, fmt.Errorf("credential/introspect: %w", err)
+	}
+
+	disclose, err := i.Disclose(ctx, source, verifier, scope, intro.ID(), convID, signer)
+	if err != nil {
+		return CredentialResult{}, fmt.Errorf("credential/disclose: %w", err)
+	}
+
+	return CredentialResult{Introspection: intro, Disclosure: disclose}, nil
+}
+
+// ReinventionResult holds the events produced by a Reinvention.
+type ReinventionResult struct {
+	Transformation event.Event
+	Narrative      event.Event
+	Aspiration     event.Event
+}
+
+// Reinvention performs a fundamental identity shift: Transform + Narrate + Aspire.
+func (i *IdentityGrammar) Reinvention(
+	ctx context.Context, source types.ActorID,
+	transformation string, narrative string, aspiration string,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (ReinventionResult, error) {
+	transform, err := i.Transform(ctx, source, transformation, causes, convID, signer)
+	if err != nil {
+		return ReinventionResult{}, fmt.Errorf("reinvention/transform: %w", err)
+	}
+
+	narr, err := i.Narrate(ctx, source, narrative, transform.ID(), convID, signer)
+	if err != nil {
+		return ReinventionResult{}, fmt.Errorf("reinvention/narrate: %w", err)
+	}
+
+	aspire, err := i.Aspire(ctx, source, aspiration, []types.EventID{narr.ID()}, convID, signer)
+	if err != nil {
+		return ReinventionResult{}, fmt.Errorf("reinvention/aspire: %w", err)
+	}
+
+	return ReinventionResult{Transformation: transform, Narrative: narr, Aspiration: aspire}, nil
+}
+
+// IntroductionResult holds the events produced by an Introduction.
+type IntroductionResult struct {
+	Disclosure event.Event
+	Narrative  event.Event
+}
+
+// Introduction presents identity to another: Disclose + Narrate (summary).
+func (i *IdentityGrammar) Introduction(
+	ctx context.Context, source types.ActorID, target types.ActorID,
+	scope types.Option[types.DomainScope], narrative string,
+	cause types.EventID, convID types.ConversationID, signer event.Signer,
+) (IntroductionResult, error) {
+	disclose, err := i.Disclose(ctx, source, target, scope, cause, convID, signer)
+	if err != nil {
+		return IntroductionResult{}, fmt.Errorf("introduction/disclose: %w", err)
+	}
+
+	narr, err := i.Narrate(ctx, source, narrative, disclose.ID(), convID, signer)
+	if err != nil {
+		return IntroductionResult{}, fmt.Errorf("introduction/narrate: %w", err)
+	}
+
+	return IntroductionResult{Disclosure: disclose, Narrative: narr}, nil
 }

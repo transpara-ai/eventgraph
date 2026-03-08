@@ -89,7 +89,7 @@ func (s *SocialGrammar) Exile(
 	return ExileResult{Exclusion: exclusion, Sever: sever, Sanction: sanction}, nil
 }
 
-// --- Named Functions (3) ---
+// --- Named Functions (4) ---
 
 // PollResult holds the events produced by a Poll.
 type PollResult struct {
@@ -142,4 +142,36 @@ func (s *SocialGrammar) Federation(
 	}
 
 	return FederationResult{Agreement: agreement, Delegation: delegation}, nil
+}
+
+// SchismResult holds the events produced by a Schism.
+type SchismResult struct {
+	ConflictingNorm event.Event
+	Exile           ExileResult
+	NewCommunity    event.Event
+}
+
+// Schism splits a community over a conflicting norm: Norm (conflicting) + Exile + new community.
+func (s *SocialGrammar) Schism(
+	ctx context.Context, faction types.ActorID, moderator types.ActorID,
+	conflictingNorm string, scope types.DomainScope,
+	edge types.EdgeID, reason string,
+	cause types.EventID, convID types.ConversationID, signer event.Signer,
+) (SchismResult, error) {
+	norm, err := s.g.Emit(ctx, faction, "conflicting-norm: "+conflictingNorm, convID, []types.EventID{cause}, signer)
+	if err != nil {
+		return SchismResult{}, fmt.Errorf("schism/norm: %w", err)
+	}
+
+	exile, err := s.Exile(ctx, moderator, edge, reason, norm.ID(), convID, signer)
+	if err != nil {
+		return SchismResult{}, fmt.Errorf("schism/exile: %w", err)
+	}
+
+	community, err := s.g.Emit(ctx, faction, "new-community: split over "+conflictingNorm, convID, []types.EventID{exile.Sanction.ID()}, signer)
+	if err != nil {
+		return SchismResult{}, fmt.Errorf("schism/new-community: %w", err)
+	}
+
+	return SchismResult{ConflictingNorm: norm, Exile: exile, NewCommunity: community}, nil
 }

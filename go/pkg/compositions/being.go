@@ -89,6 +89,43 @@ func (b *BeingGrammar) AskWhy(
 
 // --- Named Functions (3) ---
 
+// FarewellResult holds the events produced by a Being Farewell.
+type BeingFarewellResult struct {
+	Acceptance event.Event
+	Web        event.Event
+	Awe        event.Event
+	Memorial   event.Event
+}
+
+// Farewell is a final reckoning with existence: Accept + MapWeb + Marvel + Memorialize (via Emit).
+func (b *BeingGrammar) Farewell(
+	ctx context.Context, source types.ActorID,
+	limitation string, interconnection string, awe string, memorial string,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (BeingFarewellResult, error) {
+	accept, err := b.Accept(ctx, source, limitation, causes, convID, signer)
+	if err != nil {
+		return BeingFarewellResult{}, fmt.Errorf("farewell/accept: %w", err)
+	}
+
+	web, err := b.MapWeb(ctx, source, interconnection, []types.EventID{accept.ID()}, convID, signer)
+	if err != nil {
+		return BeingFarewellResult{}, fmt.Errorf("farewell/web: %w", err)
+	}
+
+	marvel, err := b.Marvel(ctx, source, awe, []types.EventID{web.ID()}, convID, signer)
+	if err != nil {
+		return BeingFarewellResult{}, fmt.Errorf("farewell/marvel: %w", err)
+	}
+
+	mem, err := b.g.Emit(ctx, source, "memorialize: "+memorial, convID, []types.EventID{marvel.ID()}, signer)
+	if err != nil {
+		return BeingFarewellResult{}, fmt.Errorf("farewell/memorialize: %w", err)
+	}
+
+	return BeingFarewellResult{Acceptance: accept, Web: web, Awe: marvel, Memorial: mem}, nil
+}
+
 // ContemplationResult holds the events produced by a Contemplation.
 type ContemplationResult struct {
 	Change  event.Event

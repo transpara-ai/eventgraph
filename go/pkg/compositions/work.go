@@ -124,6 +124,130 @@ func (w *WorkGrammar) Review(
 
 // --- Named Functions (6) ---
 
+// StandupResult holds the events produced by a Standup.
+type StandupResult struct {
+	Updates   []event.Event
+	Priority  event.Event
+}
+
+// Standup gathers status from all participants and sets priority:
+// Progress (batch) + Prioritize.
+func (w *WorkGrammar) Standup(
+	ctx context.Context, participants []types.ActorID, updates []string,
+	lead types.ActorID, priority string,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+) (StandupResult, error) {
+	if len(participants) != len(updates) {
+		return StandupResult{}, fmt.Errorf("standup: participants and updates must have equal length")
+	}
+
+	result := StandupResult{}
+	var lastID types.EventID
+	for i, actor := range participants {
+		var prev types.EventID
+		if i == 0 {
+			if len(causes) > 0 {
+				prev = causes[0]
+			}
+		} else {
+			prev = lastID
+		}
+		progress, err := w.Progress(ctx, actor, updates[i], prev, convID, signer)
+		if err != nil {
+			return StandupResult{}, fmt.Errorf("standup/progress[%d]: %w", i, err)
+		}
+		result.Updates = append(result.Updates, progress)
+		lastID = progress.ID()
+	}
+
+	prio, err := w.Prioritize(ctx, lead, lastID, priority, convID, signer)
+	if err != nil {
+		return StandupResult{}, fmt.Errorf("standup/prioritize: %w", err)
+	}
+	result.Priority = prio
+
+	return result, nil
+}
+
+// RetrospectiveResult holds the events produced by a Retrospective.
+type RetrospectiveResult struct {
+	Reviews     []event.Event
+	Improvement event.Event
+}
+
+// Retrospective reviews work and identifies improvements: Review (batch) + Intend.
+func (w *WorkGrammar) Retrospective(
+	ctx context.Context, reviewers []types.ActorID, assessments []string,
+	lead types.ActorID, improvement string,
+	target types.EventID, convID types.ConversationID, signer event.Signer,
+) (RetrospectiveResult, error) {
+	if len(reviewers) != len(assessments) {
+		return RetrospectiveResult{}, fmt.Errorf("retrospective: reviewers and assessments must have equal length")
+	}
+
+	result := RetrospectiveResult{}
+	reviewIDs := make([]types.EventID, 0, len(reviewers))
+	for i, reviewer := range reviewers {
+		rev, err := w.Review(ctx, reviewer, assessments[i], target, convID, signer)
+		if err != nil {
+			return RetrospectiveResult{}, fmt.Errorf("retrospective/review[%d]: %w", i, err)
+		}
+		result.Reviews = append(result.Reviews, rev)
+		reviewIDs = append(reviewIDs, rev.ID())
+	}
+
+	improve, err := w.Intend(ctx, lead, improvement, reviewIDs, convID, signer)
+	if err != nil {
+		return RetrospectiveResult{}, fmt.Errorf("retrospective/intend: %w", err)
+	}
+	result.Improvement = improve
+
+	return result, nil
+}
+
+// TriageResult holds the events produced by a Triage.
+type TriageResult struct {
+	Priorities  []event.Event
+	Assignments []event.Event
+	Scopes      []event.Event
+}
+
+// Triage prioritises and assigns a batch of items: Prioritize + Assign + Scope (batch).
+func (w *WorkGrammar) Triage(
+	ctx context.Context, lead types.ActorID,
+	items []types.EventID, priorities []string,
+	assignees []types.ActorID, scopes []types.DomainScope, weights []types.Weight,
+	convID types.ConversationID, signer event.Signer,
+) (TriageResult, error) {
+	n := len(items)
+	if len(priorities) != n || len(assignees) != n || len(scopes) != n || len(weights) != n {
+		return TriageResult{}, fmt.Errorf("triage: all slices must have equal length")
+	}
+
+	result := TriageResult{}
+	for i := range items {
+		prio, err := w.Prioritize(ctx, lead, items[i], priorities[i], convID, signer)
+		if err != nil {
+			return TriageResult{}, fmt.Errorf("triage/prioritize[%d]: %w", i, err)
+		}
+		result.Priorities = append(result.Priorities, prio)
+
+		assign, err := w.Assign(ctx, lead, assignees[i], scopes[i], weights[i], prio.ID(), convID, signer)
+		if err != nil {
+			return TriageResult{}, fmt.Errorf("triage/assign[%d]: %w", i, err)
+		}
+		result.Assignments = append(result.Assignments, assign)
+
+		scope, err := w.Scope(ctx, lead, assignees[i], scopes[i], weights[i], assign.ID(), convID, signer)
+		if err != nil {
+			return TriageResult{}, fmt.Errorf("triage/scope[%d]: %w", i, err)
+		}
+		result.Scopes = append(result.Scopes, scope)
+	}
+
+	return result, nil
+}
+
 // SprintResult holds the events produced by a Sprint.
 type SprintResult struct {
 	Intent        event.Event

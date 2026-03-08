@@ -182,4 +182,92 @@ func TestBuildGrammar(t *testing.T) {
 		}
 		env.verifyChain()
 	})
+
+	t.Run("Spike", func(t *testing.T) {
+		env := newTestEnv(t)
+		build := compositions.NewBuildGrammar(env.grammar)
+		dev := env.actor("Developer", 1, event.ActorTypeHuman)
+
+		result, err := build.Spike(env.ctx, dev.ID(),
+			"replace JSON parser with streaming decoder",
+			"benchmark: 3x faster for large payloads, memory down 60%",
+			"streaming approach viable but needs error recovery work",
+			"proceed with streaming decoder, add retry wrapper",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Spike: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Decision.ID(), 10)
+		if !containsEvent(ancestors, result.Build.ID()) {
+			t.Error("decision should trace to build")
+		}
+		if !containsEvent(ancestors, result.Test.ID()) {
+			t.Error("decision should trace to test")
+		}
+		if !containsEvent(ancestors, result.Feedback.ID()) {
+			t.Error("decision should trace to feedback")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Migration", func(t *testing.T) {
+		env := newTestEnv(t)
+		build := compositions.NewBuildGrammar(env.grammar)
+		dev := env.actor("Developer", 1, event.ActorTypeHuman)
+
+		oldLib, _ := build.Build(env.ctx, dev.ID(), "auth_lib v1.0",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+
+		result, err := build.Migration(env.ctx, dev.ID(),
+			oldLib.ID(),
+			"migrate from auth_lib v1 to v2, update all callers",
+			"auth_lib v2.0.0 with token rotation support",
+			"auth_lib v2.0.0 deployed to staging",
+			"integration tests 112/112 passing, no regressions",
+			env.convID, signer)
+		if err != nil {
+			t.Fatalf("Migration: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Test.ID(), 10)
+		if !containsEvent(ancestors, result.Sunset.ID()) {
+			t.Error("test should trace to sunset")
+		}
+		if !containsEvent(ancestors, oldLib.ID()) {
+			t.Error("test should trace to deprecated target")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("TechDebt", func(t *testing.T) {
+		env := newTestEnv(t)
+		build := compositions.NewBuildGrammar(env.grammar)
+		dev := env.actor("Developer", 1, event.ActorTypeHuman)
+
+		codebase, _ := build.Build(env.ctx, dev.ID(), "event_processor module",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+
+		result, err := build.TechDebt(env.ctx, dev.ID(),
+			codebase.ID(),
+			"cyclomatic complexity 42, test coverage 55%, 3 known race conditions",
+			"technical debt: tangled event routing logic needs decomposition",
+			"split monolithic processor into pipeline stages over 3 sprints",
+			env.convID, signer)
+		if err != nil {
+			t.Fatalf("TechDebt: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Iteration.ID(), 10)
+		if !containsEvent(ancestors, result.Measure.ID()) {
+			t.Error("iteration should trace to measure")
+		}
+		if !containsEvent(ancestors, result.DebtMark.ID()) {
+			t.Error("iteration should trace to debt mark")
+		}
+		if !containsEvent(ancestors, codebase.ID()) {
+			t.Error("iteration should trace to original codebase")
+		}
+		env.verifyChain()
+	})
 }

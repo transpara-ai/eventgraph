@@ -147,4 +147,52 @@ func TestEvolutionGrammar(t *testing.T) {
 		}
 		env.verifyChain()
 	})
+
+	t.Run("Prune", func(t *testing.T) {
+		env := newTestEnv(t)
+		evo := compositions.NewEvolutionGrammar(env.grammar)
+		system := env.actor("System", 1, event.ActorTypeAI)
+
+		result, err := evo.Prune(env.ctx, system.ID(),
+			"3 helper functions called zero times in 6 months",
+			"removed dead helpers and collapsed two redundant interfaces into one",
+			"KEPT: all tests pass, no downstream breakage after 1 week observation",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+		if err != nil {
+			t.Fatalf("Prune: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Verification.ID(), 10)
+		if !containsEvent(ancestors, result.Pattern.ID()) {
+			t.Error("verification should trace to pattern")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("PhaseTransition", func(t *testing.T) {
+		env := newTestEnv(t)
+		evo := compositions.NewEvolutionGrammar(env.grammar)
+		monitor := env.actor("Monitor", 1, event.ActorTypeAI)
+
+		trigger, _ := env.grammar.Emit(env.ctx, monitor.ID(),
+			"user count crossed 10k threshold",
+			env.convID, []types.EventID{env.boot.ID()}, signer)
+
+		result, err := evo.PhaseTransition(env.ctx, monitor.ID(),
+			trigger.ID(),
+			"10k users reached — switching from single-node to distributed mode",
+			"projected load: 50k requests/min, current capacity: 15k — 3.3x gap",
+			"shard event store by conversation_id, add read replicas",
+			"KEPT: latency p99 dropped from 800ms to 120ms post-transition",
+			env.convID, signer)
+		if err != nil {
+			t.Fatalf("PhaseTransition: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Selection.ID(), 10)
+		if !containsEvent(ancestors, result.Threshold.ID()) {
+			t.Error("selection should trace to threshold")
+		}
+		env.verifyChain()
+	})
 }

@@ -202,4 +202,162 @@ func TestJusticeGrammar(t *testing.T) {
 		}
 		env.verifyChain()
 	})
+
+	t.Run("ConstitutionalAmendment", func(t *testing.T) {
+		env := newTestEnv(t)
+		justice := compositions.NewJusticeGrammar(env.grammar)
+		proposer := env.actor("Proposer", 1, event.ActorTypeHuman)
+
+		precedent, _ := justice.Judge(env.ctx, proposer.ID(),
+			"current governance structure insufficient",
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
+
+		result, err := justice.ConstitutionalAmendment(env.ctx, proposer.ID(),
+			"restructure voting rights to include all contributors",
+			"all contributors with 3+ merged PRs gain voting rights",
+			"assessment: expands representation, no rights diminished",
+			precedent.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("ConstitutionalAmendment: %v", err)
+		}
+
+		ancestors := env.ancestors(result.RightsCheck.ID(), 10)
+		if !containsEvent(ancestors, result.Reform.ID()) {
+			t.Error("rights check should trace to reform")
+		}
+		if !containsEvent(ancestors, result.Legislation.ID()) {
+			t.Error("rights check should trace to legislation")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Injunction", func(t *testing.T) {
+		env := newTestEnv(t)
+		justice := compositions.NewJusticeGrammar(env.grammar)
+		petitioner := env.actor("Petitioner", 1, event.ActorTypeHuman)
+		judge := env.actor("Judge", 2, event.ActorTypeHuman)
+		executor := env.actor("Executor", 3, event.ActorTypeHuman)
+
+		incident, _ := env.grammar.Emit(env.ctx, petitioner.ID(),
+			"ongoing data breach detected",
+			env.convID, []types.EventID{env.boot.ID()}, signer)
+
+		result, err := justice.Injunction(env.ctx, petitioner.ID(), judge.ID(),
+			executor.ID(), "emergency: active data exfiltration",
+			"cease all external API access immediately",
+			types.MustDomainScope("security"), types.MustWeight(0.9),
+			incident.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("Injunction: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Enforcement.ID(), 10)
+		if !containsEvent(ancestors, result.Filing.ID()) {
+			t.Error("enforcement should trace to filing")
+		}
+		if !containsEvent(ancestors, result.Ruling.ID()) {
+			t.Error("enforcement should trace to ruling")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Plea", func(t *testing.T) {
+		env := newTestEnv(t)
+		justice := compositions.NewJusticeGrammar(env.grammar)
+		defendant := env.actor("Defendant", 1, event.ActorTypeHuman)
+		prosecutor := env.actor("Prosecutor", 2, event.ActorTypeHuman)
+		executor := env.actor("Executor", 3, event.ActorTypeHuman)
+
+		incident, _ := env.grammar.Emit(env.ctx, prosecutor.ID(),
+			"unauthorized access to production database",
+			env.convID, []types.EventID{env.boot.ID()}, signer)
+
+		result, err := justice.Plea(env.ctx, defendant.ID(), prosecutor.ID(),
+			executor.ID(), "accessed production DB without authorization",
+			"accept 7-day suspension instead of full tribunal",
+			types.MustDomainScope("access_control"), types.MustWeight(0.6),
+			incident.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("Plea: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Enforcement.ID(), 10)
+		if !containsEvent(ancestors, result.Filing.ID()) {
+			t.Error("enforcement should trace to filing")
+		}
+		if !containsEvent(ancestors, result.Acceptance.ID()) {
+			t.Error("enforcement should trace to acceptance")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("ClassAction", func(t *testing.T) {
+		env := newTestEnv(t)
+		justice := compositions.NewJusticeGrammar(env.grammar)
+		p1 := env.actor("Plaintiff1", 1, event.ActorTypeHuman)
+		p2 := env.actor("Plaintiff2", 2, event.ActorTypeHuman)
+		defendant := env.actor("Defendant", 3, event.ActorTypeHuman)
+		judge := env.actor("Judge", 4, event.ActorTypeHuman)
+
+		incident, _ := env.grammar.Emit(env.ctx, p1.ID(),
+			"systematic policy violations",
+			env.convID, []types.EventID{env.boot.ID()}, signer)
+
+		result, err := justice.ClassAction(env.ctx,
+			[]types.ActorID{p1.ID(), p2.ID()},
+			defendant.ID(), judge.ID(),
+			[]string{"denied access to shared resources", "excluded from decision process"},
+			"logs showing systematic exclusion over 3 months",
+			"pattern of deliberate exclusion violates community charter",
+			"access was restricted due to security audit",
+			"security audit was completed, restrictions were standard procedure",
+			"violation confirmed: restrictions exceeded audit scope, remediation ordered",
+			incident.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("ClassAction: %v", err)
+		}
+
+		if len(result.Filings) != 2 {
+			t.Errorf("expected 2 filings, got %d", len(result.Filings))
+		}
+		ancestors := env.ancestors(result.Trial.Ruling.ID(), 20)
+		if !containsEvent(ancestors, result.Merged.ID()) {
+			t.Error("ruling should trace to merged filing")
+		}
+		env.verifyChain()
+	})
+
+	t.Run("Recall", func(t *testing.T) {
+		env := newTestEnv(t)
+		justice := compositions.NewJusticeGrammar(env.grammar)
+		auditor := env.actor("Auditor", 1, event.ActorTypeHuman)
+		community := env.actor("Community", 2, event.ActorTypeCommittee)
+		official := env.actor("Official", 3, event.ActorTypeHuman)
+
+		action, _ := env.grammar.Emit(env.ctx, official.ID(),
+			"unilateral policy change without consultation",
+			env.convID, []types.EventID{env.boot.ID()}, signer)
+
+		result, err := justice.Recall(env.ctx, auditor.ID(), community.ID(),
+			official.ID(),
+			"audit: official bypassed required approval process 4 times",
+			"motion to recall official from governance role",
+			types.MustDomainScope("governance"),
+			action.ID(), env.convID, signer)
+		if err != nil {
+			t.Fatalf("Recall: %v", err)
+		}
+
+		ancestors := env.ancestors(result.Revocation.ID(), 15)
+		if !containsEvent(ancestors, result.Audit.ID()) {
+			t.Error("revocation should trace to audit")
+		}
+		if !containsEvent(ancestors, result.Filing.ID()) {
+			t.Error("revocation should trace to filing")
+		}
+		if !containsEvent(ancestors, result.Consent.ID()) {
+			t.Error("revocation should trace to consent")
+		}
+		env.verifyChain()
+	})
 }
