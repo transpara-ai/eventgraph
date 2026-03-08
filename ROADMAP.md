@@ -345,9 +345,9 @@ Each language package must pass the language-agnostic conformance test suite.
 
 - [x] `docs/conformance/` — Language-agnostic conformance test specification
 - [x] `docs/conformance/canonical-vectors.json` — Test vectors for canonical form, hash, and signature verification
-- [ ] `examples/minimal/` — Smallest possible event graph (10 lines of code)
-- [ ] `examples/social/` — The 15 social grammar operations on the event graph
-- [ ] `examples/multi-system/` — Two systems communicating via EGIP
+- [x] `examples/minimal/` — Bootstrap, emit, derive, verify chain (runnable Go program)
+- [x] `examples/social/` — All 15 social grammar operations demonstrated
+- [x] `examples/multi-system/` — Two sovereign systems with EGIP: HELLO, treaty, CGERs, proof, trust
 - [ ] Tutorial: "Build your first primitive"
 - [ ] Tutorial: "Implement a custom store"
 - [ ] Tutorial: "Connect two event graphs"
