@@ -315,7 +315,7 @@ Sovereign systems communicating across graph boundaries.
 
 Each language package must pass the language-agnostic conformance test suite.
 
-### Rust — DONE (73 tests)
+### Rust — DONE (75 tests)
 - [x] Core event types + hash chain
 - [x] Store trait + InMemory implementation
 - [x] Bus
@@ -323,7 +323,7 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] Tick engine
 - [x] Conformance tests (3 tests matching Go reference hashes)
 
-### Python — DONE (124 tests)
+### Python — DONE (127 tests)
 - [x] Core event types + hash chain
 - [x] Store protocol + InMemory implementation
 - [x] Bus
@@ -331,7 +331,7 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] Tick engine
 - [x] Conformance tests (24 tests matching Go reference hashes)
 
-### TypeScript/npm — DONE (68 tests)
+### TypeScript/npm — DONE (119 tests)
 - [x] Core event types + hash chain
 - [x] Store interface + InMemory implementation
 - [x] Bus
@@ -339,7 +339,7 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] Tick engine
 - [x] Conformance tests (matching Go reference hashes)
 
-### .NET — DONE (87 tests)
+### .NET — DONE (90 tests)
 - [x] Core event types + hash chain
 - [x] IStore interface + InMemory implementation
 - [x] Bus
