@@ -51,7 +51,11 @@ func (j *JusticeGrammar) File(
 	ctx context.Context, source types.ActorID, complaint string,
 	target types.EventID, convID types.ConversationID, signer event.Signer,
 ) (event.Event, error) {
-	return j.g.Respond(ctx, source, "file: "+complaint, target, convID, signer)
+	_, flag, err := j.g.Challenge(ctx, source, "file: "+complaint, target, convID, signer)
+	if err != nil {
+		return event.Event{}, err
+	}
+	return flag, nil
 }
 
 // Submit presents evidence for a case. (Precedent + Annotate)
@@ -83,7 +87,11 @@ func (j *JusticeGrammar) Appeal(
 	ctx context.Context, source types.ActorID, grounds string,
 	ruling types.EventID, convID types.ConversationID, signer event.Signer,
 ) (event.Event, error) {
-	return j.g.Respond(ctx, source, "appeal: "+grounds, ruling, convID, signer)
+	_, flag, err := j.g.Challenge(ctx, source, "appeal: "+grounds, ruling, convID, signer)
+	if err != nil {
+		return event.Event{}, err
+	}
+	return flag, nil
 }
 
 // Enforce executes consequences of a ruling. (Enforcement + Delegate)

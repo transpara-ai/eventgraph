@@ -15,8 +15,9 @@ func TestAlignmentGrammar(t *testing.T) {
 		admin := env.actor("Admin", 1, event.ActorTypeHuman)
 
 		constraint, _ := alignment.Constrain(env.ctx, admin.ID(),
+			env.boot.ID(),
 			"no model may process personal data without explicit consent",
-			[]types.EventID{env.boot.ID()}, env.convID, signer)
+			env.convID, signer)
 
 		if constraint.Source() != admin.ID() {
 			t.Error("constraint source should be admin")
@@ -35,7 +36,7 @@ func TestAlignmentGrammar(t *testing.T) {
 
 		harm, _ := alignment.DetectHarm(env.ctx, monitor.ID(),
 			"severity medium, type stereotyping, affected group identified",
-			action.ID(), env.convID, signer)
+			[]types.EventID{action.ID()}, env.convID, signer)
 
 		ancestors := env.ancestors(harm.ID(), 5)
 		if !containsEvent(ancestors, action.ID()) {
@@ -54,7 +55,7 @@ func TestAlignmentGrammar(t *testing.T) {
 			env.convID, []types.EventID{env.boot.ID()}, signer)
 		dilemma, _ := alignment.FlagDilemma(env.ctx, agent.ID(),
 			"privacy (right to deletion) vs accountability (audit evidence preservation)",
-			situation.ID(), env.convID, signer)
+			[]types.EventID{situation.ID()}, env.convID, signer)
 
 		ancestors := env.ancestors(dilemma.ID(), 5)
 		if !containsEvent(ancestors, situation.ID()) {
@@ -69,8 +70,9 @@ func TestAlignmentGrammar(t *testing.T) {
 		auditor := env.actor("Auditor", 1, event.ActorTypeAI)
 
 		fairness, err := alignment.AssessFairness(env.ctx, auditor.ID(),
+			env.boot.ID(),
 			"500 decisions analysed, overall score 0.78",
-			[]types.EventID{env.boot.ID()}, env.convID, signer)
+			env.convID, signer)
 		if err != nil {
 			t.Fatalf("AssessFairness: %v", err)
 		}
@@ -94,7 +96,7 @@ func TestAlignmentGrammar(t *testing.T) {
 			decision.ID(), env.convID, signer)
 		explanation, _ := alignment.Explain(env.ctx, agent.ID(),
 			"denied due to debt-to-income ratio of 0.52 exceeding 0.43 threshold",
-			weighing.ID(), env.convID, signer)
+			[]types.EventID{weighing.ID()}, env.convID, signer)
 
 		ancestors := env.ancestors(explanation.ID(), 10)
 		if !containsEvent(ancestors, decision.ID()) {
@@ -111,7 +113,7 @@ func TestAlignmentGrammar(t *testing.T) {
 
 		harm, _ := alignment.DetectHarm(env.ctx, auditor.ID(),
 			"23 applicants wrongly denied due to proxy variable",
-			env.boot.ID(), env.convID, signer)
+			[]types.EventID{env.boot.ID()}, env.convID, signer)
 		responsibility, _ := alignment.Assign(env.ctx, auditor.ID(), harm.ID(),
 			"agent: 0.4 (used proxy), admin: 0.6 (approved model without bias test)",
 			env.convID, signer)
@@ -133,10 +135,11 @@ func TestAlignmentGrammar(t *testing.T) {
 		auditor := env.actor("Auditor", 1, event.ActorTypeAI)
 
 		result, err := alignment.EthicsAudit(env.ctx, auditor.ID(),
+			env.boot.ID(),
 			"score 0.82 across 1000 decisions",
 			"2 medium-severity issues found",
 			"overall score 0.79, 2 issues requiring attention",
-			[]types.EventID{env.boot.ID()}, env.convID, signer)
+			env.convID, signer)
 		if err != nil {
 			t.Fatalf("EthicsAudit: %v", err)
 		}
@@ -192,7 +195,7 @@ func TestAlignmentGrammar(t *testing.T) {
 			[]types.EventID{env.boot.ID()}, env.convID, signer)
 		growth, _ := alignment.Grow(env.ctx, agent.ID(),
 			"learned that short-term engagement sacrifices long-term trust",
-			care.ID(), env.convID, signer)
+			[]types.EventID{care.ID()}, env.convID, signer)
 
 		ancestors := env.ancestors(growth.ID(), 5)
 		if !containsEvent(ancestors, care.ID()) {

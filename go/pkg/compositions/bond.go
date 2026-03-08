@@ -89,20 +89,21 @@ func (b *BondGrammar) Break(
 	return b.g.Emit(ctx, source, "rupture: "+rupture, convID, causes, signer)
 }
 
-// Apologize acknowledges harm and takes responsibility. (Apology + Respond)
+// Apologize acknowledges harm and takes responsibility. (Apology + Emit)
 func (b *BondGrammar) Apologize(
 	ctx context.Context, source types.ActorID, apology string,
-	rupture types.EventID, convID types.ConversationID, signer event.Signer,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
 ) (event.Event, error) {
-	return b.g.Respond(ctx, source, "apology: "+apology, rupture, convID, signer)
+	return b.g.Emit(ctx, source, "apology: "+apology, convID, causes, signer)
 }
 
-// Reconcile rebuilds relationship after rupture. (Reconciliation + Derive)
+// Reconcile rebuilds relationship after rupture. (Reconciliation + Consent)
 func (b *BondGrammar) Reconcile(
-	ctx context.Context, source types.ActorID, progress string,
-	apology types.EventID, convID types.ConversationID, signer event.Signer,
+	ctx context.Context, source types.ActorID, other types.ActorID,
+	progress string, scope types.DomainScope,
+	cause types.EventID, convID types.ConversationID, signer event.Signer,
 ) (event.Event, error) {
-	return b.g.Derive(ctx, source, "reconcile: "+progress, apology, convID, signer)
+	return b.g.Consent(ctx, source, other, "reconcile: "+progress, scope, cause, convID, signer)
 }
 
 // Mourn processes the permanent end of a relationship. (Loss + Emit)
@@ -135,12 +136,12 @@ func (b *BondGrammar) BetrayalRepair(
 		return BetrayalRepairResult{}, fmt.Errorf("betrayal-repair/break: %w", err)
 	}
 
-	apologyEv, err := b.Apologize(ctx, offender, apology, ruptureEv.ID(), convID, signer)
+	apologyEv, err := b.Apologize(ctx, offender, apology, []types.EventID{ruptureEv.ID()}, convID, signer)
 	if err != nil {
 		return BetrayalRepairResult{}, fmt.Errorf("betrayal-repair/apologize: %w", err)
 	}
 
-	reconcileEv, err := b.Reconcile(ctx, injured, reconciliation, apologyEv.ID(), convID, signer)
+	reconcileEv, err := b.Reconcile(ctx, injured, offender, reconciliation, scope, apologyEv.ID(), convID, signer)
 	if err != nil {
 		return BetrayalRepairResult{}, fmt.Errorf("betrayal-repair/reconcile: %w", err)
 	}

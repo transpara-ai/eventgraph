@@ -62,20 +62,21 @@ func (i *IdentityGrammar) Aspire(
 	return i.g.Emit(ctx, source, "aspire: "+aspiration, convID, causes, signer)
 }
 
-// Transform acknowledges fundamental identity change. (Transformation + Derive)
+// Transform acknowledges fundamental identity change. (Transformation + Emit)
 func (i *IdentityGrammar) Transform(
 	ctx context.Context, source types.ActorID, transformation string,
-	basis types.EventID, convID types.ConversationID, signer event.Signer,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
 ) (event.Event, error) {
-	return i.g.Derive(ctx, source, "transform: "+transformation, basis, convID, signer)
+	return i.g.Emit(ctx, source, "transform: "+transformation, convID, causes, signer)
 }
 
-// Disclose selectively reveals aspects of identity. (SelfModel + Derive)
+// Disclose selectively reveals aspects of identity. (SelfModel + Channel)
 func (i *IdentityGrammar) Disclose(
-	ctx context.Context, source types.ActorID, disclosure string,
-	selfModel types.EventID, convID types.ConversationID, signer event.Signer,
+	ctx context.Context, source types.ActorID, target types.ActorID,
+	scope types.Option[types.DomainScope],
+	cause types.EventID, convID types.ConversationID, signer event.Signer,
 ) (event.Event, error) {
-	return i.g.Derive(ctx, source, "disclose: "+disclosure, selfModel, convID, signer)
+	return i.g.Channel(ctx, source, target, scope, cause, convID, signer)
 }
 
 // Recognize acknowledges another's unique identity. (Dignity + Emit)
@@ -102,7 +103,7 @@ func (i *IdentityGrammar) Memorialize(
 	return i.g.Emit(ctx, source, "memorialize: "+memorial, convID, causes, signer)
 }
 
-// --- Named Functions (5) ---
+// --- Named Functions (2) ---
 
 // IdentityAuditResult holds the events produced by an IdentityAudit.
 type IdentityAuditResult struct {
@@ -137,11 +138,12 @@ func (i *IdentityGrammar) IdentityAudit(
 
 // RetirementResult holds the events produced by a Retirement.
 type RetirementResult struct {
-	Memorial   event.Event
-	Transfer   event.Event
+	Memorial event.Event
+	Transfer event.Event
+	Archive  event.Event
 }
 
-// Retirement gracefully departs: Memorialize + Transfer (authority).
+// Retirement gracefully departs: Memorialize + Transfer (authority) + Archive (contributions).
 func (i *IdentityGrammar) Retirement(
 	ctx context.Context, system types.ActorID, departing types.ActorID,
 	successor types.ActorID, memorial string,
@@ -160,5 +162,12 @@ func (i *IdentityGrammar) Retirement(
 		return RetirementResult{}, fmt.Errorf("retirement/transfer: %w", err)
 	}
 
-	return RetirementResult{Memorial: mem, Transfer: transfer}, nil
+	archive, err := i.g.Emit(ctx, system,
+		fmt.Sprintf("archive: contributions of %s", departing.Value()),
+		convID, []types.EventID{transfer.ID()}, signer)
+	if err != nil {
+		return RetirementResult{}, fmt.Errorf("retirement/archive: %w", err)
+	}
+
+	return RetirementResult{Memorial: mem, Transfer: transfer, Archive: archive}, nil
 }

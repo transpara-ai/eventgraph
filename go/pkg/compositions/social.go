@@ -58,13 +58,35 @@ func (s *SocialGrammar) Welcome(
 	return s.g.Invite(ctx, sponsor, newcomer, weight, scope, cause, convID, signer)
 }
 
+// ExileResult holds the events produced by an Exile.
+type ExileResult struct {
+	Exclusion event.Event
+	Sever     event.Event
+	Sanction  event.Event
+}
+
 // Exile is structured removal of a member. (Exclusion + Sever + Sanction)
 func (s *SocialGrammar) Exile(
 	ctx context.Context, moderator types.ActorID,
-	edge types.EdgeID, cause types.EventID,
-	convID types.ConversationID, signer event.Signer,
-) (event.Event, error) {
-	return s.g.Sever(ctx, moderator, edge, cause, convID, signer)
+	edge types.EdgeID, reason string,
+	cause types.EventID, convID types.ConversationID, signer event.Signer,
+) (ExileResult, error) {
+	exclusion, err := s.g.Emit(ctx, moderator, "exile: "+reason, convID, []types.EventID{cause}, signer)
+	if err != nil {
+		return ExileResult{}, fmt.Errorf("exile/exclusion: %w", err)
+	}
+
+	sever, err := s.g.Sever(ctx, moderator, edge, exclusion.ID(), convID, signer)
+	if err != nil {
+		return ExileResult{}, fmt.Errorf("exile/sever: %w", err)
+	}
+
+	sanction, err := s.g.Annotate(ctx, moderator, sever.ID(), "sanction", reason, convID, signer)
+	if err != nil {
+		return ExileResult{}, fmt.Errorf("exile/sanction: %w", err)
+	}
+
+	return ExileResult{Exclusion: exclusion, Sever: sever, Sanction: sanction}, nil
 }
 
 // --- Named Functions (3) ---
@@ -88,7 +110,7 @@ func (s *SocialGrammar) Poll(
 
 	result := PollResult{Proposal: proposal}
 	for i, voter := range voters {
-		vote, err := s.g.Respond(ctx, voter, "vote: support", proposal.ID(), convID, signer)
+		vote, err := s.g.Consent(ctx, voter, proposer, "vote: "+question, scope, proposal.ID(), convID, signer)
 		if err != nil {
 			return PollResult{}, fmt.Errorf("poll/vote[%d]: %w", i, err)
 		}

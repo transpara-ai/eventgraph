@@ -86,7 +86,7 @@ func TestBondGrammar(t *testing.T) {
 			[]types.EventID{env.boot.ID()}, env.convID, signer)
 		apology, _ := bond.Apologize(env.ctx, bob.ID(),
 			"I should have credited you — it was our joint work",
-			rupture.ID(), env.convID, signer)
+			[]types.EventID{rupture.ID()}, env.convID, signer)
 
 		ancestors := env.ancestors(apology.ID(), 5)
 		if !containsEvent(ancestors, rupture.ID()) {

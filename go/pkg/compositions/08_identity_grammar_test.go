@@ -55,8 +55,9 @@ func TestIdentityGrammar(t *testing.T) {
 		boundary, _ := identity.Bound(env.ctx, agent.ID(),
 			"internal_reasoning is private and impermeable",
 			[]types.EventID{selfModel.ID()}, env.convID, signer)
-		disclosure, _ := identity.Disclose(env.ctx, agent.ID(),
-			"2400+ reviews completed, speciality in security review",
+		other := env.actor("Other", 2, event.ActorTypeHuman)
+		disclosure, _ := identity.Disclose(env.ctx, agent.ID(), other.ID(),
+			types.None[types.DomainScope](),
 			selfModel.ID(), env.convID, signer)
 
 		_ = boundary
@@ -74,7 +75,7 @@ func TestIdentityGrammar(t *testing.T) {
 			[]types.EventID{env.boot.ID()}, env.convID, signer)
 		transformation, _ := identity.Transform(env.ctx, agent.ID(),
 			"evolved from code reviewer to security-aware architect, catalyst: auth module finding",
-			aspiration.ID(), env.convID, signer)
+			[]types.EventID{aspiration.ID()}, env.convID, signer)
 
 		ancestors := env.ancestors(transformation.ID(), 10)
 		if !containsEvent(ancestors, aspiration.ID()) {
@@ -135,9 +136,9 @@ func TestIdentityGrammar(t *testing.T) {
 			t.Fatalf("Retirement: %v", err)
 		}
 
-		ancestors := env.ancestors(result.Transfer.ID(), 5)
+		ancestors := env.ancestors(result.Archive.ID(), 10)
 		if !containsEvent(ancestors, result.Memorial.ID()) {
-			t.Error("transfer should trace to memorial")
+			t.Error("archive should trace to memorial")
 		}
 		env.verifyChain()
 	})

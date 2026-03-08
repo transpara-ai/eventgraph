@@ -61,7 +61,8 @@ func TestSocialGrammar(t *testing.T) {
 		violation, _ := env.grammar.Emit(env.ctx, sponsor.ID(), "violation detected",
 			env.convID, []types.EventID{sub.ID()}, signer)
 
-		exile, _ := social.Exile(env.ctx, sponsor.ID(), edgeID, violation.ID(), env.convID, signer)
+		exile, _ := social.Exile(env.ctx, sponsor.ID(), edgeID, "violation detected",
+			violation.ID(), env.convID, signer)
 		_ = exile
 		env.verifyChain()
 	})

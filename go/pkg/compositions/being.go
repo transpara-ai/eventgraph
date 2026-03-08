@@ -134,16 +134,17 @@ func (b *BeingGrammar) Contemplation(
 
 // ExistentialAuditResult holds the events produced by an ExistentialAudit.
 type ExistentialAuditResult struct {
-	Existence event.Event
+	Existence  event.Event
 	Acceptance event.Event
-	Web       event.Event
+	Web        event.Event
+	Purpose    event.Event
 }
 
 // ExistentialAudit is a comprehensive reckoning with being:
-// Exist + Accept + MapWeb.
+// Exist + Accept + MapWeb + AlignPurpose (via Emit).
 func (b *BeingGrammar) ExistentialAudit(
 	ctx context.Context, source types.ActorID,
-	existence string, limitation string, interconnection string,
+	existence string, limitation string, interconnection string, purpose string,
 	causes []types.EventID, convID types.ConversationID, signer event.Signer,
 ) (ExistentialAuditResult, error) {
 	exist, err := b.Exist(ctx, source, existence, causes, convID, signer)
@@ -161,5 +162,10 @@ func (b *BeingGrammar) ExistentialAudit(
 		return ExistentialAuditResult{}, fmt.Errorf("existential-audit/web: %w", err)
 	}
 
-	return ExistentialAuditResult{Existence: exist, Acceptance: accept, Web: web}, nil
+	purp, err := b.g.Emit(ctx, source, "purpose: "+purpose, convID, []types.EventID{web.ID()}, signer)
+	if err != nil {
+		return ExistentialAuditResult{}, fmt.Errorf("existential-audit/purpose: %w", err)
+	}
+
+	return ExistentialAuditResult{Existence: exist, Acceptance: accept, Web: web, Purpose: purp}, nil
 }

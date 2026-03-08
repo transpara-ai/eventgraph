@@ -186,13 +186,14 @@ func (b *BuildGrammar) PostMortem(
 		fbIDs = append(fbIDs, fb.ID())
 	}
 
-	analysisEv, err := b.g.Merge(ctx, lead, "post-mortem: "+analysis, fbIDs, convID, signer)
+	// Use the last feedback as the target for quality assessment (Measure = Annotate)
+	analysisEv, err := b.Measure(ctx, lead, fbIDs[len(fbIDs)-1], "post-mortem: "+analysis, convID, signer)
 	if err != nil {
 		return PostMortemResult{}, fmt.Errorf("post-mortem/analysis: %w", err)
 	}
 	result.Analysis = analysisEv
 
-	improve, err := b.Iterate(ctx, lead, improvements, analysisEv.ID(), convID, signer)
+	improve, err := b.Define(ctx, lead, improvements, []types.EventID{analysisEv.ID()}, convID, signer)
 	if err != nil {
 		return PostMortemResult{}, fmt.Errorf("post-mortem/improvements: %w", err)
 	}

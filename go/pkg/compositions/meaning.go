@@ -38,12 +38,16 @@ func (m *MeaningGrammar) Reframe(
 	return m.g.Derive(ctx, source, "reframe: "+reframing, original, convID, signer)
 }
 
-// Question challenges what's taken for granted. (Critique + Respond)
+// Question challenges what's taken for granted. (Critique + Challenge)
 func (m *MeaningGrammar) Question(
 	ctx context.Context, source types.ActorID, question string,
 	target types.EventID, convID types.ConversationID, signer event.Signer,
 ) (event.Event, error) {
-	return m.g.Respond(ctx, source, "question: "+question, target, convID, signer)
+	_, flag, err := m.g.Challenge(ctx, source, "question: "+question, target, convID, signer)
+	if err != nil {
+		return event.Event{}, err
+	}
+	return flag, nil
 }
 
 // Distill extracts what truly matters from experience. (Wisdom + Derive)

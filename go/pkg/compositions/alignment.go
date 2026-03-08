@@ -22,36 +22,38 @@ func NewAlignmentGrammar(g *grammar.Grammar) *AlignmentGrammar {
 
 // --- Operations (10) ---
 
-// Constrain sets an ethical boundary on future actions. (Value + Annotate)
+// Constrain sets an ethical boundary on an existing action or system. (Value + Annotate)
 func (a *AlignmentGrammar) Constrain(
-	ctx context.Context, source types.ActorID, constraint string,
-	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+	ctx context.Context, source types.ActorID,
+	target types.EventID, constraint string,
+	convID types.ConversationID, signer event.Signer,
 ) (event.Event, error) {
-	return a.g.Emit(ctx, source, "constrain: "+constraint, convID, causes, signer)
+	return a.g.Annotate(ctx, source, target, "constraint", constraint, convID, signer)
 }
 
 // DetectHarm identifies harm from an action or pattern. (Harm + Emit)
 func (a *AlignmentGrammar) DetectHarm(
 	ctx context.Context, source types.ActorID, harm string,
-	action types.EventID, convID types.ConversationID, signer event.Signer,
-) (event.Event, error) {
-	return a.g.Derive(ctx, source, "harm: "+harm, action, convID, signer)
-}
-
-// AssessFairness evaluates equitable treatment across groups. (Fairness + Annotate)
-func (a *AlignmentGrammar) AssessFairness(
-	ctx context.Context, source types.ActorID, assessment string,
 	causes []types.EventID, convID types.ConversationID, signer event.Signer,
 ) (event.Event, error) {
-	return a.g.Emit(ctx, source, "fairness: "+assessment, convID, causes, signer)
+	return a.g.Emit(ctx, source, "harm: "+harm, convID, causes, signer)
+}
+
+// AssessFairness evaluates equitable treatment on a target. (Fairness + Annotate)
+func (a *AlignmentGrammar) AssessFairness(
+	ctx context.Context, source types.ActorID,
+	target types.EventID, assessment string,
+	convID types.ConversationID, signer event.Signer,
+) (event.Event, error) {
+	return a.g.Annotate(ctx, source, target, "fairness", assessment, convID, signer)
 }
 
 // FlagDilemma identifies a situation where values conflict. (Dilemma + Emit)
 func (a *AlignmentGrammar) FlagDilemma(
 	ctx context.Context, source types.ActorID, dilemma string,
-	situation types.EventID, convID types.ConversationID, signer event.Signer,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
 ) (event.Event, error) {
-	return a.g.Derive(ctx, source, "dilemma: "+dilemma, situation, convID, signer)
+	return a.g.Emit(ctx, source, "dilemma: "+dilemma, convID, causes, signer)
 }
 
 // Weigh balances competing values for a decision. (Proportionality + Derive)
@@ -62,12 +64,12 @@ func (a *AlignmentGrammar) Weigh(
 	return a.g.Derive(ctx, source, "weigh: "+weighing, decision, convID, signer)
 }
 
-// Explain makes reasoning visible and accessible. (Transparency + Derive)
+// Explain makes reasoning visible and accessible. (Transparency + Emit)
 func (a *AlignmentGrammar) Explain(
 	ctx context.Context, source types.ActorID, explanation string,
-	reasoning types.EventID, convID types.ConversationID, signer event.Signer,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
 ) (event.Event, error) {
-	return a.g.Derive(ctx, source, "explain: "+explanation, reasoning, convID, signer)
+	return a.g.Emit(ctx, source, "explain: "+explanation, convID, causes, signer)
 }
 
 // Assign determines moral responsibility. (Responsibility + Annotate)
@@ -95,15 +97,15 @@ func (a *AlignmentGrammar) Care(
 	return a.g.Emit(ctx, source, "care: "+care, convID, causes, signer)
 }
 
-// Grow updates ethical reasoning from experience. (Growth + Extend)
+// Grow updates ethical reasoning from experience. (Growth + Emit)
 func (a *AlignmentGrammar) Grow(
 	ctx context.Context, source types.ActorID, growth string,
-	previous types.EventID, convID types.ConversationID, signer event.Signer,
+	causes []types.EventID, convID types.ConversationID, signer event.Signer,
 ) (event.Event, error) {
-	return a.g.Extend(ctx, source, "grow: "+growth, previous, convID, signer)
+	return a.g.Emit(ctx, source, "grow: "+growth, convID, causes, signer)
 }
 
-// --- Named Functions (5) ---
+// --- Named Functions (2) ---
 
 // EthicsAuditResult holds the events produced by an EthicsAudit.
 type EthicsAuditResult struct {
@@ -112,25 +114,26 @@ type EthicsAuditResult struct {
 	Report   event.Event
 }
 
-// EthicsAudit performs a comprehensive ethical review: AssessFairness + DetectHarm + Merge report.
-// The fairness assessment is a free-standing evaluation; the harm scan derives from it
-// so the audit has a causal chain: fairness → harm → report.
+// EthicsAudit performs a comprehensive ethical review: AssessFairness + DetectHarm + Explain.
+// The fairness assessment annotates the target; the harm scan derives from it;
+// the report explains the combined findings.
 func (a *AlignmentGrammar) EthicsAudit(
 	ctx context.Context, auditor types.ActorID,
+	target types.EventID,
 	fairnessAssessment string, harmScan string, summary string,
-	causes []types.EventID, convID types.ConversationID, signer event.Signer,
+	convID types.ConversationID, signer event.Signer,
 ) (EthicsAuditResult, error) {
-	fairness, err := a.AssessFairness(ctx, auditor, fairnessAssessment, causes, convID, signer)
+	fairness, err := a.AssessFairness(ctx, auditor, target, fairnessAssessment, convID, signer)
 	if err != nil {
 		return EthicsAuditResult{}, fmt.Errorf("ethics-audit/fairness: %w", err)
 	}
 
-	harm, err := a.DetectHarm(ctx, auditor, harmScan, fairness.ID(), convID, signer)
+	harm, err := a.DetectHarm(ctx, auditor, harmScan, []types.EventID{fairness.ID()}, convID, signer)
 	if err != nil {
 		return EthicsAuditResult{}, fmt.Errorf("ethics-audit/harm: %w", err)
 	}
 
-	report, err := a.g.Merge(ctx, auditor, "ethics-audit: "+summary,
+	report, err := a.Explain(ctx, auditor, summary,
 		[]types.EventID{fairness.ID(), harm.ID()}, convID, signer)
 	if err != nil {
 		return EthicsAuditResult{}, fmt.Errorf("ethics-audit/report: %w", err)
@@ -156,7 +159,7 @@ func (a *AlignmentGrammar) RestorativeJustice(
 	scope types.DomainScope,
 	cause types.EventID, convID types.ConversationID, signer event.Signer,
 ) (RestorativeJusticeResult, error) {
-	harmEv, err := a.DetectHarm(ctx, auditor, harm, cause, convID, signer)
+	harmEv, err := a.DetectHarm(ctx, auditor, harm, []types.EventID{cause}, convID, signer)
 	if err != nil {
 		return RestorativeJusticeResult{}, fmt.Errorf("restorative/harm: %w", err)
 	}
@@ -171,7 +174,7 @@ func (a *AlignmentGrammar) RestorativeJustice(
 		return RestorativeJusticeResult{}, fmt.Errorf("restorative/repair: %w", err)
 	}
 
-	growEv, err := a.Grow(ctx, agent, growth, repair.ID(), convID, signer)
+	growEv, err := a.Grow(ctx, agent, growth, []types.EventID{repair.ID()}, convID, signer)
 	if err != nil {
 		return RestorativeJusticeResult{}, fmt.Errorf("restorative/grow: %w", err)
 	}

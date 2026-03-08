@@ -119,7 +119,11 @@ func (m *MarketGrammar) Dispute(
 	ctx context.Context, source types.ActorID, complaint string,
 	target types.EventID, convID types.ConversationID, signer event.Signer,
 ) (event.Event, error) {
-	return m.g.Respond(ctx, source, "dispute: "+complaint, target, convID, signer)
+	_, flag, err := m.g.Challenge(ctx, source, "dispute: "+complaint, target, convID, signer)
+	if err != nil {
+		return event.Event{}, err
+	}
+	return flag, nil
 }
 
 // Escrow holds value pending conditions. (Obligation + Delegate)

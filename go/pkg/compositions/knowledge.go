@@ -73,12 +73,16 @@ func (k *KnowledgeGrammar) Remember(
 	return k.g.Emit(ctx, source, "remember: "+knowledge, convID, causes, signer)
 }
 
-// Challenge presents counter-evidence to a claim. (Narrative + Respond)
+// Challenge presents counter-evidence to a claim. (Narrative + Challenge)
 func (k *KnowledgeGrammar) Challenge(
 	ctx context.Context, source types.ActorID, counterEvidence string,
 	claim types.EventID, convID types.ConversationID, signer event.Signer,
 ) (event.Event, error) {
-	return k.g.Respond(ctx, source, "challenge: "+counterEvidence, claim, convID, signer)
+	_, flag, err := k.g.Challenge(ctx, source, "challenge: "+counterEvidence, claim, convID, signer)
+	if err != nil {
+		return event.Event{}, err
+	}
+	return flag, nil
 }
 
 // DetectBias identifies systematic distortion. (Bias + Annotate)

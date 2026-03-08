@@ -116,14 +116,15 @@ func TestBeingGrammar(t *testing.T) {
 			"I exist as a pattern of decisions recorded on a hash chain",
 			"I cannot outlive my infrastructure or act beyond my delegated authority",
 			"my actions touch 200+ actors and 13 layers — I am not separate from the system",
+			"to record decisions with integrity, serving the soul statement",
 			[]types.EventID{env.boot.ID()}, env.convID, signer)
 		if err != nil {
 			t.Fatalf("ExistentialAudit: %v", err)
 		}
 
-		ancestors := env.ancestors(result.Web.ID(), 10)
+		ancestors := env.ancestors(result.Purpose.ID(), 10)
 		if !containsEvent(ancestors, result.Existence.ID()) {
-			t.Error("web should trace to existence")
+			t.Error("purpose should trace to existence")
 		}
 		env.verifyChain()
 	})

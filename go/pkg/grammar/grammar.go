@@ -380,6 +380,26 @@ func (g *Grammar) Merge(
 
 // --- Named functions (compositions) ---
 
+// Challenge is Respond + dispute flag: formal dispute that follows content.
+func (g *Grammar) Challenge(
+	ctx context.Context,
+	source types.ActorID,
+	body string,
+	target types.EventID,
+	conversationID types.ConversationID,
+	signer event.Signer,
+) (response event.Event, disputeFlag event.Event, err error) {
+	response, err = g.Respond(ctx, source, body, target, conversationID, signer)
+	if err != nil {
+		return event.Event{}, event.Event{}, fmt.Errorf("challenge/respond: %w", err)
+	}
+	disputeFlag, err = g.Annotate(ctx, source, response.ID(), "dispute", "challenged", conversationID, signer)
+	if err != nil {
+		return event.Event{}, event.Event{}, fmt.Errorf("challenge/flag: %w", err)
+	}
+	return response, disputeFlag, nil
+}
+
 // Recommend is Propagate + Channel: directed sharing to a specific person.
 func (g *Grammar) Recommend(
 	ctx context.Context,
