@@ -77,6 +77,54 @@
         }
       },
       {
+        "name": "multiple_causes_sorted",
+        "description": "Causes must be sorted lexicographically and comma-separated in canonical form.",
+        "input": {
+          "version": 1,
+          "id": "019462a0-0000-7000-8000-000000000004",
+          "type": "grammar.derived",
+          "source": "actor_00000000000000000000000000000001",
+          "conversation_id": "conv_00000000000000000000000000000001",
+          "timestamp_nanos": 1700000003000000000,
+          "prev_hash": "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+          "causes": [
+            "019462a0-0000-7000-8000-000000000003",
+            "019462a0-0000-7000-8000-000000000001",
+            "019462a0-0000-7000-8000-000000000002"
+          ],
+          "content": {
+            "Message": "derived from multiple causes"
+          }
+        },
+        "expected": {
+          "canonical": "1|c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4|019462a0-0000-7000-8000-000000000001,019462a0-0000-7000-8000-000000000002,019462a0-0000-7000-8000-000000000003|019462a0-0000-7000-8000-000000000004|grammar.derived|actor_00000000000000000000000000000001|conv_00000000000000000000000000000001|1700000003000000000|{\"Message\":\"derived from multiple causes\"}",
+          "hash": "0c0e47ee89f8a7a21bb47f60d5f3887833297c945f946c8f3695ff2638f6cd50"
+        }
+      },
+      {
+        "name": "content_integer_float_formatting",
+        "description": "Integer-valued floats (1.0, 2.0) must be formatted as integers (1, 2) in canonical JSON. Non-integer floats keep their decimal.",
+        "input": {
+          "version": 1,
+          "id": "019462a0-0000-7000-8000-000000000005",
+          "type": "trust.updated",
+          "source": "actor_00000000000000000000000000000001",
+          "conversation_id": "conv_00000000000000000000000000000001",
+          "timestamp_nanos": 1700000004000000000,
+          "prev_hash": "d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5",
+          "causes": ["019462a0-0000-7000-8000-000000000001"],
+          "content": {
+            "Current": 1.0,
+            "Domain": "testing",
+            "Previous": 0.5
+          }
+        },
+        "expected": {
+          "canonical_content_json": "{\"Current\":1,\"Domain\":\"testing\",\"Previous\":0.5}",
+          "hash": "0889943b6706bfe2f6fe0d2668d1733ce759dd8a679103c6ffa56a95c2089f81"
+        }
+      },
+      {
         "name": "content_json_number_formatting",
         "description": "Verifies number formatting rules: no trailing zeros.",
         "rules": [
@@ -84,7 +132,10 @@
           { "input": 0.5, "canonical": "0.5" },
           { "input": 0.10, "canonical": "0.1" },
           { "input": 100, "canonical": "100" },
-          { "input": 0.001, "canonical": "0.001" }
+          { "input": 0.001, "canonical": "0.001" },
+          { "input": 2.0, "canonical": "2" },
+          { "input": -1.0, "canonical": "-1" },
+          { "input": 0.0, "canonical": "0" }
         ]
       },
       {
@@ -96,6 +147,19 @@
           "Reason": null
         },
         "expected_json": "{\"Actor\":\"actor_00000000000000000000000000000001\"}"
+      },
+      {
+        "name": "content_json_nested_objects",
+        "description": "Nested objects must also have their keys sorted and null values omitted recursively.",
+        "input_content": {
+          "Outer": "value",
+          "Nested": {
+            "Zebra": 1,
+            "Alpha": "first",
+            "Middle": null
+          }
+        },
+        "expected_json": "{\"Nested\":{\"Alpha\":\"first\",\"Zebra\":1},\"Outer\":\"value\"}"
       }
     ]
   },

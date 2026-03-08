@@ -109,4 +109,47 @@ describe("conformance", () => {
     );
     expect(computeHash(canon).value).toBe("b2fbcd2684868f0b0d07d2f5136b52f14b8e749da7b4b7bae2a22f67147152b7");
   });
+
+  it("content key ordering hash matches Go reference", () => {
+    const content = { Weight: 0.5, From: "actor_00000000000000000000000000000001", To: "actor_00000000000000000000000000000002", EdgeType: "Trust", Direction: "Centripetal" };
+    const contentJson = canonicalContentJson(content);
+    const canon = canonicalForm(
+      1, "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3",
+      ["019462a0-0000-7000-8000-000000000001"],
+      "019462a0-0000-7000-8000-000000000003", "edge.created",
+      "actor_00000000000000000000000000000001", "conv_00000000000000000000000000000001",
+      1700000002000000000, contentJson,
+    );
+    expect(computeHash(canon).value).toBe("4e5c6710ca9325676663b4a66d2e82114fcd8fb49dbe5705795051e0b0be374c");
+  });
+
+  it("multiple causes sorted hash matches Go reference", () => {
+    const content = { Message: "derived from multiple causes" };
+    const contentJson = canonicalContentJson(content);
+    const canon = canonicalForm(
+      1, "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+      ["019462a0-0000-7000-8000-000000000003", "019462a0-0000-7000-8000-000000000001", "019462a0-0000-7000-8000-000000000002"],
+      "019462a0-0000-7000-8000-000000000004", "grammar.derived",
+      "actor_00000000000000000000000000000001", "conv_00000000000000000000000000000001",
+      1700000003000000000, contentJson,
+    );
+    expect(computeHash(canon).value).toBe("0c0e47ee89f8a7a21bb47f60d5f3887833297c945f946c8f3695ff2638f6cd50");
+  });
+
+  it("integer float formatting in content hash", () => {
+    const contentJson = canonicalContentJson({ Current: 1.0, Domain: "testing", Previous: 0.5 });
+    expect(contentJson).toBe('{"Current":1,"Domain":"testing","Previous":0.5}');
+  });
+
+  it("nested objects with null omission", () => {
+    const contentJson = canonicalContentJson({ Outer: "value", Nested: { Zebra: 1, Alpha: "first", Middle: null } });
+    expect(contentJson).toBe('{"Nested":{"Alpha":"first","Zebra":1},"Outer":"value"}');
+  });
+
+  it("number formatting edge cases", () => {
+    expect(canonicalContentJson({ v: 2.0 })).toBe('{"v":2}');
+    expect(canonicalContentJson({ v: -1.0 })).toBe('{"v":-1}');
+    expect(canonicalContentJson({ v: 0.0 })).toBe('{"v":0}');
+    expect(canonicalContentJson({ v: 0.001 })).toBe('{"v":0.001}');
+  });
 });

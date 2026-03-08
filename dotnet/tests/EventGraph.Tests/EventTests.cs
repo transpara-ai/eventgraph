@@ -225,4 +225,68 @@ public class ConformanceTests
         var hash = CanonicalForm.ComputeHash(canon);
         Assert.Equal("4e5c6710ca9325676663b4a66d2e82114fcd8fb49dbe5705795051e0b0be374c", hash.Value);
     }
+
+    [Fact]
+    public void MultipleCausesSortedHash()
+    {
+        var content = new Dictionary<string, object?>
+        {
+            ["Message"] = "derived from multiple causes",
+        };
+        var contentJson = CanonicalForm.CanonicalContentJson(content);
+        var canon = CanonicalForm.Build(
+            1, "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+            new[] {
+                "019462a0-0000-7000-8000-000000000003",
+                "019462a0-0000-7000-8000-000000000001",
+                "019462a0-0000-7000-8000-000000000002",
+            },
+            "019462a0-0000-7000-8000-000000000004",
+            "grammar.derived",
+            "actor_00000000000000000000000000000001",
+            "conv_00000000000000000000000000000001",
+            1700000003000000000, contentJson);
+
+        var hash = CanonicalForm.ComputeHash(canon);
+        Assert.Equal("0c0e47ee89f8a7a21bb47f60d5f3887833297c945f946c8f3695ff2638f6cd50", hash.Value);
+    }
+
+    [Fact]
+    public void IntegerFloatFormattingConformance()
+    {
+        var content = new Dictionary<string, object?>
+        {
+            ["Current"] = 1.0,
+            ["Domain"] = "testing",
+            ["Previous"] = 0.5,
+        };
+        var json = CanonicalForm.CanonicalContentJson(content);
+        Assert.Equal("{\"Current\":1,\"Domain\":\"testing\",\"Previous\":0.5}", json);
+    }
+
+    [Fact]
+    public void NestedObjectsConformance()
+    {
+        var content = new Dictionary<string, object?>
+        {
+            ["Outer"] = "value",
+            ["Nested"] = new Dictionary<string, object?>
+            {
+                ["Zebra"] = 1,
+                ["Alpha"] = "first",
+                ["Middle"] = null,
+            },
+        };
+        var json = CanonicalForm.CanonicalContentJson(content);
+        Assert.Equal("{\"Nested\":{\"Alpha\":\"first\",\"Zebra\":1},\"Outer\":\"value\"}", json);
+    }
+
+    [Fact]
+    public void NumberFormattingEdgeCases()
+    {
+        Assert.Equal("{\"v\":2}", CanonicalForm.CanonicalContentJson(new Dictionary<string, object?> { ["v"] = 2.0 }));
+        Assert.Equal("{\"v\":-1}", CanonicalForm.CanonicalContentJson(new Dictionary<string, object?> { ["v"] = -1.0 }));
+        Assert.Equal("{\"v\":0}", CanonicalForm.CanonicalContentJson(new Dictionary<string, object?> { ["v"] = 0.0 }));
+        Assert.Equal("{\"v\":0.001}", CanonicalForm.CanonicalContentJson(new Dictionary<string, object?> { ["v"] = 0.001 }));
+    }
 }

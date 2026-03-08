@@ -54,20 +54,86 @@ public sealed class Event
 
 public static class CanonicalForm
 {
-    /// <summary>Produce canonical JSON: sorted keys, no whitespace, omit null values.</summary>
+    /// <summary>Produce canonical JSON: sorted keys, no whitespace, omit null values, recursively.</summary>
     public static string CanonicalContentJson(Dictionary<string, object?> content)
     {
-        var filtered = new SortedDictionary<string, object?>();
-        foreach (var kv in content)
+        var sb = new StringBuilder();
+        WriteCanonicalObject(content, sb);
+        return sb.ToString();
+    }
+
+    private static void WriteCanonicalObject(IDictionary<string, object?> obj, StringBuilder sb)
+    {
+        var sorted = new SortedDictionary<string, object?>(StringComparer.Ordinal);
+        foreach (var kv in obj)
         {
             if (kv.Value is not null)
-                filtered[kv.Key] = kv.Value;
+                sorted[kv.Key] = kv.Value;
         }
-        return JsonSerializer.Serialize(filtered, new JsonSerializerOptions
+
+        sb.Append('{');
+        var first = true;
+        foreach (var kv in sorted)
         {
-            WriteIndented = false,
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull,
-        });
+            if (!first) sb.Append(',');
+            first = false;
+            sb.Append('"');
+            sb.Append(kv.Key);
+            sb.Append("\":");
+            WriteCanonicalValue(kv.Value!, sb);
+        }
+        sb.Append('}');
+    }
+
+    private static void WriteCanonicalValue(object value, StringBuilder sb)
+    {
+        switch (value)
+        {
+            case IDictionary<string, object?> dict:
+                WriteCanonicalObject(dict, sb);
+                break;
+            case string s:
+                sb.Append('"');
+                sb.Append(s.Replace("\\", "\\\\").Replace("\"", "\\\""));
+                sb.Append('"');
+                break;
+            case double d:
+                if (d == Math.Truncate(d) && !double.IsInfinity(d))
+                    sb.Append(((long)d).ToString());
+                else
+                    sb.Append(d.ToString("G", System.Globalization.CultureInfo.InvariantCulture));
+                break;
+            case float f:
+                if (f == MathF.Truncate(f) && !float.IsInfinity(f))
+                    sb.Append(((long)f).ToString());
+                else
+                    sb.Append(f.ToString("G", System.Globalization.CultureInfo.InvariantCulture));
+                break;
+            case int i:
+                sb.Append(i.ToString());
+                break;
+            case long l:
+                sb.Append(l.ToString());
+                break;
+            case bool b:
+                sb.Append(b ? "true" : "false");
+                break;
+            case IList<object?> list:
+                sb.Append('[');
+                for (var i = 0; i < list.Count; i++)
+                {
+                    if (i > 0) sb.Append(',');
+                    if (list[i] is null)
+                        sb.Append("null");
+                    else
+                        WriteCanonicalValue(list[i]!, sb);
+                }
+                sb.Append(']');
+                break;
+            default:
+                sb.Append(JsonSerializer.Serialize(value));
+                break;
+        }
     }
 
     /// <summary>Build the canonical string for hashing/signing.</summary>
