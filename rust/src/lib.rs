@@ -7,3 +7,4 @@ pub mod primitive;
 pub mod tick;
 pub mod grammar;
 pub mod actor;
+pub mod trust;

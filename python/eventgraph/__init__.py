@@ -55,6 +55,7 @@ from .primitive import (
 )
 from .grammar import Grammar
 from .store import ChainVerification, InMemoryStore, Store
+from .trust import DefaultTrustModel, TrustConfig, TrustMetrics
 from .tick import TickConfig, TickEngine, TickResult
 from .types import (
     Activation,

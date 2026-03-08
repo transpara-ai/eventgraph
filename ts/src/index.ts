@@ -7,3 +7,4 @@ export * from "./primitive.js";
 export * from "./tick.js";
 export * from "./grammar.js";
 export * from "./actor.js";
+export * from "./trust.js";
