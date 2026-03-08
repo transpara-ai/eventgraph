@@ -1,6 +1,12 @@
 # EventGraph
 
-> **Status: All phases complete.** Go reference implementation with 201 primitives, EGIP protocol, 13 integration scenarios, 13 composition grammars. Language packages for Python, .NET, TypeScript, and Rust — all conformance-tested against Go reference hashes. CI/CD and publishing to npm, PyPI, NuGet, and crates.io.
+[![CI](https://github.com/lovyou-ai/eventgraph/actions/workflows/ci.yml/badge.svg)](https://github.com/lovyou-ai/eventgraph/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@lovyou-ai/eventgraph)](https://www.npmjs.com/package/@lovyou-ai/eventgraph)
+[![PyPI](https://img.shields.io/pypi/v/lovyou-eventgraph)](https://pypi.org/project/lovyou-eventgraph/)
+[![NuGet](https://img.shields.io/nuget/v/LovYou.EventGraph)](https://www.nuget.org/packages/LovYou.EventGraph)
+[![crates.io](https://img.shields.io/crates/v/eventgraph)](https://crates.io/crates/eventgraph)
+
+> **2,448 tests across 5 languages.** Go reference implementation with 201 primitives, EGIP protocol, 21 integration scenarios, 13 composition grammars. Language packages for Rust, Python, TypeScript, and .NET — all conformance-tested against Go reference hashes. Database stores (SQLite, Postgres, MySQL, SQL Server). Published to npm, PyPI, NuGet, and crates.io.
 
 A hash-chained, append-only, causal event graph. The foundation for building systems where every action is signed, auditable, and causally linked.
 
@@ -47,11 +53,26 @@ graph := eventgraph.New(store.Memory())              // dev/testing
 graph := eventgraph.New(store.Postgres(connString))   // production
 ```
 
-## Quick Start (Go)
+## Install
 
 ```bash
+# Go
 go get github.com/lovyou-ai/eventgraph/go
+
+# Rust
+cargo add eventgraph
+
+# Python
+pip install lovyou-eventgraph
+
+# TypeScript / Node.js
+npm install @lovyou-ai/eventgraph
+
+# .NET
+dotnet add package LovYou.EventGraph
 ```
+
+## Quick Start (Go)
 
 ```go
 package main
@@ -133,6 +154,7 @@ All packages pass tests with the Go race detector. Both store implementations pa
 | 5 | EGIP (inter-system protocol — sovereign systems communicating across graph boundaries) | **Done** |
 | 6 | Language Packages (Rust, Python, .NET, TypeScript — conformance-tested) | **Done** |
 | 7 | Documentation, Examples & CI/CD | **Done** |
+| 8 | Conformance Hardening & Tick Engine (SQLite store tests, tick engine layer constraints) | **Done** |
 
 See `ROADMAP.md` for the full breakdown.
 
@@ -183,7 +205,7 @@ Each layer is derived from a gap in the layer below — something the lower laye
 
 Everything is pluggable. The graph defines the sockets; you provide the implementations:
 
-- **`Store`** — Event persistence. Memory, Postgres, or your own. Any implementation that passes the conformance suite is valid.
+- **`Store`** — Event persistence. Memory, SQLite, Postgres, MySQL, SQL Server, or your own. Any implementation that passes the conformance suite is valid.
 - **`IDecisionMaker`** — Anything that makes decisions. AI agents, humans, committees, rules engines. The graph records what was decided, not how.
 - **`IIntelligence`** — Reasoning. Any model, local or cloud, or deterministic logic.
 - **Primitives** — 201 cognitive agents, each an interface with sensible defaults. Override with domain-specific logic.
@@ -204,11 +226,11 @@ Published to every ecosystem developers already work in:
 
 | Language | Package | Tests | Path |
 |----------|---------|-------|------|
-| Go | `go get github.com/lovyou-ai/eventgraph/go` | 800+ (reference) | `go/` |
-| Python | `pip install lovyou-eventgraph` | 427 | `python/` |
-| .NET | `dotnet add package LovYou.EventGraph` | 381 | `dotnet/` |
-| Rust | `cargo add eventgraph` | 335 | `rust/` |
-| TypeScript | `npm install @lovyou-ai/eventgraph` | 479 | `ts/` |
+| Go | `go get github.com/lovyou-ai/eventgraph/go` | 603 (reference) | `go/` |
+| Rust | `cargo add eventgraph` | 389 | `rust/` |
+| Python | `pip install lovyou-eventgraph` | 489 | `python/` |
+| TypeScript | `npm install @lovyou-ai/eventgraph` | 530 | `ts/` |
+| .NET | `dotnet add package LovYou.EventGraph` | 437 | `dotnet/` |
 
 All implementations pass the language-agnostic conformance test suite — identical SHA-256 hashes for the same canonical form inputs. Each implements the same interfaces native to its ecosystem: types, event, store, bus, primitive, tick engine.
 

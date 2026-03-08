@@ -131,7 +131,7 @@ impl TickEngine {
     fn run_wave(
         &mut self,
         tick_num: u64,
-        wave: u32,
+        _wave: u32,
         events: &[Event],
         snapshot: &Snapshot,
         invoked_this_tick: &mut HashSet<String>,

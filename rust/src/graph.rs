@@ -50,7 +50,7 @@ pub struct Graph {
     trust_model: Box<dyn TrustModel + Send>,
     authority_chain: Box<dyn AuthorityChain + Send>,
     signer: Box<dyn Signer + Send>,
-    config: GraphConfig,
+    _config: GraphConfig,
     state: Mutex<GraphState>,
 }
 
@@ -85,7 +85,7 @@ impl Graph {
             trust_model,
             authority_chain,
             signer: Box::new(NoopSigner),
-            config,
+            _config: config,
             state: Mutex::new(GraphState {
                 started: false,
                 closed: false,
