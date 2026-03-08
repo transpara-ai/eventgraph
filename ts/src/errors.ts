@@ -76,3 +76,10 @@ export class ActorKeyNotFoundError extends EventGraphError {
     this.name = "ActorKeyNotFoundError";
   }
 }
+
+export class IntelligenceUnavailableError extends EventGraphError {
+  constructor() {
+    super("intelligence unavailable: no IIntelligence configured");
+    this.name = "IntelligenceUnavailableError";
+  }
+}

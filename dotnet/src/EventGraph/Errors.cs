@@ -83,6 +83,13 @@ public class ActorKeyNotFoundException : EventGraphException
     public ActorKeyNotFoundException(string keyHex) : base($"Actor not found for public key {keyHex}") => KeyHex = keyHex;
 }
 
+/// <summary>Intelligence (LLM) was needed but not configured.</summary>
+public class IntelligenceUnavailableException : EventGraphException
+{
+    public IntelligenceUnavailableException()
+        : base("intelligence unavailable: no IIntelligence configured") { }
+}
+
 /// <summary>The hash chain integrity was violated.</summary>
 public class ChainIntegrityException : EventGraphException
 {

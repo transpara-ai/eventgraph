@@ -11,6 +11,7 @@ pub enum EventGraphError {
     GrammarViolation { detail: String },
     ActorNotFound { actor_id: String },
     ActorKeyNotFound { key_hex: String },
+    IntelligenceUnavailable,
 }
 
 impl fmt::Display for EventGraphError {
@@ -34,6 +35,8 @@ impl fmt::Display for EventGraphError {
                 write!(f, "Actor not found: {actor_id}"),
             Self::ActorKeyNotFound { key_hex } =>
                 write!(f, "Actor not found for public key {key_hex}"),
+            Self::IntelligenceUnavailable =>
+                write!(f, "intelligence unavailable: no Intelligence configured"),
         }
     }
 }
