@@ -3,7 +3,7 @@ namespace EventGraph.CodeGraph;
 /// <summary>A named sequence of Code Graph primitive operations.</summary>
 public sealed record CodeGraphComposition(string Name, List<string> Primitives, List<EventType> Events);
 
-/// <summary>7 named compositions built from the 61 Code Graph primitives.</summary>
+/// <summary>7 named compositions built from Code Graph atoms.</summary>
 public static class CodeGraphCompositions
 {
     /// <summary>Kanban/project board with drag-and-drop columns.

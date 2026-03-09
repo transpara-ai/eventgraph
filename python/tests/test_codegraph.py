@@ -1,16 +1,10 @@
-"""Tests for the 61 code graph primitives, 35 event types, and 7 compositions."""
+"""Tests for the 35 code graph event types and 7 compositions."""
 
 from __future__ import annotations
 
 import pytest
 
 from eventgraph.codegraph import (
-    # Primitives
-    ALL_CODEGRAPH_PRIMITIVE_CLASSES,
-    _CodeGraphBase,
-    all_codegraph_primitives,
-    register_all_codegraph,
-    is_codegraph_primitive,
     # Compositions
     CodeGraphComposition,
     all_codegraph_compositions,
@@ -24,42 +18,6 @@ from eventgraph.codegraph import (
     # Event types
     all_codegraph_event_types,
 )
-from eventgraph.event import Event, NoopSigner, create_bootstrap, create_event
-from eventgraph.primitive import (
-    Registry,
-    Snapshot,
-    UpdateState,
-)
-from eventgraph.types import (
-    ActorID,
-    ConversationID,
-    EventType,
-    PrimitiveID,
-    SubscriptionPattern,
-)
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-def _empty_snapshot(tick: int = 1) -> Snapshot:
-    return Snapshot(tick=tick, primitives={}, pending_events=[], recent_events=[])
-
-
-def _make_event(event_type: str) -> Event:
-    """Create a minimal Event with the given type for testing process()."""
-    signer = NoopSigner()
-    bootstrap = create_bootstrap(source=ActorID("system"), signer=signer)
-    return create_event(
-        event_type=EventType(event_type),
-        source=ActorID("test-cg"),
-        content={"test": True},
-        causes=[bootstrap.id],
-        conversation_id=ConversationID("conv_test"),
-        prev_hash=bootstrap.hash,
-        signer=signer,
-    )
 
 
 # ===========================================================================
@@ -81,117 +39,7 @@ class TestCodeGraphEventTypes:
 
 
 # ===========================================================================
-# 2. All 61 Code Graph Primitives
-# ===========================================================================
-
-class TestAllCodeGraphPrimitives:
-    def test_all_primitives_count(self) -> None:
-        prims = all_codegraph_primitives()
-        assert len(prims) == 61
-
-    def test_no_duplicate_ids(self) -> None:
-        prims = all_codegraph_primitives()
-        ids = [p.id().value for p in prims]
-        assert len(ids) == len(set(ids)), f"duplicate IDs found: {ids}"
-
-    def test_all_layer_5(self) -> None:
-        for p in all_codegraph_primitives():
-            assert p.layer().value == 5, f"{p.id().value} not at layer 5"
-
-    def test_all_cadence_1(self) -> None:
-        for p in all_codegraph_primitives():
-            assert p.cadence().value == 1
-
-    def test_all_have_subscriptions(self) -> None:
-        for p in all_codegraph_primitives():
-            subs = p.subscriptions()
-            assert len(subs) > 0, f"{p.id().value} has no subscriptions"
-            for s in subs:
-                assert isinstance(s, SubscriptionPattern)
-
-    def test_all_ids_start_with_cg(self) -> None:
-        for p in all_codegraph_primitives():
-            assert p.id().value.startswith("CG"), f"{p.id().value} missing CG prefix"
-
-    def test_is_codegraph_primitive(self) -> None:
-        for p in all_codegraph_primitives():
-            assert is_codegraph_primitive(p.id()) is True
-        assert is_codegraph_primitive(PrimitiveID("notacodegraph")) is False
-        assert is_codegraph_primitive(PrimitiveID("agent.Identity")) is False
-
-    def test_isinstance_codegraph_base(self) -> None:
-        for p in all_codegraph_primitives():
-            assert isinstance(p, _CodeGraphBase)
-
-
-# ===========================================================================
-# 3. Registration
-# ===========================================================================
-
-class TestRegistration:
-    def test_register_all(self) -> None:
-        reg = Registry()
-        register_all_codegraph(reg)
-        assert reg.count() == 61
-
-    def test_register_all_unique(self) -> None:
-        reg = Registry()
-        register_all_codegraph(reg)
-        prims = reg.all()
-        ids = [p.id().value for p in prims]
-        assert len(ids) == len(set(ids))
-
-    def test_all_active_after_register(self) -> None:
-        from eventgraph.primitive import LIFECYCLE_ACTIVE
-        reg = Registry()
-        register_all_codegraph(reg)
-        for p in reg.all():
-            assert reg.lifecycle(p.id()) == LIFECYCLE_ACTIVE
-
-
-# ===========================================================================
-# 4. Process Returns Mutations
-# ===========================================================================
-
-class TestProcessReturnsMutations:
-    def test_process_returns_mutations(self) -> None:
-        snap = _empty_snapshot()
-        for p in all_codegraph_primitives():
-            mutations = p.process(tick=1, events=[], snapshot=snap)
-            assert isinstance(mutations, list)
-            assert len(mutations) > 0, f"{p.id().value} returned no mutations"
-            # All should include a lastTick mutation
-            last_ticks = [
-                m for m in mutations
-                if isinstance(m, UpdateState) and m.key == "lastTick"
-            ]
-            assert len(last_ticks) == 1, f"{p.id().value} missing lastTick mutation"
-            assert last_ticks[0].value == 1
-
-    def test_process_with_events(self) -> None:
-        snap = _empty_snapshot(tick=5)
-        ev = _make_event("codegraph.entity.defined")
-        for p in all_codegraph_primitives():
-            mutations = p.process(tick=5, events=[ev], snapshot=snap)
-            state = {m.key: m.value for m in mutations if isinstance(m, UpdateState)}
-            assert state["lastTick"] == 5
-            assert state["eventsProcessed"] == 1
-
-    def test_process_counts_multiple_events(self) -> None:
-        snap = _empty_snapshot(tick=3)
-        evs = [
-            _make_event("codegraph.entity.defined"),
-            _make_event("codegraph.ui.view.rendered"),
-            _make_event("codegraph.io.query.executed"),
-        ]
-        p = all_codegraph_primitives()[0]
-        mutations = p.process(tick=3, events=evs, snapshot=snap)
-        state = {m.key: m.value for m in mutations if isinstance(m, UpdateState)}
-        assert state["eventsProcessed"] == 3
-
-
-# ===========================================================================
-# 5. Compositions
+# 2. Compositions
 # ===========================================================================
 
 class TestCompositions:
@@ -199,19 +47,10 @@ class TestCompositions:
         comps = all_codegraph_compositions()
         assert len(comps) == 7
 
-    def test_all_unique_names(self) -> None:
+    def test_composition_names_unique(self) -> None:
         comps = all_codegraph_compositions()
         names = [c.name for c in comps]
         assert len(names) == len(set(names))
-
-    def test_composition_primitives_exist(self) -> None:
-        """Every primitive ID referenced in compositions exists in the 61."""
-        valid_ids = {p.id().value for p in all_codegraph_primitives()}
-        for c in all_codegraph_compositions():
-            for pid in c.primitives:
-                assert pid in valid_ids, (
-                    f"composition {c.name!r} references unknown primitive {pid!r}"
-                )
 
     def test_board(self) -> None:
         c = board()

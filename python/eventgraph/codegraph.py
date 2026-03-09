@@ -1,29 +1,15 @@
-"""Code Graph primitives — 61 primitives, 7 compositions, 35 event types.
+"""Code Graph vocabulary — 35 event types and 7 compositions.
 
-All Code Graph primitives operate at Layer 5 (Code Graph). They define how
-application UIs, data models, logic, and interactions are represented as
-primitives on the event graph.
+Code Graph atoms are vocabulary/content definitions, not tick engine participants.
+They define how application UIs, data models, logic, and interactions are
+represented as event types on the event graph.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
-from .event import Event
-from .primitive import (
-    Mutation,
-    Registry,
-    Snapshot,
-    UpdateState,
-)
-from .types import (
-    Cadence,
-    EventType,
-    Layer,
-    PrimitiveID,
-    SubscriptionPattern,
-)
+from .types import EventType
 
 
 # ============================================================================
@@ -119,225 +105,12 @@ def all_codegraph_event_types() -> list[EventType]:
 
 
 # ============================================================================
-# Code Graph Primitive Base
-# ============================================================================
-
-_CODEGRAPH_LAYER = Layer(5)
-_CADENCE_1 = Cadence(1)
-
-
-class _CodeGraphBase:
-    """Common implementation for all 61 code graph primitives.
-
-    Subclasses set _name and _subs at the class level.
-    Each primitive's process() counts events and returns UpdateState mutations.
-    """
-
-    _name: str
-    _subs: list[str]
-
-    def id(self) -> PrimitiveID:
-        return PrimitiveID(self._name)
-
-    def layer(self) -> Layer:
-        return _CODEGRAPH_LAYER
-
-    def subscriptions(self) -> list[SubscriptionPattern]:
-        return [SubscriptionPattern(s) for s in self._subs]
-
-    def cadence(self) -> Cadence:
-        return _CADENCE_1
-
-    def process(
-        self,
-        tick: int,
-        events: list[Event],
-        snapshot: Snapshot,
-    ) -> list[Mutation]:
-        pid = self.id()
-        return [
-            UpdateState(primitive_id=pid, key="eventsProcessed", value=len(events)),
-            UpdateState(primitive_id=pid, key="lastTick", value=tick),
-        ]
-
-
-def _cg_def(name: str, subs: list[str]) -> type:
-    """Create a code graph primitive class with the given name and subscriptions."""
-    cls = type(name, (_CodeGraphBase,), {
-        "_name": f"CG{name}",
-        "_subs": subs,
-    })
-    cls.__module__ = __name__
-    cls.__qualname__ = name
-    return cls
-
-
-# ============================================================================
-# DATA PRIMITIVES (6)
-# ============================================================================
-
-CGEntity = _cg_def("Entity", ["codegraph.entity.*", "codegraph.io.command.*"])
-CGProperty = _cg_def("Property", ["codegraph.entity.*"])
-CGRelation = _cg_def("Relation", ["codegraph.entity.*"])
-CGCollection = _cg_def("Collection", ["codegraph.entity.*", "codegraph.io.query.*"])
-CGState = _cg_def("State", ["codegraph.state.*", "codegraph.io.command.*"])
-CGEvent = _cg_def("Event", ["codegraph.*"])
-
-# ============================================================================
-# LOGIC PRIMITIVES (6)
-# ============================================================================
-
-CGTransform = _cg_def("Transform", ["codegraph.logic.transform.*"])
-CGCondition = _cg_def("Condition", ["codegraph.logic.condition.*"])
-CGSequence = _cg_def("Sequence", ["codegraph.logic.sequence.*"])
-CGLoop = _cg_def("Loop", ["codegraph.logic.loop.*"])
-CGTrigger = _cg_def("Trigger", ["codegraph.logic.trigger.*", "codegraph.entity.*"])
-CGConstraint = _cg_def("Constraint", ["codegraph.logic.constraint.*", "codegraph.io.command.*"])
-
-# ============================================================================
-# IO PRIMITIVES (6)
-# ============================================================================
-
-CGQuery = _cg_def("Query", ["codegraph.io.query.*"])
-CGCommand = _cg_def("Command", ["codegraph.io.command.*"])
-CGSubscribe = _cg_def("Subscribe", ["codegraph.io.subscribe.*"])
-CGAuthorize = _cg_def("Authorize", ["codegraph.io.authorize.*", "authority.*"])
-CGSearch = _cg_def("Search", ["codegraph.io.search.*"])
-CGInterop = _cg_def("Interop", ["codegraph.io.interop.*"])
-
-# ============================================================================
-# UI PRIMITIVES (19)
-# ============================================================================
-
-CGDisplay = _cg_def("Display", ["codegraph.ui.*"])
-CGInput = _cg_def("Input", ["codegraph.ui.*"])
-CGLayout = _cg_def("Layout", ["codegraph.ui.*"])
-CGList = _cg_def("List", ["codegraph.ui.*", "codegraph.io.query.*"])
-CGForm = _cg_def("Form", ["codegraph.ui.*", "codegraph.io.command.*"])
-CGAction = _cg_def("Action", ["codegraph.ui.action.*"])
-CGNavigation = _cg_def("Navigation", ["codegraph.ui.navigation.*"])
-CGView = _cg_def("View", ["codegraph.ui.view.*"])
-CGFeedback = _cg_def("Feedback", ["codegraph.ui.feedback.*"])
-CGAlert = _cg_def("Alert", ["codegraph.ui.alert.*"])
-CGThread = _cg_def("Thread", ["codegraph.ui.*", "codegraph.entity.*"])
-CGAvatar = _cg_def("Avatar", ["codegraph.ui.*"])
-CGAudit = _cg_def("Audit", ["codegraph.*"])
-CGDrag = _cg_def("Drag", ["codegraph.ui.drag.*"])
-CGSelection = _cg_def("Selection", ["codegraph.ui.selection.*"])
-CGConfirmation = _cg_def("Confirmation", ["codegraph.ui.confirmation.*"])
-CGEmpty = _cg_def("Empty", ["codegraph.ui.*"])
-CGLoading = _cg_def("Loading", ["codegraph.ui.*"])
-CGPagination = _cg_def("Pagination", ["codegraph.ui.*", "codegraph.io.query.*"])
-
-# ============================================================================
-# AESTHETIC PRIMITIVES (7)
-# ============================================================================
-
-CGPalette = _cg_def("Palette", ["codegraph.aesthetic.*"])
-CGTypography = _cg_def("Typography", ["codegraph.aesthetic.*"])
-CGSpacing = _cg_def("Spacing", ["codegraph.aesthetic.*"])
-CGElevation = _cg_def("Elevation", ["codegraph.aesthetic.*"])
-CGMotion = _cg_def("Motion", ["codegraph.aesthetic.*"])
-CGDensity = _cg_def("Density", ["codegraph.aesthetic.*"])
-CGShape = _cg_def("Shape", ["codegraph.aesthetic.*"])
-
-# ============================================================================
-# ACCESSIBILITY PRIMITIVES (4)
-# ============================================================================
-
-CGAnnounce = _cg_def("Announce", ["codegraph.ui.*", "codegraph.aesthetic.*"])
-CGFocus = _cg_def("Focus", ["codegraph.ui.*"])
-CGContrast = _cg_def("Contrast", ["codegraph.aesthetic.*"])
-CGSimplify = _cg_def("Simplify", ["codegraph.ui.*", "codegraph.aesthetic.*"])
-
-# ============================================================================
-# TEMPORAL PRIMITIVES (3)
-# ============================================================================
-
-CGRecency = _cg_def("Recency", ["codegraph.entity.*", "codegraph.temporal.*"])
-CGHistory = _cg_def("History", ["codegraph.entity.*", "codegraph.temporal.*"])
-CGLiveness = _cg_def("Liveness", ["codegraph.io.subscribe.*", "codegraph.social.presence.*"])
-
-# ============================================================================
-# RESILIENCE PRIMITIVES (4)
-# ============================================================================
-
-CGUndo = _cg_def("Undo", ["codegraph.temporal.undo.*", "codegraph.io.command.*"])
-CGRetry = _cg_def("Retry", ["codegraph.temporal.retry.*", "codegraph.io.command.*"])
-CGFallback = _cg_def("Fallback", ["codegraph.resilience.*", "codegraph.ui.*"])
-CGOffline = _cg_def("Offline", ["codegraph.resilience.offline.*"])
-
-# ============================================================================
-# STRUCTURAL PRIMITIVES (3)
-# ============================================================================
-
-CGScope = _cg_def("Scope", ["codegraph.structural.*"])
-CGFormat = _cg_def("Format", ["codegraph.io.*", "codegraph.structural.*"])
-CGGesture = _cg_def("Gesture", ["codegraph.ui.*"])
-
-# ============================================================================
-# SOCIAL PRIMITIVES (3)
-# ============================================================================
-
-CGPresence = _cg_def("Presence", ["codegraph.social.presence.*"])
-CGSalience = _cg_def("Salience", ["codegraph.social.salience.*", "codegraph.entity.*"])
-CGConsequencePreview = _cg_def("ConsequencePreview", ["codegraph.ui.confirmation.*", "codegraph.io.command.*"])
-
-
-# ============================================================================
-# ALL PRIMITIVE CLASSES
-# ============================================================================
-
-ALL_CODEGRAPH_PRIMITIVE_CLASSES: list[type] = [
-    # Data (6)
-    CGEntity, CGProperty, CGRelation, CGCollection, CGState, CGEvent,
-    # Logic (6)
-    CGTransform, CGCondition, CGSequence, CGLoop, CGTrigger, CGConstraint,
-    # IO (6)
-    CGQuery, CGCommand, CGSubscribe, CGAuthorize, CGSearch, CGInterop,
-    # UI (19)
-    CGDisplay, CGInput, CGLayout, CGList, CGForm, CGAction, CGNavigation,
-    CGView, CGFeedback, CGAlert, CGThread, CGAvatar, CGAudit, CGDrag,
-    CGSelection, CGConfirmation, CGEmpty, CGLoading, CGPagination,
-    # Aesthetic (7)
-    CGPalette, CGTypography, CGSpacing, CGElevation, CGMotion, CGDensity, CGShape,
-    # Accessibility (4)
-    CGAnnounce, CGFocus, CGContrast, CGSimplify,
-    # Temporal (3)
-    CGRecency, CGHistory, CGLiveness,
-    # Resilience (4)
-    CGUndo, CGRetry, CGFallback, CGOffline,
-    # Structural (3)
-    CGScope, CGFormat, CGGesture,
-    # Social (3)
-    CGPresence, CGSalience, CGConsequencePreview,
-]
-
-
-def all_codegraph_primitives() -> list[_CodeGraphBase]:
-    """Return all 61 code graph primitives."""
-    return [cls() for cls in ALL_CODEGRAPH_PRIMITIVE_CLASSES]
-
-
-def register_all_codegraph(reg: Registry) -> None:
-    """Register and activate all 61 code graph primitives with the given registry."""
-    for p in all_codegraph_primitives():
-        reg.register(p)
-        reg.activate(p.id())
-
-
-def is_codegraph_primitive(pid: PrimitiveID) -> bool:
-    """Return True if the primitive ID belongs to the code graph layer."""
-    return pid.value.startswith("CG")
-
-
-# ============================================================================
-# COMPOSITIONS (7) — Named groupings of code graph primitives
+# COMPOSITIONS (7) — Named groupings of code graph atoms
 # ============================================================================
 
 @dataclass(frozen=True)
 class CodeGraphComposition:
-    """A named grouping of code graph primitives."""
+    """A named grouping of code graph atoms."""
 
     name: str
     primitives: list[str]
