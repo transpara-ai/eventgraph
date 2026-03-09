@@ -315,7 +315,7 @@ Sovereign systems communicating across graph boundaries.
 
 Each language package must pass the language-agnostic conformance test suite.
 
-### Rust — DONE (389 tests)
+### Rust — DONE (387 tests)
 - [x] Core event types + hash chain
 - [x] Store trait + InMemory implementation (with query methods: by_type, by_source, by_conversation, ancestors, descendants)
 - [x] Bus
@@ -336,7 +336,7 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] Postgres store (`postgres` crate, optional `postgres` feature)
 - [x] CLI tool (`eg` binary)
 
-### Python — DONE (489 tests)
+### Python — DONE (537 tests)
 - [x] Core event types + hash chain
 - [x] Store protocol + InMemory implementation (with query methods: by_type, by_source, by_conversation, ancestors, descendants)
 - [x] Bus
@@ -357,7 +357,7 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] Postgres store (`psycopg2`, optional)
 - [x] CLI tool (`eg` entry point)
 
-### TypeScript/npm — DONE (530 tests)
+### TypeScript/npm — DONE (606 tests)
 - [x] Core event types + hash chain
 - [x] Store interface + InMemory implementation (with query methods: byType, bySource, byConversation, ancestors, descendants)
 - [x] Bus
@@ -378,7 +378,7 @@ Each language package must pass the language-agnostic conformance test suite.
 - [x] Postgres store (`pg`, optional, async)
 - [x] CLI tool (`eg` binary via package.json)
 
-### .NET — DONE (437 tests)
+### .NET — DONE (504 tests)
 - [x] Core event types + hash chain
 - [x] IStore interface + InMemory implementation (with query methods: ByType, BySource, ByConversation, Ancestors, Descendants)
 - [x] Bus
@@ -504,6 +504,76 @@ All non-Go tick engines upgraded to match Go reference implementation:
 ### CI Updates
 - [x] SQLite store tests run in CI for all languages (no external DB required)
 - [x] Rust CI includes `--features sqlite` for SQLite store coverage
+
+---
+
+## Phase 9: Agent Primitives — DONE
+
+28 agent primitives implementing the agent lifecycle, cognition loop, social coordination, and modal attenuation. All operate at Layer 1 (Agency). Implemented across all 5 languages.
+
+### Agent Primitive Categories
+
+| Category | Count | Primitives |
+|----------|-------|------------|
+| Structural | 11 | Identity, Soul, Model, Memory, State, Authority, Trust, Budget, Role, Lifespan, Goal |
+| Operational | 13 | Observe, Probe, Evaluate, Decide, Act, Delegate, Escalate, Refuse, Learn, Introspect, Communicate, Repair, Expect |
+| Relational | 3 | Consent, Channel, Composition |
+| Modal | 1 | Attenuation |
+
+### 45 Agent Event Types
+
+All registered in `DefaultRegistry` with typed content structs. Each uses `agent.*` prefix (e.g., `agent.identity.created`, `agent.soul.imprinted`, `agent.model.bound`).
+
+### 8 Named Compositions
+
+| Composition | Primitives | Purpose |
+|-------------|-----------|---------|
+| Boot | Identity, Soul, Model, Authority, State | Agent creation and initialization |
+| Imprint | Boot + Observe, Learn, Goal | First-run personality formation |
+| Task | Observe, Evaluate, Decide, Act, Learn | Core cognition loop |
+| Supervise | Observe, Evaluate, Delegate, Escalate, Trust | Oversight of other agents |
+| Collaborate | Consent, Channel, Communicate, Delegate, Composition | Multi-agent coordination |
+| Crisis | Observe, Evaluate, Escalate, Attenuate, Refuse | Emergency response |
+| Retire | State, Memory, Lifespan, Communicate | Graceful shutdown |
+| Whistleblow | Observe, Evaluate, Escalate, Communicate, Refuse | Dignity invariant — agents can always refuse |
+
+### Operational State FSM
+
+8 states (Idle, Processing, Waiting, Escalating, Refusing, Suspended, Retiring, Retired) with enforced valid transitions. Terminal state: Retired.
+
+### Implementation
+
+| Language | Files | Tests |
+|----------|-------|-------|
+| Go | `go/pkg/agent/` (state.go, primitives.go, compositions.go) + `go/pkg/event/` (agent_event_types.go, agent_content.go) | 55 |
+| Rust | `rust/src/agent.rs` | 33 |
+| Python | `python/eventgraph/agent.py` | 66 |
+| TypeScript | `ts/src/agent.ts` | 76 |
+| .NET | `dotnet/src/EventGraph/Agent/` | 38 |
+
+---
+
+## Phase 10: Intelligence Providers — IN PROGRESS
+
+Provider abstraction connecting IIntelligence to real LLMs. Switchable providers, model selection, integration tests exercising agent compositions with live reasoning.
+
+- [x] `go/pkg/intelligence/provider.go` — Provider interface, Config, factory
+- [x] `go/pkg/intelligence/anthropic.go` — Anthropic Messages API (API key + OAuth auto-detect)
+- [x] `go/pkg/intelligence/claude_cli.go` — Claude Code CLI provider (uses existing OAuth session)
+- [ ] `go/pkg/intelligence/openai_compat.go` — OpenAI-compatible provider (OpenAI, xAI/Grok, Ollama, Together, Azure)
+- [ ] Integration tests: agent Boot→Task composition with live LLM reasoning
+- [ ] Integration tests: multi-provider switching (same test, different providers)
+- [ ] Integration tests: decision tree evaluation with real IIntelligence
+
+---
+
+## Phase 11: Code Graph — NEEDED
+
+65 primitives for describing any application as semantic atoms. Spec: `docs/codegraph-spec.md`
+
+- [ ] 4 categories: Data (6), Logic (8), Interface (27), Quality (24)
+- [ ] 8 named compositions (Dashboard, Form, Feed, Chat, Kanban, Wizard, Settings, Marketplace)
+- [ ] Translation layer to target technologies (React, SwiftUI, terminal, etc.)
 
 ---
 

@@ -6,7 +6,7 @@
 [![NuGet](https://img.shields.io/nuget/v/LovYou.EventGraph)](https://www.nuget.org/packages/LovYou.EventGraph)
 [![crates.io](https://img.shields.io/crates/v/eventgraph)](https://crates.io/crates/eventgraph)
 
-> **2,448 tests across 5 languages.** Go reference implementation with 201 primitives, EGIP protocol, 21 integration scenarios, 13 composition grammars. Language packages for Rust, Python, TypeScript, and .NET — all conformance-tested against Go reference hashes. Database stores (SQLite, Postgres, MySQL, SQL Server). Published to npm, PyPI, NuGet, and crates.io.
+> **3,040 tests across 5 languages.** Go reference implementation with 201 primitives, 28 agent primitives, EGIP protocol, 21 integration scenarios, 13 composition grammars. Language packages for Rust, Python, TypeScript, and .NET — all conformance-tested against Go reference hashes. Database stores (SQLite, Postgres, MySQL, SQL Server). Published to npm, PyPI, NuGet, and crates.io.
 
 A hash-chained, append-only, causal event graph. The foundation for building systems where every action is signed, auditable, and causally linked.
 
@@ -155,6 +155,7 @@ All packages pass tests with the Go race detector. Both store implementations pa
 | 6 | Language Packages (Rust, Python, .NET, TypeScript — conformance-tested) | **Done** |
 | 7 | Documentation, Examples & CI/CD | **Done** |
 | 8 | Conformance Hardening & Tick Engine (SQLite store tests, tick engine layer constraints) | **Done** |
+| 9 | Agent Primitives (28 primitives, 8 compositions, 45 event types, operational state FSM) | **Done** |
 
 See `ROADMAP.md` for the full breakdown.
 
@@ -226,11 +227,11 @@ Published to every ecosystem developers already work in:
 
 | Language | Package | Tests | Path |
 |----------|---------|-------|------|
-| Go | `go get github.com/lovyou-ai/eventgraph/go` | 603 (reference) | `go/` |
-| Rust | `cargo add eventgraph` | 389 | `rust/` |
-| Python | `pip install lovyou-eventgraph` | 489 | `python/` |
-| TypeScript | `npm install @lovyou-ai/eventgraph` | 530 | `ts/` |
-| .NET | `dotnet add package LovYou.EventGraph` | 437 | `dotnet/` |
+| Go | `go get github.com/lovyou-ai/eventgraph/go` | 1,006 (reference) | `go/` |
+| Rust | `cargo add eventgraph` | 387 | `rust/` |
+| Python | `pip install lovyou-eventgraph` | 537 | `python/` |
+| TypeScript | `npm install @lovyou-ai/eventgraph` | 606 | `ts/` |
+| .NET | `dotnet add package LovYou.EventGraph` | 504 | `dotnet/` |
 
 All implementations pass the language-agnostic conformance test suite — identical SHA-256 hashes for the same canonical form inputs. Each implements the same interfaces native to its ecosystem: types, event, store, bus, primitive, tick engine.
 
