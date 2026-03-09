@@ -351,6 +351,43 @@ func (r *AgentRuntime) RunTask(ctx context.Context, taskDescription string) (*Ta
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// Research: read web resources and extract information
+// ════════════════════════════════════════════════════════════════════════
+
+// Research asks the agent to read a URL (or other resource) and extract
+// structured information. The LLM backend handles fetching — Claude CLI
+// has built-in web tools, other providers accept URLs in prompts.
+// Records an observation (what was read) and an evaluation (what was extracted).
+func (r *AgentRuntime) Research(ctx context.Context, url string, extractionPrompt string) (observation event.Event, evaluation string, err error) {
+	// 1. Record that we're reading this resource
+	obs, err := r.Observe(ctx, 1)
+	if err != nil {
+		return event.Event{}, "", fmt.Errorf("observe: %w", err)
+	}
+
+	// 2. Ask the LLM to read and extract
+	fullPrompt := fmt.Sprintf("Read the following URL and %s\n\nURL: %s", extractionPrompt, url)
+	memory, _ := r.Memory(5)
+	resp, err := r.provider.Reason(ctx, fullPrompt, memory)
+	if err != nil {
+		return event.Event{}, "", fmt.Errorf("research reasoning: %w", err)
+	}
+
+	// 3. Record what was extracted
+	_, err = r.Emit(event.AgentEvaluatedContent{
+		AgentID:    r.id,
+		Subject:    "research:" + url,
+		Confidence: resp.Confidence(),
+		Result:     resp.Content(),
+	})
+	if err != nil {
+		return event.Event{}, "", fmt.Errorf("record evaluation: %w", err)
+	}
+
+	return obs, resp.Content(), nil
+}
+
+// ════════════════════════════════════════════════════════════════════════
 // Coding: use Claude CLI with tools for code tasks
 // ════════════════════════════════════════════════════════════════════════
 
