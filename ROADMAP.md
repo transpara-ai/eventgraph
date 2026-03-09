@@ -606,7 +606,7 @@ All languages implement the same Provider abstraction with OpenAI-compatible and
 
 ---
 
-## Phase 11: Code Graph — DONE (Go), NEEDED (ports)
+## Phase 11: Code Graph — DONE
 
 61 primitives for describing any application as semantic atoms. Spec: `docs/codegraph-spec.md`
 
@@ -644,8 +644,13 @@ All languages implement the same Provider abstraction with OpenAI-compatible and
 | Wizard | Multi-step creation with review |
 | Skin | Swappable visual identity |
 
-### Language Ports — NEEDED
-- [ ] Rust, Python, TypeScript, .NET
+### Language Ports — DONE
+- [x] Rust — `rust/src/codegraph.rs` (20 tests)
+- [x] Python — `python/eventgraph/codegraph.py` (28 tests)
+- [x] TypeScript — `ts/src/codegraph.ts` (27 tests)
+- [x] .NET — `dotnet/src/EventGraph/CodeGraph/` (27 tests)
+
+### Translation Layer — NEEDED
 - [ ] Translation layer to target technologies (React, SwiftUI, terminal, etc.)
 
 ---
