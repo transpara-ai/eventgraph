@@ -669,14 +669,40 @@ What matters is that the spec is platform-independent and complete: data model, 
 
 ---
 
-## Future
+## Phase 12: Hive — NEEDED
 
-These are product layers — built *on* the event graph, not part of the infrastructure package:
+A self-organizing system of AI agents that builds products autonomously. Separate repo (`hive`), built on eventgraph. See `docs/hive-spec.md` for the full specification.
 
-- [ ] Product layer: Social Grammar (15 operations from Post 35)
-- [ ] Product layer: Governance (Post 34)
-- [ ] Product layer: Exchange / Market
-- [ ] Product layer: Task Management (hierarchical decomposition, model-tier routing)
+### Bootstrap — NEEDED
+- [ ] Create hive repo with CLAUDE.md and role definitions
+- [ ] CTO agent: architectural oversight, escalation filtering
+- [ ] Guardian agent: independent integrity, halt/rollback/quarantine
+- [ ] Shared event graph (all agents read/write one store)
+- [ ] Role-specific system prompts
+
+### Pipeline — NEEDED
+- [ ] Idea → Spec: Researcher reads URLs, Architect produces Code Graph spec
+- [ ] Spec → Code: Builder generates code + tests per component
+- [ ] Code → Review: Reviewer checks quality, security, spec compliance
+- [ ] Review → Deploy: Tester runs tests, Integrator deploys
+- [ ] Monitor → Iterate: feedback loop back to spec modifications
+
+### Trust & Authority — NEEDED
+- [ ] Trust accumulation through verified work (starts at 0.1)
+- [ ] Authority gates (write code: 0.3, review: 0.5, deploy: 0.7, production: 0.8 + CTO)
+- [ ] Per-domain, asymmetric, decaying, non-transitive trust
+- [ ] Guardian can halt at any trust level
+
+### First Product — NEEDED
+- [ ] Hive builds its own dashboard (agents, trust scores, pipeline, event graph viewer)
+- [ ] Then: Social Grammar platform (Post 35)
+- [ ] Then: Governance system (Post 34)
+- [ ] Then: Trust marketplace
+
+---
+
+## Future Infrastructure
+
 - [ ] WebAssembly builds for browser-based event graphs
 - [ ] Mobile SDKs
 - [ ] Hosted persistence service
