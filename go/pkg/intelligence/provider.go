@@ -56,10 +56,10 @@ func New(cfg Config) (Provider, error) {
 		return newAnthropicProvider(cfg)
 	case "claude-cli":
 		return newClaudeCliProvider(cfg)
-	case "openai-compatible":
-		return nil, fmt.Errorf("openai-compatible provider not yet implemented")
+	case "openai-compatible", "openai", "xai", "groq", "together", "ollama":
+		return newOpenAICompatibleProvider(cfg)
 	default:
-		return nil, fmt.Errorf("unknown provider: %q (supported: anthropic, claude-cli, openai-compatible)", cfg.Provider)
+		return nil, fmt.Errorf("unknown provider: %q (supported: anthropic, claude-cli, openai-compatible, openai, xai, groq, together, ollama)", cfg.Provider)
 	}
 }
 
