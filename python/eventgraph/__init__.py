@@ -186,6 +186,17 @@ from .graph import (
     GraphNotStartedError,
     Query,
 )
+from .intelligence import (
+    ClaudeCliProvider,
+    Config as IntelligenceConfig,
+    ConfigError as IntelligenceConfigError,
+    IntelligenceError,
+    OpenAICompatibleProvider,
+    Provider,
+    ProviderError,
+    new_claude_cli_config,
+    new_provider,
+)
 from .sqlite_store import SQLiteStore
 from .store import ChainVerification, InMemoryStore, Store
 from .trust import DefaultTrustModel, TrustConfig, TrustMetrics

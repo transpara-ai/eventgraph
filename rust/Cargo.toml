@@ -14,6 +14,7 @@ autobins = false
 default = []
 sqlite = ["rusqlite"]
 postgres = ["dep:postgres"]
+intelligence = ["ureq"]
 
 [dependencies]
 sha2 = "0.10"
@@ -23,6 +24,7 @@ serde_json = "1"
 regex = "1"
 rusqlite = { version = "0.32", features = ["bundled"], optional = true }
 postgres = { version = "0.19", optional = true }
+ureq = { version = "3", optional = true, features = ["json"] }
 
 [[bin]]
 name = "eg"

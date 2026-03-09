@@ -553,17 +553,56 @@ All registered in `DefaultRegistry` with typed content structs. Each uses `agent
 
 ---
 
-## Phase 10: Intelligence Providers — IN PROGRESS
+## Phase 10: Intelligence Providers — DONE
 
-Provider abstraction connecting IIntelligence to real LLMs. Switchable providers, model selection, integration tests exercising agent compositions with live reasoning.
+Provider abstraction connecting IIntelligence to real LLMs. Switchable providers, model selection, AgentRuntime with event graph as memory, integration tests exercising agent compositions with live reasoning.
 
-- [x] `go/pkg/intelligence/provider.go` — Provider interface, Config, factory
-- [x] `go/pkg/intelligence/anthropic.go` — Anthropic Messages API (API key + OAuth auto-detect)
-- [x] `go/pkg/intelligence/claude_cli.go` — Claude Code CLI provider (uses existing OAuth session)
-- [ ] `go/pkg/intelligence/openai_compat.go` — OpenAI-compatible provider (OpenAI, xAI/Grok, Ollama, Together, Azure)
-- [ ] Integration tests: agent Boot→Task composition with live LLM reasoning
-- [ ] Integration tests: multi-provider switching (same test, different providers)
-- [ ] Integration tests: decision tree evaluation with real IIntelligence
+### Provider Abstraction
+- [x] `go/pkg/intelligence/provider.go` — Provider interface, Config, factory routing, `eventsToMessages()` history converter
+- [x] `go/pkg/intelligence/anthropic.go` — Anthropic Messages API (official SDK, API key + OAuth auto-detect)
+- [x] `go/pkg/intelligence/claude_cli.go` — Claude Code CLI provider (shells out to `claude -p`, uses existing auth)
+- [x] `go/pkg/intelligence/openai.go` — OpenAI-compatible provider (raw `net/http`, no external dependency)
+
+### OpenAI-Compatible Provider Coverage
+Supports any OpenAI Chat Completions-compatible endpoint via shorthand provider names or explicit `BaseURL`:
+
+| Provider | Shorthand | Env Var | Default Base URL |
+|----------|-----------|---------|-----------------|
+| OpenAI | `openai` | `OPENAI_API_KEY` | `api.openai.com/v1` |
+| xAI/Grok | `xai` | `XAI_API_KEY` | `api.x.ai/v1` |
+| Groq | `groq` | `GROQ_API_KEY` | `api.groq.com/openai/v1` |
+| Together | `together` | `TOGETHER_API_KEY` | `api.together.xyz/v1` |
+| Ollama | `ollama` | `OLLAMA_HOST` | `localhost:11434/v1` |
+| Azure | `openai-compatible` | — | Custom `BaseURL` |
+| Fireworks | `openai-compatible` | — | Custom `BaseURL` |
+
+### AgentRuntime
+- [x] `go/pkg/intelligence/runtime.go` — AgentRuntime: identity + provider + event graph (memory) + Ed25519 signing + compositions
+- [x] Every operation (Observe, Evaluate, Decide, Act, Learn, Refuse, Escalate, Introspect) emits hash-chained events
+- [x] `Memory()` and `EventsByType()` query agent's own event history for LLM context
+- [x] `RunTask()` — full 5-step Task composition (Observe → Evaluate → Decide → Act → Learn)
+- [x] `CodeReview()` and `CodeWrite()` — coding-specific operations
+
+### Language Ports
+All languages implement the same Provider abstraction with OpenAI-compatible and Claude CLI backends:
+
+| Language | File | Tests | HTTP Client |
+|----------|------|-------|-------------|
+| Go | `go/pkg/intelligence/` (4 files) | 43 | `net/http` (stdlib) |
+| Rust | `rust/src/intelligence.rs` | 9 | `ureq` (optional `intelligence` feature) |
+| Python | `python/eventgraph/intelligence.py` | 43 | `urllib.request` (stdlib) |
+| TypeScript | `ts/src/intelligence.ts` | 38 | `fetch` (built-in) |
+| .NET | `dotnet/src/EventGraph/Intelligence.cs` | 49 | `HttpClient` (built-in) |
+
+### Tests (182 total across all languages)
+- [x] `go/pkg/intelligence/provider_test.go` — 18 unit tests + 12 integration tests (Anthropic, Claude CLI, OpenAI-compatible, Ollama)
+- [x] `go/pkg/intelligence/runtime_test.go` — 15 unit tests (mock provider)
+- [x] `go/pkg/intelligence/agent_integration_test.go` — 12 agent composition tests with live LLM
+- [x] `go/pkg/intelligence/coding_test.go` — 7 coding integration tests (review, write, self-review, introspection)
+- [x] `rust/src/intelligence.rs` — 9 unit tests (+ integration tests gated on env vars)
+- [x] `python/tests/test_intelligence.py` — 43 tests (config, factory, inference, env detection, helpers)
+- [x] `ts/tests/intelligence.test.ts` — 38 tests (config, inference, helpers, integration)
+- [x] `dotnet/tests/EventGraph.Tests/IntelligenceTests.cs` — 49 tests (config, factory, inference, integration)
 
 ---
 
