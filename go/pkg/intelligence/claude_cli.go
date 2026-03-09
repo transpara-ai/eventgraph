@@ -116,8 +116,15 @@ func (p *claudeCliProvider) Reason(ctx context.Context, prompt string, history [
 	cmd := exec.CommandContext(ctx, p.claudePath, args...)
 	cmd.Stdin = strings.NewReader(fullPrompt.String())
 
-	// Unset CLAUDECODE to allow nested invocation (e.g., when run from within Claude Code).
-	cmd.Env = removeEnv(cmd.Environ(), "CLAUDECODE")
+	// Scrub env vars that should not leak into the Claude CLI subprocess.
+	// CLAUDECODE is removed to allow nested invocation.
+	// DATABASE_URL, HIVE_AGENT_ID, HIVE_HUMAN_ID contain credentials/identity
+	// that the Claude CLI process doesn't need and shouldn't forward further.
+	env := removeEnv(cmd.Environ(), "CLAUDECODE")
+	env = removeEnv(env, "DATABASE_URL")
+	env = removeEnv(env, "HIVE_AGENT_ID")
+	env = removeEnv(env, "HIVE_HUMAN_ID")
+	cmd.Env = env
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
