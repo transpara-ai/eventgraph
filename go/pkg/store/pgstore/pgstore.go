@@ -60,7 +60,8 @@ CREATE INDEX IF NOT EXISTS idx_edges_to_type ON edges(to_actor, edge_type);
 
 // PostgresStore implements store.Store backed by PostgreSQL.
 type PostgresStore struct {
-	pool *pgxpool.Pool
+	pool     *pgxpool.Pool
+	ownsPool bool // true when we created the pool, false when borrowed via FromPool
 }
 
 // NewPostgresStore creates a PostgresStore connected to the given Postgres instance.
@@ -74,16 +75,17 @@ func NewPostgresStore(ctx context.Context, connString string) (*PostgresStore, e
 		pool.Close()
 		return nil, &store.StoreUnavailableError{Reason: fmt.Sprintf("schema: %v", err)}
 	}
-	return &PostgresStore{pool: pool}, nil
+	return &PostgresStore{pool: pool, ownsPool: true}, nil
 }
 
 // NewPostgresStoreFromPool creates a PostgresStore from an existing connection pool.
 // It creates the schema if it doesn't exist.
+// The caller retains ownership of the pool — Close() will not close it.
 func NewPostgresStoreFromPool(ctx context.Context, pool *pgxpool.Pool) (*PostgresStore, error) {
 	if _, err := pool.Exec(ctx, schema); err != nil {
 		return nil, &store.StoreUnavailableError{Reason: fmt.Sprintf("schema: %v", err)}
 	}
-	return &PostgresStore{pool: pool}, nil
+	return &PostgresStore{pool: pool, ownsPool: false}, nil
 }
 
 func (s *PostgresStore) Append(ev event.Event) (event.Event, error) {
@@ -111,7 +113,9 @@ func (s *PostgresStore) Append(ev event.Event) (event.Event, error) {
 				Stored:   types.MustHash(existingHash),
 			}
 		}
-		tx.Commit(ctx)
+		if err := tx.Commit(ctx); err != nil {
+			return event.Event{}, &store.StoreUnavailableError{Reason: fmt.Sprintf("commit (idempotent): %v", err)}
+		}
 		return s.getEvent(ctx, ev.ID())
 	}
 	if err != pgx.ErrNoRows {
@@ -382,10 +386,15 @@ func (s *PostgresStore) Since(afterID types.EventID, limit int) (types.Page[even
 		}
 		items = append(items, ev)
 	}
+	if err := rows.Err(); err != nil {
+		return types.Page[event.Event]{}, &store.StoreUnavailableError{Reason: fmt.Sprintf("since rows: %v", err)}
+	}
 
 	// Check hasMore.
 	var totalAfter int
-	s.pool.QueryRow(ctx, "SELECT COUNT(*) FROM events WHERE seq > $1", afterSeq).Scan(&totalAfter)
+	if err := s.pool.QueryRow(ctx, "SELECT COUNT(*) FROM events WHERE seq > $1", afterSeq).Scan(&totalAfter); err != nil {
+		return types.Page[event.Event]{}, &store.StoreUnavailableError{Reason: fmt.Sprintf("since count: %v", err)}
+	}
 	hasMore := totalAfter > len(items)
 
 	return types.NewPage(items, types.None[types.Cursor](), hasMore), nil
@@ -433,6 +442,9 @@ func (s *PostgresStore) Ancestors(id types.EventID, maxDepth int) ([]event.Event
 		}
 		result = append(result, ev)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, &store.StoreUnavailableError{Reason: fmt.Sprintf("ancestors rows: %v", err)}
+	}
 	return result, nil
 }
 
@@ -476,6 +488,9 @@ func (s *PostgresStore) Descendants(id types.EventID, maxDepth int) ([]event.Eve
 			return nil, err
 		}
 		result = append(result, ev)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, &store.StoreUnavailableError{Reason: fmt.Sprintf("descendants rows: %v", err)}
 	}
 	return result, nil
 }
@@ -598,7 +613,9 @@ func (s *PostgresStore) VerifyChain() (event.ChainVerifiedContent, error) {
 }
 
 func (s *PostgresStore) Close() error {
-	s.pool.Close()
+	if s.ownsPool {
+		s.pool.Close()
+	}
 	return nil
 }
 

@@ -31,7 +31,8 @@ CREATE INDEX IF NOT EXISTS idx_state_scope ON state(scope);
 
 // PostgresStateStore implements statestore.IStateStore backed by PostgreSQL.
 type PostgresStateStore struct {
-	pool *pgxpool.Pool
+	pool     *pgxpool.Pool
+	ownsPool bool
 }
 
 // NewPostgresStateStore creates a PostgresStateStore connected to the given Postgres instance.
@@ -44,15 +45,16 @@ func NewPostgresStateStore(ctx context.Context, connString string) (*PostgresSta
 		pool.Close()
 		return nil, &store.StoreUnavailableError{Reason: fmt.Sprintf("schema: %v", err)}
 	}
-	return &PostgresStateStore{pool: pool}, nil
+	return &PostgresStateStore{pool: pool, ownsPool: true}, nil
 }
 
 // NewPostgresStateStoreFromPool creates a PostgresStateStore from an existing connection pool.
+// The caller retains ownership of the pool — Close() will not close it.
 func NewPostgresStateStoreFromPool(ctx context.Context, pool *pgxpool.Pool) (*PostgresStateStore, error) {
 	if _, err := pool.Exec(ctx, schema); err != nil {
 		return nil, &store.StoreUnavailableError{Reason: fmt.Sprintf("schema: %v", err)}
 	}
-	return &PostgresStateStore{pool: pool}, nil
+	return &PostgresStateStore{pool: pool, ownsPool: false}, nil
 }
 
 func (s *PostgresStateStore) Get(scope, key string) (json.RawMessage, error) {
@@ -152,9 +154,11 @@ func (s *PostgresStateStore) ListScopes(prefix string) ([]string, error) {
 	return result, nil
 }
 
-// Close closes the connection pool.
+// Close closes the connection pool if this store owns it.
 func (s *PostgresStateStore) Close() {
-	s.pool.Close()
+	if s.ownsPool {
+		s.pool.Close()
+	}
 }
 
 // Truncate removes all state. For testing.

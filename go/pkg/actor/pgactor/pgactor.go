@@ -38,7 +38,8 @@ CREATE INDEX IF NOT EXISTS idx_actors_seq ON actors(seq);
 
 // PostgresActorStore implements actor.IActorStore backed by PostgreSQL.
 type PostgresActorStore struct {
-	pool *pgxpool.Pool
+	pool     *pgxpool.Pool
+	ownsPool bool
 }
 
 // NewPostgresActorStore creates a PostgresActorStore connected to the given Postgres instance.
@@ -52,16 +53,17 @@ func NewPostgresActorStore(ctx context.Context, connString string) (*PostgresAct
 		pool.Close()
 		return nil, &store.StoreUnavailableError{Reason: fmt.Sprintf("schema: %v", err)}
 	}
-	return &PostgresActorStore{pool: pool}, nil
+	return &PostgresActorStore{pool: pool, ownsPool: true}, nil
 }
 
 // NewPostgresActorStoreFromPool creates a PostgresActorStore from an existing connection pool.
 // It creates the schema if it doesn't exist.
+// The caller retains ownership of the pool — Close() will not close it.
 func NewPostgresActorStoreFromPool(ctx context.Context, pool *pgxpool.Pool) (*PostgresActorStore, error) {
 	if _, err := pool.Exec(ctx, schema); err != nil {
 		return nil, &store.StoreUnavailableError{Reason: fmt.Sprintf("schema: %v", err)}
 	}
-	return &PostgresActorStore{pool: pool}, nil
+	return &PostgresActorStore{pool: pool, ownsPool: false}, nil
 }
 
 func (s *PostgresActorStore) Register(publicKey types.PublicKey, displayName string, actorType event.ActorType) (actor.IActor, error) {
@@ -302,9 +304,11 @@ func (s *PostgresActorStore) transitionStatus(id types.ActorID, target types.Act
 	return s.Get(id)
 }
 
-// Close closes the connection pool.
+// Close closes the connection pool if this store owns it.
 func (s *PostgresActorStore) Close() {
-	s.pool.Close()
+	if s.ownsPool {
+		s.pool.Close()
+	}
 }
 
 // Truncate removes all data from the actors table. Used for testing.

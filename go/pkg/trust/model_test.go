@@ -2,6 +2,7 @@ package trust_test
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
@@ -372,5 +373,62 @@ func TestExportImportPreservesDomainScores(t *testing.T) {
 	metrics, _ := model2.ScoreInDomain(context.Background(), a, types.MustDomainScope("general"))
 	if metrics.Overall().Value() <= 0.0 {
 		t.Error("domain score should survive export/import")
+	}
+}
+
+func TestImportJSONRejectsCorruptData(t *testing.T) {
+	tests := []struct {
+		name string
+		json string
+	}{
+		{
+			name: "score out of range",
+			json: `{"scores":{"actor_abc":{"score":1.5,"last_updated_nanos":0,"trend":0}}}`,
+		},
+		{
+			name: "trend out of range",
+			json: `{"scores":{"actor_abc":{"score":0.5,"last_updated_nanos":0,"trend":-2.0}}}`,
+		},
+		{
+			name: "invalid directed key",
+			json: `{"scores":{},"directed":{"not-a-valid-key":{"score":0.5,"last_updated_nanos":0,"trend":0}}}`,
+		},
+		{
+			name: "invalid JSON",
+			json: `{broken`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			model := trust.NewDefaultTrustModel()
+			err := model.ImportJSON(json.RawMessage(tt.json))
+			if err == nil {
+				t.Error("expected error for corrupt data, got nil")
+			}
+		})
+	}
+}
+
+func TestImportJSONDoesNotReplaceStateOnError(t *testing.T) {
+	model := trust.NewDefaultTrustModel()
+	a := testActor(t, "Alice", 1)
+
+	// Build up some trust state.
+	ev := testTrustEvent(a.ID(), 0.0, 0.5)
+	model.Update(context.Background(), a, ev)
+
+	before, _ := model.Score(context.Background(), a)
+
+	// Try to import corrupt data — should fail without replacing existing state.
+	err := model.ImportJSON(json.RawMessage(`{"scores":{"actor_abc":{"score":99.0,"last_updated_nanos":0,"trend":0}}}`))
+	if err == nil {
+		t.Fatal("expected error for out-of-range score")
+	}
+
+	// Original state should be preserved.
+	after, _ := model.Score(context.Background(), a)
+	if before.Overall().Value() != after.Overall().Value() {
+		t.Errorf("state was corrupted by failed import: before=%v after=%v",
+			before.Overall().Value(), after.Overall().Value())
 	}
 }
