@@ -36,7 +36,7 @@ export function isValidOperationalTransition(from: OperationalState, to: Operati
   return OPERATIONAL_TRANSITIONS[from]?.has(to) ?? false;
 }
 
-export function transitionTo(current: OperationalState, target: OperationalState): OperationalState {
+export function operationalTransitionTo(current: OperationalState, target: OperationalState): OperationalState {
   if (!isValidOperationalTransition(current, target)) {
     throw new Error(`Invalid transition: ${current} -> ${target}`);
   }
@@ -234,7 +234,7 @@ export class ModelPrimitive implements Primitive {
   }
 }
 
-export class MemoryPrimitive implements Primitive {
+export class AgentMemoryPrimitive implements Primitive {
   id() { return new PrimitiveId("agent.Memory"); }
   layer() { return AGENT_LAYER; }
   cadence() { return CADENCE_1; }
@@ -356,7 +356,7 @@ export class BudgetPrimitive implements Primitive {
   }
 }
 
-export class RolePrimitive implements Primitive {
+export class AgentRolePrimitive implements Primitive {
   id() { return new PrimitiveId("agent.Role"); }
   layer() { return AGENT_LAYER; }
   cadence() { return CADENCE_1; }
@@ -399,7 +399,7 @@ export class LifespanPrimitive implements Primitive {
   }
 }
 
-export class GoalPrimitive implements Primitive {
+export class AgentGoalPrimitive implements Primitive {
   id() { return new PrimitiveId("agent.Goal"); }
   layer() { return AGENT_LAYER; }
   cadence() { return CADENCE_1; }
@@ -706,7 +706,7 @@ export class ExpectPrimitive implements Primitive {
 // RELATIONAL PRIMITIVES (3) — Define how agents relate
 // ════════════════════════════════════════════════════════════════════════
 
-export class ConsentPrimitive implements Primitive {
+export class AgentConsentPrimitive implements Primitive {
   id() { return new PrimitiveId("agent.Consent"); }
   layer() { return AGENT_LAYER; }
   cadence() { return CADENCE_1; }
@@ -832,14 +832,14 @@ export function allAgentPrimitives(): Primitive[] {
     new IdentityPrimitive(),
     new SoulPrimitive(),
     new ModelPrimitive(),
-    new MemoryPrimitive(),
+    new AgentMemoryPrimitive(),
     new StatePrimitive(),
     new AuthorityPrimitive(),
     new TrustPrimitive(),
     new BudgetPrimitive(),
-    new RolePrimitive(),
+    new AgentRolePrimitive(),
     new LifespanPrimitive(),
-    new GoalPrimitive(),
+    new AgentGoalPrimitive(),
     // Operational (13)
     new ObservePrimitive(),
     new ProbePrimitive(),
@@ -855,7 +855,7 @@ export function allAgentPrimitives(): Primitive[] {
     new RepairPrimitive(),
     new ExpectPrimitive(),
     // Relational (3)
-    new ConsentPrimitive(),
+    new AgentConsentPrimitive(),
     new ChannelPrimitive(),
     new CompositionPrimitive(),
     // Modal (1)

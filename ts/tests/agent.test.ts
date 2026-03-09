@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   OperationalState,
   isValidOperationalTransition,
-  transitionTo,
+  operationalTransitionTo,
   isTerminal,
   canAct,
   allAgentPrimitives,
@@ -69,7 +69,7 @@ describe("OperationalState FSM", () => {
     for (const [from, to] of validCases) {
       it(`${from} -> ${to} is valid`, () => {
         expect(isValidOperationalTransition(from as OperationalState, to as OperationalState)).toBe(true);
-        const result = transitionTo(from as OperationalState, to as OperationalState);
+        const result = operationalTransitionTo(from as OperationalState, to as OperationalState);
         expect(result).toBe(to);
       });
     }
@@ -95,7 +95,7 @@ describe("OperationalState FSM", () => {
     for (const [from, to] of invalidCases) {
       it(`${from} -> ${to} is invalid`, () => {
         expect(isValidOperationalTransition(from as OperationalState, to as OperationalState)).toBe(false);
-        expect(() => transitionTo(from as OperationalState, to as OperationalState)).toThrow("Invalid transition");
+        expect(() => operationalTransitionTo(from as OperationalState, to as OperationalState)).toThrow("Invalid transition");
       });
     }
   });
