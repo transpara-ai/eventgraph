@@ -606,12 +606,46 @@ All languages implement the same Provider abstraction with OpenAI-compatible and
 
 ---
 
-## Phase 11: Code Graph — NEEDED
+## Phase 11: Code Graph — DONE (Go), NEEDED (ports)
 
-65 primitives for describing any application as semantic atoms. Spec: `docs/codegraph-spec.md`
+61 primitives for describing any application as semantic atoms. Spec: `docs/codegraph-spec.md`
 
-- [ ] 4 categories: Data (6), Logic (8), Interface (27), Quality (24)
-- [ ] 8 named compositions (Dashboard, Form, Feed, Chat, Kanban, Wizard, Settings, Marketplace)
+### Go Implementation — DONE
+- [x] `go/pkg/event/codegraph_event_types.go` — 35 event type constants
+- [x] `go/pkg/event/codegraph_content.go` — 30 typed content structs across all categories
+- [x] `go/pkg/primitive/layer5/codegraph/primitives.go` — 61 primitives (Layer 5)
+- [x] `go/pkg/primitive/layer5/codegraph/compositions.go` — 7 named compositions
+- [x] `go/pkg/primitive/layer5/codegraph/primitives_test.go` — 8 tests
+
+### Primitive Categories
+
+| Category | Count | Primitives |
+|----------|-------|------------|
+| Data | 6 | Entity, Property, Relation, Collection, State, Event |
+| Logic | 6 | Transform, Condition, Sequence, Loop, Trigger, Constraint |
+| IO | 6 | Query, Command, Subscribe, Authorize, Search, Interop |
+| UI | 19 | Display, Input, Layout, List, Form, Action, Navigation, View, Feedback, Alert, Thread, Avatar, Audit, Drag, Selection, Confirmation, Empty, Loading, Pagination |
+| Aesthetic | 7 | Palette, Typography, Spacing, Elevation, Motion, Density, Shape |
+| Accessibility | 4 | Announce, Focus, Contrast, Simplify |
+| Temporal | 3 | Recency, History, Liveness |
+| Resilience | 4 | Undo, Retry, Fallback, Offline |
+| Structural | 3 | Scope, Format, Gesture |
+| Social | 3 | Presence, Salience, ConsequencePreview |
+
+### Named Compositions
+
+| Composition | Purpose |
+|-------------|---------|
+| Board | Kanban/sprint board with drag-and-drop |
+| Detail | Single entity view with thread, audit, history |
+| Feed | Activity stream with live updates |
+| Dashboard | Metrics, counts, KPIs |
+| Inbox | Attention queue prioritized by urgency |
+| Wizard | Multi-step creation with review |
+| Skin | Swappable visual identity |
+
+### Language Ports — NEEDED
+- [ ] Rust, Python, TypeScript, .NET
 - [ ] Translation layer to target technologies (React, SwiftUI, terminal, etc.)
 
 ---

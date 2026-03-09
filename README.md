@@ -6,7 +6,7 @@
 [![NuGet](https://img.shields.io/nuget/v/LovYou.EventGraph)](https://www.nuget.org/packages/LovYou.EventGraph)
 [![crates.io](https://img.shields.io/crates/v/eventgraph)](https://crates.io/crates/eventgraph)
 
-> **3,222 tests across 5 languages.** Go reference implementation with 201 primitives, 28 agent primitives, intelligence providers (Anthropic, OpenAI-compatible, Claude CLI), EGIP protocol, 21 integration scenarios, 13 composition grammars. Language packages for Rust, Python, TypeScript, and .NET — all conformance-tested against Go reference hashes. Database stores (SQLite, Postgres, MySQL, SQL Server). Published to npm, PyPI, NuGet, and crates.io.
+> **3,230 tests across 5 languages.** Go reference implementation with 201 primitives, 28 agent primitives, intelligence providers (Anthropic, OpenAI-compatible, Claude CLI), EGIP protocol, 21 integration scenarios, 13 composition grammars. Language packages for Rust, Python, TypeScript, and .NET — all conformance-tested against Go reference hashes. Database stores (SQLite, Postgres, MySQL, SQL Server). Published to npm, PyPI, NuGet, and crates.io.
 
 A hash-chained, append-only, causal event graph. The foundation for building systems where every action is signed, auditable, and causally linked.
 
@@ -157,6 +157,7 @@ All packages pass tests with the Go race detector. Both store implementations pa
 | 8 | Conformance Hardening & Tick Engine (SQLite store tests, tick engine layer constraints) | **Done** |
 | 9 | Agent Primitives (28 primitives, 8 compositions, 45 event types, operational state FSM) | **Done** |
 | 10 | Intelligence Providers (Anthropic, OpenAI-compatible, Claude CLI, AgentRuntime) | **Done** |
+| 11 | Code Graph (61 primitives, 35 event types, 7 compositions — Go) | **Done** |
 
 See `ROADMAP.md` for the full breakdown.
 
@@ -228,7 +229,7 @@ Published to every ecosystem developers already work in:
 
 | Language | Package | Tests | Path |
 |----------|---------|-------|------|
-| Go | `go get github.com/lovyou-ai/eventgraph/go` | 1,049 (reference) | `go/` |
+| Go | `go get github.com/lovyou-ai/eventgraph/go` | 1,057 (reference) | `go/` |
 | Rust | `cargo add eventgraph` | 396 | `rust/` |
 | Python | `pip install lovyou-eventgraph` | 580 | `python/` |
 | TypeScript | `npm install @lovyou-ai/eventgraph` | 644 | `ts/` |

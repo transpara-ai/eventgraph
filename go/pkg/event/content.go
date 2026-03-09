@@ -741,5 +741,9 @@ func DefaultRegistry() *EventTypeRegistry {
 	for _, et := range AllAgentEventTypes() {
 		r.Register(et, nil)
 	}
+	// Code graph event types
+	for _, et := range AllCodeGraphEventTypes() {
+		r.Register(et, nil)
+	}
 	return r
 }
