@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/lovyou-ai/eventgraph/go/pkg/decision"
@@ -59,12 +61,27 @@ func newClaudeCliProvider(cfg Config) (*claudeCliProvider, error) {
 		maxBudget = cfg.MaxBudgetUSD
 	}
 
+	mcpConfig := cfg.MCPConfigPath
+	if mcpConfig != "" {
+		// Validate that the MCP config path is absolute and points to a regular file.
+		if !filepath.IsAbs(mcpConfig) {
+			return nil, fmt.Errorf("MCPConfigPath must be absolute: %s", mcpConfig)
+		}
+		info, err := os.Stat(mcpConfig)
+		if err != nil {
+			return nil, fmt.Errorf("MCPConfigPath: %w", err)
+		}
+		if !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("MCPConfigPath is not a regular file: %s", mcpConfig)
+		}
+	}
+
 	return &claudeCliProvider{
 		model:         model,
 		maxBudget:     maxBudget,
 		systemPrompt:  cfg.SystemPrompt,
 		claudePath:    claudePath,
-		mcpConfigPath: cfg.MCPConfigPath,
+		mcpConfigPath: mcpConfig,
 	}, nil
 }
 
