@@ -234,7 +234,7 @@ func (p *openaiProvider) Reason(ctx context.Context, prompt string, history []ev
 
 	content := result.Choices[0].Message.Content
 	tokensUsed := result.Usage.TotalTokens
-	confidence := parseConfidence(tokensUsed)
+	confidence := defaultConfidence()
 
 	return decision.NewResponse(content, confidence, tokensUsed), nil
 }

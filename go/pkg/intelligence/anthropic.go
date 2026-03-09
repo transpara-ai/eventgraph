@@ -115,7 +115,7 @@ func (p *anthropicProvider) Reason(ctx context.Context, prompt string, history [
 	}
 
 	tokensUsed := int(msg.Usage.InputTokens + msg.Usage.OutputTokens)
-	confidence := parseConfidence(tokensUsed)
+	confidence := defaultConfidence()
 
 	return decision.NewResponse(content.String(), confidence, tokensUsed), nil
 }

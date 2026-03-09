@@ -90,12 +90,11 @@ func eventsToMessages(events []event.Event) string {
 	return string(b)
 }
 
-// parseConfidence extracts a confidence score from token usage.
-// Higher token usage with a stop reason of "end_turn" suggests higher confidence.
-// This is a heuristic — real confidence requires model introspection.
-func parseConfidence(tokensUsed int) types.Score {
-	// Default to 0.7 — we can't truly measure confidence from outside the model.
-	// Future: use log-probs or model self-assessment.
+// defaultConfidence returns a default confidence score.
+// We can't truly measure confidence from outside the model — this returns
+// a fixed 0.7 as a reasonable baseline. Future: use log-probs or model
+// self-assessment.
+func defaultConfidence() types.Score {
 	s, _ := types.NewScore(0.7)
 	return s
 }

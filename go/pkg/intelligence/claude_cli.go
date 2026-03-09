@@ -132,7 +132,7 @@ func (p *claudeCliProvider) Reason(ctx context.Context, prompt string, history [
 
 func (p *claudeCliProvider) resultToResponse(result claudeCliResult) (decision.Response, error) {
 	tokensUsed := result.Usage.InputTokens + result.Usage.OutputTokens
-	confidence := parseConfidence(tokensUsed)
+	confidence := defaultConfidence()
 
 	return decision.NewResponse(result.Result, confidence, tokensUsed), nil
 }
