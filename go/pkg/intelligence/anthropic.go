@@ -114,10 +114,13 @@ func (p *anthropicProvider) Reason(ctx context.Context, prompt string, history [
 		}
 	}
 
-	tokensUsed := int(msg.Usage.InputTokens + msg.Usage.OutputTokens)
 	confidence := defaultConfidence()
+	usage := decision.TokenUsage{
+		InputTokens:  int(msg.Usage.InputTokens),
+		OutputTokens: int(msg.Usage.OutputTokens),
+	}
 
-	return decision.NewResponse(content.String(), confidence, tokensUsed), nil
+	return decision.NewResponse(content.String(), confidence, usage), nil
 }
 
 // Compile-time check.

@@ -27,7 +27,7 @@ func (m *mockProvider) Name() string  { return "mock" }
 func (m *mockProvider) Model() string { return "mock-model" }
 func (m *mockProvider) Reason(_ context.Context, _ string, _ []event.Event) (decision.Response, error) {
 	confidence, _ := types.NewScore(0.8)
-	return decision.NewResponse(m.response, confidence, 10), nil
+	return decision.NewResponse(m.response, confidence, decision.TokenUsage{InputTokens: 5, OutputTokens: 5}), nil
 }
 
 var _ intelligence.Provider = (*mockProvider)(nil)
@@ -74,7 +74,7 @@ func TestRuntimeBootComposition(t *testing.T) {
 	grantor := types.MustActorID("actor_00000000000000000000000000000099")
 	scope := types.MustDomainScope("test")
 
-	events, err := rt.Boot("ai", "claude-sonnet-4-6", "standard", []string{"Take care"}, scope, grantor)
+	events, err := rt.Boot(rt.PublicKey(), "ai", "claude-sonnet-4-6", "standard", []string{"Take care"}, scope, grantor)
 	if err != nil {
 		t.Fatalf("Boot failed: %v", err)
 	}

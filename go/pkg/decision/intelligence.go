@@ -7,25 +7,61 @@ import (
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
 )
 
+// TokenUsage tracks per-call token consumption with full breakdown.
+type TokenUsage struct {
+	InputTokens       int     // prompt tokens sent
+	OutputTokens      int     // completion tokens received
+	CacheReadTokens   int     // tokens served from cache (cheaper)
+	CacheWriteTokens  int     // tokens written to cache
+	CostUSD           float64 // total cost for this call
+}
+
+// Total returns the sum of input and output tokens.
+func (u TokenUsage) Total() int {
+	return u.InputTokens + u.OutputTokens
+}
+
 // Response is the result of an IIntelligence.Reason call.
 type Response struct {
 	content    string
 	confidence types.Score
-	tokensUsed int
+	usage      TokenUsage
 }
 
-// NewResponse creates a Response.
-func NewResponse(content string, confidence types.Score, tokensUsed int) Response {
-	return Response{content: content, confidence: confidence, tokensUsed: tokensUsed}
+// NewResponse creates a Response with full token usage.
+func NewResponse(content string, confidence types.Score, usage TokenUsage) Response {
+	return Response{content: content, confidence: confidence, usage: usage}
 }
 
-func (r Response) Content() string       { return r.content }
+func (r Response) Content() string        { return r.content }
 func (r Response) Confidence() types.Score { return r.confidence }
-func (r Response) TokensUsed() int       { return r.tokensUsed }
+func (r Response) TokensUsed() int         { return r.usage.Total() }
+func (r Response) Usage() TokenUsage       { return r.usage }
 
 // IIntelligence is anything that reasons. Not every primitive needs this.
 type IIntelligence interface {
 	Reason(ctx context.Context, prompt string, history []event.Event) (Response, error)
+}
+
+// OperateTask describes an agentic task with filesystem access.
+type OperateTask struct {
+	WorkDir      string   // directory the agent operates in
+	Instruction  string   // what to do (natural language)
+	AllowedTools []string // which tools to grant (Read, Edit, Write, Bash, etc.)
+}
+
+// OperateResult is the outcome of an agentic filesystem operation.
+type OperateResult struct {
+	Summary string     // text summary of what was done
+	Usage   TokenUsage // token consumption
+}
+
+// IOperator extends IIntelligence with agentic filesystem operations.
+// Only providers that can interact with the filesystem implement this
+// (e.g., Claude CLI with tool access). The pipeline does a type assertion
+// to check if a provider supports this.
+type IOperator interface {
+	Operate(ctx context.Context, task OperateTask) (OperateResult, error)
 }
 
 // IDecisionMaker is anything that makes decisions.

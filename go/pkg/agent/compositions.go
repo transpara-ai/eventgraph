@@ -32,13 +32,19 @@ func Boot() Composition {
 }
 
 // BootEvents returns the events emitted during agent boot.
-func BootEvents(agentID types.ActorID, agentType string, modelID string, costTier string, values []string, scope types.DomainScope, grantor types.ActorID) []event.EventContent {
-	return []event.EventContent{
-		event.AgentIdentityCreatedContent{
+// The publicKey must be the agent's registered public key — not a placeholder.
+// When withIdentity is false, the AgentIdentityCreatedContent event is omitted —
+// use this when the caller (e.g., a hive Spawner) already emits identity.created.
+func BootEvents(agentID types.ActorID, publicKey types.PublicKey, agentType string, modelID string, costTier string, values []string, scope types.DomainScope, grantor types.ActorID, withIdentity bool) []event.EventContent {
+	var contents []event.EventContent
+	if withIdentity {
+		contents = append(contents, event.AgentIdentityCreatedContent{
 			AgentID:   agentID,
-			PublicKey: types.MustPublicKey(make([]byte, 32)), // placeholder
+			PublicKey: publicKey,
 			AgentType: agentType,
-		},
+		})
+	}
+	contents = append(contents,
 		event.AgentSoulImprintedContent{
 			AgentID: agentID,
 			Values:  values,
@@ -58,7 +64,8 @@ func BootEvents(agentID types.ActorID, agentType string, modelID string, costTie
 			Previous: "",
 			Current:  StateIdle.String(),
 		},
-	}
+	)
+	return contents
 }
 
 // Imprint — The birth wizard. Boot plus initial context.

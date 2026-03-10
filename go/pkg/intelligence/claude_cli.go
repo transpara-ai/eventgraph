@@ -20,9 +20,11 @@ type claudeCliResult struct {
 	Subtype string `json:"subtype"`
 	IsError bool   `json:"is_error"`
 	Result  string `json:"result"`
-	Usage   struct {
-		InputTokens  int `json:"input_tokens"`
-		OutputTokens int `json:"output_tokens"`
+	Usage struct {
+		InputTokens              int `json:"input_tokens"`
+		OutputTokens             int `json:"output_tokens"`
+		CacheReadInputTokens     int `json:"cache_read_input_tokens"`
+		CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
 	} `json:"usage"`
 	TotalCostUSD float64 `json:"total_cost_usd"`
 	StopReason   string  `json:"stop_reason"`
@@ -104,8 +106,8 @@ func (p *claudeCliProvider) Reason(ctx context.Context, prompt string, history [
 		"--output-format", "json",
 		"--model", p.model,
 		"--max-budget-usd", fmt.Sprintf("%.2f", p.maxBudget),
-		"--no-session-persistence",
 	}
+	args = append(args, "--no-session-persistence")
 	if p.systemPrompt != "" {
 		args = append(args, "--system-prompt", p.systemPrompt)
 	}
@@ -155,11 +157,101 @@ func (p *claudeCliProvider) Reason(ctx context.Context, prompt string, history [
 }
 
 func (p *claudeCliProvider) resultToResponse(result claudeCliResult) (decision.Response, error) {
-	tokensUsed := result.Usage.InputTokens + result.Usage.OutputTokens
 	confidence := defaultConfidence()
+	usage := decision.TokenUsage{
+		InputTokens:      result.Usage.InputTokens,
+		OutputTokens:     result.Usage.OutputTokens,
+		CacheReadTokens:  result.Usage.CacheReadInputTokens,
+		CacheWriteTokens: result.Usage.CacheCreationInputTokens,
+		CostUSD:          result.TotalCostUSD,
+	}
 
-	return decision.NewResponse(result.Result, confidence, tokensUsed), nil
+	return decision.NewResponse(result.Result, confidence, usage), nil
 }
+
+func (p *claudeCliProvider) Operate(ctx context.Context, task decision.OperateTask) (decision.OperateResult, error) {
+	if task.WorkDir == "" {
+		return decision.OperateResult{}, fmt.Errorf("Operate requires WorkDir")
+	}
+	if task.Instruction == "" {
+		return decision.OperateResult{}, fmt.Errorf("Operate requires Instruction")
+	}
+
+	args := []string{
+		"-p",
+		"--output-format", "json",
+		"--model", p.model,
+		"--max-budget-usd", fmt.Sprintf("%.2f", p.maxBudget),
+		"--no-session-persistence",
+		"--dangerously-skip-permissions",
+	}
+
+	if len(task.AllowedTools) > 0 {
+		args = append(args, "--allowedTools", strings.Join(task.AllowedTools, ","))
+	} else {
+		// Default tools for agentic coding
+		args = append(args, "--allowedTools", "Read,Edit,Write,Bash,Glob,Grep")
+	}
+
+	if p.systemPrompt != "" {
+		args = append(args, "--system-prompt", p.systemPrompt)
+	}
+	if p.mcpConfigPath != "" {
+		args = append(args, "--mcp-config", p.mcpConfigPath)
+	}
+
+	cmd := exec.CommandContext(ctx, p.claudePath, args...)
+	cmd.Dir = task.WorkDir
+	cmd.Stdin = strings.NewReader(task.Instruction)
+
+	env := removeEnv(cmd.Environ(), "CLAUDECODE")
+	env = removeEnv(env, "DATABASE_URL")
+	env = removeEnv(env, "HIVE_AGENT_ID")
+	env = removeEnv(env, "HIVE_HUMAN_ID")
+	cmd.Env = env
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		// Check if we got JSON output despite non-zero exit.
+		if stdout.Len() > 0 {
+			var result claudeCliResult
+			if jsonErr := json.Unmarshal(stdout.Bytes(), &result); jsonErr == nil && result.Result != "" {
+				return p.resultToOperateResult(result), nil
+			}
+		}
+		return decision.OperateResult{}, fmt.Errorf("claude CLI operate error: %w\nstderr: %s", err, stderr.String())
+	}
+
+	var result claudeCliResult
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		return decision.OperateResult{}, fmt.Errorf("failed to parse claude CLI JSON output: %w\nraw: %s", err, stdout.String())
+	}
+
+	if result.IsError {
+		return decision.OperateResult{}, fmt.Errorf("claude CLI operate returned error: %s (subtype: %s)", result.Result, result.Subtype)
+	}
+
+	return p.resultToOperateResult(result), nil
+}
+
+func (p *claudeCliProvider) resultToOperateResult(result claudeCliResult) decision.OperateResult {
+	return decision.OperateResult{
+		Summary: result.Result,
+		Usage: decision.TokenUsage{
+			InputTokens:      result.Usage.InputTokens,
+			OutputTokens:     result.Usage.OutputTokens,
+			CacheReadTokens:  result.Usage.CacheReadInputTokens,
+			CacheWriteTokens: result.Usage.CacheCreationInputTokens,
+			CostUSD:          result.TotalCostUSD,
+		},
+	}
+}
+
+// Compile-time check that claudeCliProvider implements IOperator.
+var _ decision.IOperator = (*claudeCliProvider)(nil)
 
 // removeEnv returns a copy of env with the named variable removed.
 func removeEnv(env []string, key string) []string {

@@ -140,15 +140,16 @@ func TestWhistleblowComposition(t *testing.T) {
 	}
 }
 
-func TestBootEvents(t *testing.T) {
+func TestBootEventsWithIdentity(t *testing.T) {
 	agentID := types.MustActorID("actor_00000000000000000000000000000099")
 	grantor := types.MustActorID("actor_00000000000000000000000000000001")
 	scope := types.MustDomainScope("test")
 	values := []string{"Take care of your human"}
 
-	contents := agent.BootEvents(agentID, "ai", "claude-opus-4", "premium", values, scope, grantor)
+	pk := types.MustPublicKey(make([]byte, 32))
+	contents := agent.BootEvents(agentID, pk, "ai", "claude-opus-4", "premium", values, scope, grantor, true)
 	if len(contents) != 5 {
-		t.Fatalf("BootEvents returned %d contents, want 5", len(contents))
+		t.Fatalf("BootEvents(withIdentity=true) returned %d contents, want 5", len(contents))
 	}
 
 	// Verify event type names match Boot composition
@@ -162,6 +163,39 @@ func TestBootEvents(t *testing.T) {
 	for i, c := range contents {
 		if c.EventTypeName() != expectedTypes[i] {
 			t.Errorf("content[%d].EventTypeName() = %q, want %q", i, c.EventTypeName(), expectedTypes[i])
+		}
+	}
+}
+
+func TestBootEventsWithoutIdentity(t *testing.T) {
+	agentID := types.MustActorID("actor_00000000000000000000000000000099")
+	grantor := types.MustActorID("actor_00000000000000000000000000000001")
+	scope := types.MustDomainScope("test")
+	values := []string{"Take care of your human"}
+
+	pk := types.MustPublicKey(make([]byte, 32))
+	contents := agent.BootEvents(agentID, pk, "ai", "claude-opus-4", "premium", values, scope, grantor, false)
+	if len(contents) != 4 {
+		t.Fatalf("BootEvents(withIdentity=false) returned %d contents, want 4", len(contents))
+	}
+
+	// Verify identity event is absent and remaining events are correct
+	expectedTypes := []string{
+		"agent.soul.imprinted",
+		"agent.model.bound",
+		"agent.authority.granted",
+		"agent.state.changed",
+	}
+	for i, c := range contents {
+		if c.EventTypeName() != expectedTypes[i] {
+			t.Errorf("content[%d].EventTypeName() = %q, want %q", i, c.EventTypeName(), expectedTypes[i])
+		}
+	}
+
+	// Explicitly verify no identity event
+	for _, c := range contents {
+		if c.EventTypeName() == "agent.identity.created" {
+			t.Error("withIdentity=false should not include agent.identity.created")
 		}
 	}
 }

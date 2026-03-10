@@ -184,10 +184,33 @@ func (r *AgentRuntime) EventsByType(eventType string, limit int) ([]event.Event,
 // Compositions
 // ════════════════════════════════════════════════════════════════════════
 
+// PublicKey returns the agent's public key derived from its signing key.
+func (r *AgentRuntime) PublicKey() types.PublicKey {
+	s := r.signer.(*ed25519Signer)
+	pub := s.key.Public().(ed25519.PublicKey)
+	return types.MustPublicKey([]byte(pub))
+}
+
 // Boot executes the Boot composition: Identity + Soul + Model + Authority + State.
+// The publicKey must be the agent's registered public key from the actor store.
 // Returns the events emitted.
-func (r *AgentRuntime) Boot(agentType string, modelID string, costTier string, values []string, scope types.DomainScope, grantor types.ActorID) ([]event.Event, error) {
-	contents := agent.BootEvents(r.id, agentType, modelID, costTier, values, scope, grantor)
+func (r *AgentRuntime) Boot(publicKey types.PublicKey, agentType string, modelID string, costTier string, values []string, scope types.DomainScope, grantor types.ActorID) ([]event.Event, error) {
+	contents := agent.BootEvents(r.id, publicKey, agentType, modelID, costTier, values, scope, grantor, true)
+	var events []event.Event
+	for _, c := range contents {
+		ev, err := r.Emit(c)
+		if err != nil {
+			return events, err
+		}
+		events = append(events, ev)
+	}
+	return events, nil
+}
+
+// BootWithoutIdentity executes the Boot composition without emitting identity.created.
+// Use this when the caller (e.g., a hive Spawner) already emits the identity event.
+func (r *AgentRuntime) BootWithoutIdentity(publicKey types.PublicKey, agentType string, modelID string, costTier string, values []string, scope types.DomainScope, grantor types.ActorID) ([]event.Event, error) {
+	contents := agent.BootEvents(r.id, publicKey, agentType, modelID, costTier, values, scope, grantor, false)
 	var events []event.Event
 	for _, c := range contents {
 		ev, err := r.Emit(c)

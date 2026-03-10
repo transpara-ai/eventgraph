@@ -233,10 +233,13 @@ func (p *openaiProvider) Reason(ctx context.Context, prompt string, history []ev
 	}
 
 	content := result.Choices[0].Message.Content
-	tokensUsed := result.Usage.TotalTokens
 	confidence := defaultConfidence()
+	usage := decision.TokenUsage{
+		InputTokens:  result.Usage.PromptTokens,
+		OutputTokens: result.Usage.CompletionTokens,
+	}
 
-	return decision.NewResponse(content, confidence, tokensUsed), nil
+	return decision.NewResponse(content, confidence, usage), nil
 }
 
 // detectOpenAIProvider checks environment variables to auto-detect which

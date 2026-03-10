@@ -22,7 +22,7 @@ func (m *mockIntelligence) Reason(_ context.Context, _ string, _ []event.Event) 
 	if m.err != nil {
 		return decision.Response{}, m.err
 	}
-	return decision.NewResponse(m.content, m.confidence, m.tokens), nil
+	return decision.NewResponse(m.content, m.confidence, decision.TokenUsage{InputTokens: m.tokens / 2, OutputTokens: m.tokens - m.tokens/2}), nil
 }
 
 func testInput(action string) decision.EvaluateInput {
@@ -563,7 +563,7 @@ func TestDecisionErrors(t *testing.T) {
 }
 
 func TestResponseGetters(t *testing.T) {
-	r := decision.NewResponse("test content", types.MustScore(0.8), 42)
+	r := decision.NewResponse("test content", types.MustScore(0.8), decision.TokenUsage{InputTokens: 20, OutputTokens: 22})
 	if r.Content() != "test content" {
 		t.Errorf("Content = %q, want test content", r.Content())
 	}
