@@ -432,6 +432,40 @@ func TestFieldPath_Invalid(t *testing.T) {
 
 // --- Typed IDs ---
 
+func TestNewEventIDFromNew_Monotonic(t *testing.T) {
+	// Generate many IDs rapidly and verify strictly increasing timestamps.
+	const n = 100
+	ids := make([]EventID, n)
+	for i := 0; i < n; i++ {
+		id, err := NewEventIDFromNew()
+		if err != nil {
+			t.Fatal(err)
+		}
+		ids[i] = id
+	}
+	for i := 1; i < n; i++ {
+		prev := ids[i-1].TimestampMS()
+		curr := ids[i].TimestampMS()
+		if curr <= prev {
+			t.Fatalf("IDs not monotonic: id[%d] timestamp %d >= id[%d] timestamp %d",
+				i-1, prev, i, curr)
+		}
+	}
+}
+
+func TestEventID_TimestampMS(t *testing.T) {
+	t.Parallel()
+	id, err := NewEventIDFromNew()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ms := id.TimestampMS()
+	// Should be a reasonable recent timestamp (after 2024-01-01).
+	if ms < 1704067200000 {
+		t.Fatalf("TimestampMS() = %d, expected recent timestamp", ms)
+	}
+}
+
 func TestEventID_Valid(t *testing.T) {
 	t.Parallel()
 	// Valid UUID v7

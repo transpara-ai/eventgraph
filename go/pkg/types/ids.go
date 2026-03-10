@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -46,14 +47,41 @@ func (id EventID) String() string { return id.value }
 // IsZero returns true if the EventID is the zero value (unset).
 func (id EventID) IsZero() bool { return id.value == "" }
 
+// TimestampMS extracts the 48-bit millisecond timestamp from the UUID v7.
+func (id EventID) TimestampMS() int64 {
+	s := strings.ReplaceAll(id.value, "-", "")
+	b, _ := hex.DecodeString(s[:12])
+	var ms int64
+	for _, x := range b {
+		ms = (ms << 8) | int64(x)
+	}
+	return ms
+}
+
 func (id EventID) MarshalJSON() ([]byte, error)  { return json.Marshal(id.value) }
 func (id *EventID) UnmarshalJSON(b []byte) error  { return unmarshalID(b, &id.value, NewEventID) }
 
+// uuidv7 monotonic clock state — ensures strictly increasing timestamps
+// even when multiple IDs are generated within the same millisecond.
+var (
+	uuidv7mu     sync.Mutex
+	uuidv7lastMS int64
+)
+
 // NewEventIDFromNew generates a new UUID v7 EventID using the current time.
+// Guarantees strictly monotonic timestamps: each call produces a timestamp
+// at least 1ms after the previous, preventing causality ordering inversions.
 func NewEventIDFromNew() (EventID, error) {
 	// UUID v7: 48-bit timestamp (ms) | 4-bit version (7) | 12-bit rand | 2-bit variant (10) | 62-bit rand
 	now := time.Now()
 	ms := now.UnixMilli()
+
+	uuidv7mu.Lock()
+	if ms <= uuidv7lastMS {
+		ms = uuidv7lastMS + 1
+	}
+	uuidv7lastMS = ms
+	uuidv7mu.Unlock()
 
 	var b [16]byte
 	// Timestamp: 48 bits (6 bytes)
