@@ -9,9 +9,20 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/lovyou-ai/eventgraph/go/pkg/decision"
 	"github.com/lovyou-ai/eventgraph/go/pkg/event"
+)
+
+const (
+	// defaultReasonTimeout is the maximum time a single Reason() call can run.
+	// Kills the claude CLI subprocess if exceeded.
+	defaultReasonTimeout = 5 * time.Minute
+
+	// defaultOperateTimeout is the maximum time a single Operate() call can run.
+	// Operate tasks (code generation) are heavier than Reason tasks.
+	defaultOperateTimeout = 10 * time.Minute
 )
 
 // claudeCliResult is the JSON output from `claude -p --output-format json`.
@@ -91,6 +102,13 @@ func (p *claudeCliProvider) Name() string  { return "claude-cli" }
 func (p *claudeCliProvider) Model() string { return p.model }
 
 func (p *claudeCliProvider) Reason(ctx context.Context, prompt string, history []event.Event) (decision.Response, error) {
+	// Apply default timeout if the parent context has no deadline.
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, defaultReasonTimeout)
+		defer cancel()
+	}
+
 	// Build the full prompt with history context.
 	var fullPrompt strings.Builder
 	historyText := eventsToMessages(history)
@@ -170,6 +188,13 @@ func (p *claudeCliProvider) resultToResponse(result claudeCliResult) (decision.R
 }
 
 func (p *claudeCliProvider) Operate(ctx context.Context, task decision.OperateTask) (decision.OperateResult, error) {
+	// Apply default timeout if the parent context has no deadline.
+	if _, ok := ctx.Deadline(); !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, defaultOperateTimeout)
+		defer cancel()
+	}
+
 	if task.WorkDir == "" {
 		return decision.OperateResult{}, fmt.Errorf("Operate requires WorkDir")
 	}
