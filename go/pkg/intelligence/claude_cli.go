@@ -17,8 +17,9 @@ import (
 
 const (
 	// defaultReasonTimeout is the maximum time a single Reason() call can run.
-	// Kills the claude CLI subprocess if exceeded.
-	defaultReasonTimeout = 5 * time.Minute
+	// Kills the claude CLI subprocess if exceeded. 10 minutes accommodates
+	// heavy prompts (e.g. CTO telemetry analysis with 40+ historical runs).
+	defaultReasonTimeout = 10 * time.Minute
 
 	// defaultOperateTimeout is the maximum time a single Operate() call can run.
 	// Operate tasks (code generation) are heavier than Reason tasks.
