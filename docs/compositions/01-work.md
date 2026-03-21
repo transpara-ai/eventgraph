@@ -9,26 +9,26 @@ Work is operations on tasks. The base operations are: **create work**, **assign 
 | Dimension | Values | What it distinguishes |
 |-----------|--------|-----------------------|
 | Granularity | Atomic (single task) / Compound (decomposed) | One thing or many? |
-| Direction | Top-down (from goal) / Bottom-up (from observation) | Planned or emergent? |
-| Actor | Self (own work) / Other (delegation) | Who does the work? |
+| Direction | Top-down (from intent) / Bottom-up (from observation) | Planned or emergent? |
+| Actor | Self (own work) / Other (commitment) | Who does the work? |
 | Binding | Tentative (can change) / Committed (bound) | Is this a plan or a promise? |
 
 ## Operations (12)
 
 | # | Operation | Type | Definition | Primitives |
 |---|-----------|------|-----------|------------|
-| 1 | **Intend** | task/creative | Declare a goal or desired outcome | Goal + Emit |
-| 2 | **Decompose** | task/structural | Break a goal into actionable steps | Plan + Derive (subtasks from goal) |
-| 3 | **Assign** | task/delegation | Give work to a specific actor | Delegation + Delegate (grammar) |
-| 4 | **Claim** | task/self-assign | Take on unassigned work | Initiative + Emit (claim event) |
-| 5 | **Prioritize** | task/ordering | Rank work by importance | Focus + Annotate (priority on task) |
-| 6 | **Block** | task/impediment | Flag work that cannot proceed | Salience + Annotate (blocker) |
-| 7 | **Unblock** | task/resolution | Remove impediment to work | Salience + Emit (resolution) |
-| 8 | **Progress** | task/tracking | Report incremental advancement | Commitment + Extend (progress on task) |
-| 9 | **Complete** | task/completion | Mark work as done with evidence | Commitment + Emit (completion) |
-| 10 | **Handoff** | task/transfer | Transfer work between actors | Delegation + Consent |
-| 11 | **Scope** | task/authority | Define what an actor may do autonomously | Permission + Delegate (scoped) |
-| 12 | **Review** | task/assessment | Evaluate completed work | Accountability + Respond |
+| 1 | **Intend** | task/creative | Declare a desired outcome | Intent + Emit |
+| 2 | **Decompose** | task/structural | Break an intent into actionable steps | Intent + Derive (sub-intents from intent) |
+| 3 | **Assign** | task/delegation | Give work to a specific actor | Commitment + Signal |
+| 4 | **Claim** | task/self-assign | Take on unassigned work | Choice + Emit (claim event) |
+| 5 | **Prioritize** | task/ordering | Rank work by importance | Value + Annotate (priority on task) |
+| 6 | **Block** | task/impediment | Flag work that cannot proceed | Signal + Annotate (blocker) |
+| 7 | **Unblock** | task/resolution | Remove impediment to work | Signal + Emit (resolution) |
+| 8 | **Progress** | task/tracking | Report incremental advancement | Act + Extend (progress on task) |
+| 9 | **Complete** | task/completion | Mark work as done with evidence | Consequence + Emit (completion) |
+| 10 | **Handoff** | task/transfer | Transfer work between actors | Commitment + Signal |
+| 11 | **Scope** | task/authority | Define what an actor may do autonomously | Capacity + Signal |
+| 12 | **Review** | task/assessment | Evaluate completed work | Consequence + Respond |
 
 ## Modifiers (3)
 
@@ -53,18 +53,18 @@ Work is operations on tasks. The base operations are: **create work**, **assign 
 
 | Operation | Layer 1 Primitives | Grammar Operations |
 |-----------|-------------------|-------------------|
-| Intend | Goal | Emit |
-| Decompose | Plan | Derive |
-| Assign | Delegation | Delegate |
-| Claim | Initiative | Emit |
-| Prioritize | Focus | Annotate |
-| Block | Salience | Annotate |
-| Unblock | Salience | Emit |
-| Progress | Commitment | Extend |
-| Complete | Commitment | Emit |
-| Handoff | Delegation | Consent |
-| Scope | Permission | Delegate |
-| Review | Accountability | Respond |
+| Intend | Intent | Emit |
+| Decompose | Intent | Derive |
+| Assign | Commitment + Signal | Delegate |
+| Claim | Choice | Emit |
+| Prioritize | Value | Annotate |
+| Block | Signal | Annotate |
+| Unblock | Signal | Emit |
+| Progress | Act | Extend |
+| Complete | Consequence | Emit |
+| Handoff | Commitment + Signal | Consent |
+| Scope | Capacity | Delegate |
+| Review | Consequence | Respond |
 
 ## Example Flow
 

@@ -19,7 +19,7 @@ impl<'a> WorkGrammar<'a> {
 
     // --- Operations (12) ---
 
-    /// Intend declares a goal or desired outcome. (Goal + Emit)
+    /// Intend declares intent or desired outcome. (Intent + Emit)
     pub fn intend(
         &mut self,
         source: ActorId,
@@ -31,7 +31,7 @@ impl<'a> WorkGrammar<'a> {
         self.0.emit(source, &format!("intend: {goal}"), conv_id, causes, signer)
     }
 
-    /// Decompose breaks a goal into actionable steps. (Plan + Derive)
+    /// Decompose breaks a goal into actionable steps. (Choice + Derive)
     pub fn decompose(
         &mut self,
         source: ActorId,
@@ -43,7 +43,7 @@ impl<'a> WorkGrammar<'a> {
         self.0.derive(source, &format!("decompose: {subtask}"), goal, conv_id, signer)
     }
 
-    /// Assign gives work to a specific actor. (Delegation + Delegate)
+    /// Assign gives work to a specific actor. (Commitment + Delegate)
     pub fn assign(
         &mut self,
         source: ActorId,
@@ -57,7 +57,7 @@ impl<'a> WorkGrammar<'a> {
         self.0.delegate(source, assignee, scope, weight, cause, conv_id, signer)
     }
 
-    /// Claim takes on unassigned work. (Initiative + Emit)
+    /// Claim takes on unassigned work. (Intent + Emit)
     pub fn claim(
         &mut self,
         source: ActorId,
@@ -69,7 +69,7 @@ impl<'a> WorkGrammar<'a> {
         self.0.emit(source, &format!("claim: {work}"), conv_id, causes, signer)
     }
 
-    /// Prioritize ranks work by importance. (Focus + Annotate)
+    /// Prioritize ranks work by importance. (Value + Annotate)
     pub fn prioritize(
         &mut self,
         source: ActorId,
@@ -81,7 +81,7 @@ impl<'a> WorkGrammar<'a> {
         self.0.annotate(source, target, "priority", priority, conv_id, signer)
     }
 
-    /// Block flags work that cannot proceed. (Salience + Annotate)
+    /// Block flags work that cannot proceed. (Risk + Annotate)
     pub fn block(
         &mut self,
         source: ActorId,
@@ -93,7 +93,7 @@ impl<'a> WorkGrammar<'a> {
         self.0.annotate(source, target, "blocked", blocker, conv_id, signer)
     }
 
-    /// Unblock removes an impediment to work. (Salience + Emit)
+    /// Unblock removes an impediment to work. (Consequence + Emit)
     pub fn unblock(
         &mut self,
         source: ActorId,
@@ -117,7 +117,7 @@ impl<'a> WorkGrammar<'a> {
         self.0.extend(source, &format!("progress: {update}"), previous, conv_id, signer)
     }
 
-    /// Complete marks work as done with evidence. (Commitment + Emit)
+    /// Complete marks work as done with evidence. (Consequence + Emit)
     pub fn complete(
         &mut self,
         source: ActorId,
@@ -129,7 +129,7 @@ impl<'a> WorkGrammar<'a> {
         self.0.emit(source, &format!("complete: {summary}"), conv_id, causes, signer)
     }
 
-    /// Handoff transfers work between actors. (Delegation + Consent)
+    /// Handoff transfers work between actors. (Signal + Consent)
     pub fn handoff(
         &mut self,
         from: ActorId,
@@ -143,7 +143,7 @@ impl<'a> WorkGrammar<'a> {
         self.0.consent(from, to, &format!("handoff: {description}"), scope, cause, conv_id, signer)
     }
 
-    /// Scope defines what an actor may do autonomously. (Permission + Delegate)
+    /// Scope defines what an actor may do autonomously. (Capacity + Delegate)
     pub fn scope(
         &mut self,
         source: ActorId,
@@ -157,7 +157,7 @@ impl<'a> WorkGrammar<'a> {
         self.0.delegate(source, target, scope, weight, cause, conv_id, signer)
     }
 
-    /// Review evaluates completed work. (Accountability + Respond)
+    /// Review evaluates completed work. (Consequence + Respond)
     pub fn review(
         &mut self,
         source: ActorId,

@@ -23,7 +23,7 @@ func NewWorkGrammar(g *grammar.Grammar) *WorkGrammar {
 
 // --- Operations (12) ---
 
-// Intend declares a goal or desired outcome. (Goal + Emit)
+// Intend declares a desired outcome. (Intent + Emit)
 func (w *WorkGrammar) Intend(
 	ctx context.Context, source types.ActorID, goal string,
 	causes []types.EventID, convID types.ConversationID, signer event.Signer,
@@ -31,7 +31,7 @@ func (w *WorkGrammar) Intend(
 	return w.g.Emit(ctx, source, "intend: "+goal, convID, causes, signer)
 }
 
-// Decompose breaks a goal into actionable steps. (Plan + Derive)
+// Decompose breaks intent into actionable steps. (Choice + Derive)
 func (w *WorkGrammar) Decompose(
 	ctx context.Context, source types.ActorID, subtask string,
 	goal types.EventID, convID types.ConversationID, signer event.Signer,
@@ -39,7 +39,7 @@ func (w *WorkGrammar) Decompose(
 	return w.g.Derive(ctx, source, "decompose: "+subtask, goal, convID, signer)
 }
 
-// Assign gives work to a specific actor. (Delegation + Delegate)
+// Assign gives work to a specific actor. (Commitment + Delegate)
 func (w *WorkGrammar) Assign(
 	ctx context.Context, source types.ActorID, assignee types.ActorID,
 	scope types.DomainScope, weight types.Weight,
@@ -48,7 +48,7 @@ func (w *WorkGrammar) Assign(
 	return w.g.Delegate(ctx, source, assignee, scope, weight, cause, convID, signer)
 }
 
-// Claim takes on unassigned work. (Initiative + Emit)
+// Claim takes on unassigned work. (Intent + Emit)
 func (w *WorkGrammar) Claim(
 	ctx context.Context, source types.ActorID, work string,
 	causes []types.EventID, convID types.ConversationID, signer event.Signer,
@@ -56,7 +56,7 @@ func (w *WorkGrammar) Claim(
 	return w.g.Emit(ctx, source, "claim: "+work, convID, causes, signer)
 }
 
-// Prioritize ranks work by importance. (Focus + Annotate)
+// Prioritize ranks work by importance. (Value + Annotate)
 func (w *WorkGrammar) Prioritize(
 	ctx context.Context, source types.ActorID, target types.EventID,
 	priority string, convID types.ConversationID, signer event.Signer,
@@ -64,7 +64,7 @@ func (w *WorkGrammar) Prioritize(
 	return w.g.Annotate(ctx, source, target, "priority", priority, convID, signer)
 }
 
-// Block flags work that cannot proceed. (Salience + Annotate)
+// Block flags work that cannot proceed. (Risk + Annotate)
 func (w *WorkGrammar) Block(
 	ctx context.Context, source types.ActorID, target types.EventID,
 	blocker string, convID types.ConversationID, signer event.Signer,
@@ -72,7 +72,7 @@ func (w *WorkGrammar) Block(
 	return w.g.Annotate(ctx, source, target, "blocked", blocker, convID, signer)
 }
 
-// Unblock removes an impediment to work. (Salience + Emit)
+// Unblock removes an impediment to work. (Consequence + Emit)
 func (w *WorkGrammar) Unblock(
 	ctx context.Context, source types.ActorID, resolution string,
 	causes []types.EventID, convID types.ConversationID, signer event.Signer,
@@ -80,7 +80,7 @@ func (w *WorkGrammar) Unblock(
 	return w.g.Emit(ctx, source, "unblock: "+resolution, convID, causes, signer)
 }
 
-// Progress reports incremental advancement. (Commitment + Extend)
+// Progress reports incremental advancement. (Act + Extend)
 func (w *WorkGrammar) Progress(
 	ctx context.Context, source types.ActorID, update string,
 	previous types.EventID, convID types.ConversationID, signer event.Signer,
@@ -88,7 +88,7 @@ func (w *WorkGrammar) Progress(
 	return w.g.Extend(ctx, source, "progress: "+update, previous, convID, signer)
 }
 
-// Complete marks work as done with evidence. (Commitment + Emit)
+// Complete marks work as done with evidence. (Consequence + Emit)
 func (w *WorkGrammar) Complete(
 	ctx context.Context, source types.ActorID, summary string,
 	causes []types.EventID, convID types.ConversationID, signer event.Signer,
@@ -96,7 +96,7 @@ func (w *WorkGrammar) Complete(
 	return w.g.Emit(ctx, source, "complete: "+summary, convID, causes, signer)
 }
 
-// Handoff transfers work between actors. (Delegation + Consent)
+// Handoff transfers work between actors. (Signal + Consent)
 func (w *WorkGrammar) Handoff(
 	ctx context.Context, from types.ActorID, to types.ActorID,
 	description string, scope types.DomainScope,
@@ -105,7 +105,7 @@ func (w *WorkGrammar) Handoff(
 	return w.g.Consent(ctx, from, to, "handoff: "+description, scope, cause, convID, signer)
 }
 
-// Scope defines what an actor may do autonomously. (Permission + Delegate)
+// Scope defines what an actor may do autonomously. (Capacity + Delegate)
 func (w *WorkGrammar) Scope(
 	ctx context.Context, source types.ActorID, target types.ActorID,
 	scope types.DomainScope, weight types.Weight,
@@ -114,7 +114,7 @@ func (w *WorkGrammar) Scope(
 	return w.g.Delegate(ctx, source, target, scope, weight, cause, convID, signer)
 }
 
-// Review evaluates completed work. (Accountability + Respond)
+// Review evaluates completed work. (Consequence + Respond)
 func (w *WorkGrammar) Review(
 	ctx context.Context, source types.ActorID, assessment string,
 	target types.EventID, convID types.ConversationID, signer event.Signer,

@@ -67,21 +67,21 @@ func TestAllPrimitivesRegister(t *testing.T) {
 	reg := primitive.NewRegistry()
 
 	prims := []primitive.Primitive{
-		// Group 0: Communication
-		layer2.NewMessagePrimitive(),
-		layer2.NewAcknowledgementPrimitive(),
-		layer2.NewClarificationPrimitive(),
-		layer2.NewContextPrimitive(),
-		// Group 1: Reciprocity
+		// Group A: Common Ground
+		layer2.NewTermPrimitive(),
+		layer2.NewProtocolPrimitive(),
 		layer2.NewOfferPrimitive(),
 		layer2.NewAcceptancePrimitive(),
+		// Group B: Mutual Binding
+		layer2.NewAgreementPrimitive(),
 		layer2.NewObligationPrimitive(),
-		layer2.NewGratitudePrimitive(),
-		// Group 2: Agreement
-		layer2.NewNegotiationPrimitive(),
-		layer2.NewConsentPrimitive(),
-		layer2.NewContractPrimitive(),
-		layer2.NewDisputePrimitive(),
+		layer2.NewFulfillmentPrimitive(),
+		layer2.NewBreachPrimitive(),
+		// Group C: Value Transfer
+		layer2.NewExchangePrimitive(),
+		layer2.NewAccountabilityPrimitive(),
+		layer2.NewDebtPrimitive(),
+		layer2.NewReciprocityPrimitive(),
 	}
 
 	for _, p := range prims {
@@ -104,10 +104,10 @@ func TestAllPrimitivesRegister(t *testing.T) {
 	}
 }
 
-func TestMessageProcess(t *testing.T) {
+func TestTermProcess(t *testing.T) {
 	s, bootstrap := bootstrapStore(t)
 	ev := chainEvent(t, s, []types.EventID{bootstrap.ID()})
-	p := layer2.NewMessagePrimitive()
+	p := layer2.NewTermPrimitive()
 
 	mutations, err := p.Process(types.MustTick(1), []event.Event{ev}, primitive.Snapshot{})
 	if err != nil {
@@ -118,10 +118,38 @@ func TestMessageProcess(t *testing.T) {
 	}
 }
 
-func TestDisputeProcess(t *testing.T) {
+func TestBreachProcess(t *testing.T) {
 	s, bootstrap := bootstrapStore(t)
 	ev := chainEvent(t, s, []types.EventID{bootstrap.ID()})
-	p := layer2.NewDisputePrimitive()
+	p := layer2.NewBreachPrimitive()
+
+	mutations, err := p.Process(types.MustTick(1), []event.Event{ev}, primitive.Snapshot{})
+	if err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if len(mutations) == 0 {
+		t.Fatal("expected mutations")
+	}
+}
+
+func TestReciprocityProcess(t *testing.T) {
+	s, bootstrap := bootstrapStore(t)
+	ev := chainEvent(t, s, []types.EventID{bootstrap.ID()})
+	p := layer2.NewReciprocityPrimitive()
+
+	mutations, err := p.Process(types.MustTick(1), []event.Event{ev}, primitive.Snapshot{})
+	if err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if len(mutations) == 0 {
+		t.Fatal("expected mutations")
+	}
+}
+
+func TestAcceptanceProcess(t *testing.T) {
+	s, bootstrap := bootstrapStore(t)
+	ev := chainEvent(t, s, []types.EventID{bootstrap.ID()})
+	p := layer2.NewAcceptancePrimitive()
 
 	mutations, err := p.Process(types.MustTick(1), []event.Event{ev}, primitive.Snapshot{})
 	if err != nil {

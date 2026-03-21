@@ -1,7 +1,7 @@
 // Package layer2 implements the Layer 2 Exchange primitives.
-// Groups: Communication (Message, Acknowledgement, Clarification, Context),
-// Reciprocity (Offer, Acceptance, Obligation, Gratitude),
-// Agreement (Negotiation, Consent, Contract, Dispute).
+// Groups: CommonGround (Term, Protocol, Offer, Acceptance),
+// MutualBinding (Agreement, Obligation, Fulfillment, Breach),
+// ValueTransfer (Exchange, Accountability, Debt, Reciprocity).
 package layer2
 
 import (
@@ -15,141 +15,111 @@ import (
 var layer2 = types.MustLayer(2)
 var cadence1 = types.MustCadence(1)
 
-// --- Group 0: Communication ---
+// --- Group A: Common Ground ---
 
-// MessagePrimitive handles sending and receiving structured messages between actors.
-type MessagePrimitive struct{}
+// TermPrimitive defines shared vocabulary and conditions for exchange.
+type TermPrimitive struct{}
 
-func NewMessagePrimitive() *MessagePrimitive { return &MessagePrimitive{} }
+func NewTermPrimitive() *TermPrimitive { return &TermPrimitive{} }
 
-func (p *MessagePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Message") }
-func (p *MessagePrimitive) Layer() types.Layer               { return layer2 }
-func (p *MessagePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *MessagePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *MessagePrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{types.MustSubscriptionPattern("protocol.message.*")}
-}
-
-func (p *MessagePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "messagesProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// AcknowledgementPrimitive confirms receipt and understanding of messages.
-type AcknowledgementPrimitive struct{}
-
-func NewAcknowledgementPrimitive() *AcknowledgementPrimitive { return &AcknowledgementPrimitive{} }
-
-func (p *AcknowledgementPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Acknowledgement") }
-func (p *AcknowledgementPrimitive) Layer() types.Layer               { return layer2 }
-func (p *AcknowledgementPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *AcknowledgementPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *AcknowledgementPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *TermPrimitive) ID() types.PrimitiveID          { return types.MustPrimitiveID("Term") }
+func (p *TermPrimitive) Layer() types.Layer              { return layer2 }
+func (p *TermPrimitive) Lifecycle() types.LifecycleState { return types.LifecycleActive }
+func (p *TermPrimitive) Cadence() types.Cadence          { return cadence1 }
+func (p *TermPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("message.sent"),
-		types.MustSubscriptionPattern("message.received"),
+		types.MustSubscriptionPattern("signal.*"),
+		types.MustSubscriptionPattern("commitment.*"),
 	}
 }
 
-func (p *AcknowledgementPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	pending := 0
+func (p *TermPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
 	for _, ev := range events {
-		if ev.Type().Value() == "message.sent" {
-			pending++
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "signal.") || strings.HasPrefix(t, "commitment.") {
+			relevant++
 		}
 	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "pendingAcks", Value: pending},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// ClarificationPrimitive resolves ambiguity in communication.
-type ClarificationPrimitive struct{}
+// ProtocolPrimitive establishes the rules and sequence of interaction.
+type ProtocolPrimitive struct{}
 
-func NewClarificationPrimitive() *ClarificationPrimitive { return &ClarificationPrimitive{} }
+func NewProtocolPrimitive() *ProtocolPrimitive { return &ProtocolPrimitive{} }
 
-func (p *ClarificationPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Clarification") }
-func (p *ClarificationPrimitive) Layer() types.Layer               { return layer2 }
-func (p *ClarificationPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *ClarificationPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *ClarificationPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *ProtocolPrimitive) ID() types.PrimitiveID          { return types.MustPrimitiveID("Protocol") }
+func (p *ProtocolPrimitive) Layer() types.Layer              { return layer2 }
+func (p *ProtocolPrimitive) Lifecycle() types.LifecycleState { return types.LifecycleActive }
+func (p *ProtocolPrimitive) Cadence() types.Cadence          { return cadence1 }
+func (p *ProtocolPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("message.*"),
-		types.MustSubscriptionPattern("ack.*"),
+		types.MustSubscriptionPattern("term.*"),
+		types.MustSubscriptionPattern("signal.*"),
 	}
 }
 
-func (p *ClarificationPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// ContextPrimitive maintains shared conversational context between actors.
-type ContextPrimitive struct{}
-
-func NewContextPrimitive() *ContextPrimitive { return &ContextPrimitive{} }
-
-func (p *ContextPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Context") }
-func (p *ContextPrimitive) Layer() types.Layer               { return layer2 }
-func (p *ContextPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *ContextPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *ContextPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("message.*"),
-		types.MustSubscriptionPattern("clarification.*"),
+func (p *ProtocolPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "term.") || strings.HasPrefix(t, "signal.") {
+			relevant++
+		}
 	}
-}
-
-func (p *ContextPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "contextUpdates", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// --- Group 1: Reciprocity ---
-
-// OfferPrimitive proposes something to another actor.
+// OfferPrimitive proposes an exchange to another actor.
 type OfferPrimitive struct{}
 
 func NewOfferPrimitive() *OfferPrimitive { return &OfferPrimitive{} }
 
-func (p *OfferPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Offer") }
-func (p *OfferPrimitive) Layer() types.Layer               { return layer2 }
-func (p *OfferPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *OfferPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *OfferPrimitive) ID() types.PrimitiveID          { return types.MustPrimitiveID("Offer") }
+func (p *OfferPrimitive) Layer() types.Layer              { return layer2 }
+func (p *OfferPrimitive) Lifecycle() types.LifecycleState { return types.LifecycleActive }
+func (p *OfferPrimitive) Cadence() types.Cadence          { return cadence1 }
 func (p *OfferPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("message.*"),
-		types.MustSubscriptionPattern("exchange.*"),
+		types.MustSubscriptionPattern("term.*"),
+		types.MustSubscriptionPattern("protocol.*"),
+		types.MustSubscriptionPattern("intent.*"),
 	}
 }
 
 func (p *OfferPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "term.") || strings.HasPrefix(t, "protocol.") || strings.HasPrefix(t, "intent.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// AcceptancePrimitive accepts or rejects offers.
+// AcceptancePrimitive records acceptance or rejection of an offer.
 type AcceptancePrimitive struct{}
 
 func NewAcceptancePrimitive() *AcceptancePrimitive { return &AcceptancePrimitive{} }
 
-func (p *AcceptancePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Acceptance") }
-func (p *AcceptancePrimitive) Layer() types.Layer               { return layer2 }
-func (p *AcceptancePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *AcceptancePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *AcceptancePrimitive) ID() types.PrimitiveID          { return types.MustPrimitiveID("Acceptance") }
+func (p *AcceptancePrimitive) Layer() types.Layer              { return layer2 }
+func (p *AcceptancePrimitive) Lifecycle() types.LifecycleState { return types.LifecycleActive }
+func (p *AcceptancePrimitive) Cadence() types.Cadence          { return cadence1 }
 func (p *AcceptancePrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("offer.made"),
-		types.MustSubscriptionPattern("offer.withdrawn"),
+		types.MustSubscriptionPattern("offer.*"),
 	}
 }
 
@@ -166,156 +136,250 @@ func (p *AcceptancePrimitive) Process(tick types.Tick, events []event.Event, sna
 	}, nil
 }
 
-// ObligationPrimitive tracks what actors owe each other.
+// --- Group B: Mutual Binding ---
+
+// AgreementPrimitive represents a binding mutual commitment between parties.
+type AgreementPrimitive struct{}
+
+func NewAgreementPrimitive() *AgreementPrimitive { return &AgreementPrimitive{} }
+
+func (p *AgreementPrimitive) ID() types.PrimitiveID          { return types.MustPrimitiveID("Agreement") }
+func (p *AgreementPrimitive) Layer() types.Layer              { return layer2 }
+func (p *AgreementPrimitive) Lifecycle() types.LifecycleState { return types.LifecycleActive }
+func (p *AgreementPrimitive) Cadence() types.Cadence          { return cadence1 }
+func (p *AgreementPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("offer.*"),
+		types.MustSubscriptionPattern("acceptance.*"),
+	}
+}
+
+func (p *AgreementPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "offer.") || strings.HasPrefix(t, "acceptance.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// ObligationPrimitive tracks what actors owe each other under agreements.
 type ObligationPrimitive struct{}
 
 func NewObligationPrimitive() *ObligationPrimitive { return &ObligationPrimitive{} }
 
-func (p *ObligationPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Obligation") }
-func (p *ObligationPrimitive) Layer() types.Layer               { return layer2 }
-func (p *ObligationPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *ObligationPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *ObligationPrimitive) ID() types.PrimitiveID          { return types.MustPrimitiveID("Obligation") }
+func (p *ObligationPrimitive) Layer() types.Layer              { return layer2 }
+func (p *ObligationPrimitive) Lifecycle() types.LifecycleState { return types.LifecycleActive }
+func (p *ObligationPrimitive) Cadence() types.Cadence          { return cadence1 }
 func (p *ObligationPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("offer.accepted"),
-		types.MustSubscriptionPattern("delegation.*"),
+		types.MustSubscriptionPattern("agreement.*"),
+		types.MustSubscriptionPattern("commitment.*"),
 	}
 }
 
 func (p *ObligationPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// GratitudePrimitive recognises when obligations are fulfilled beyond expectation.
-type GratitudePrimitive struct{}
-
-func NewGratitudePrimitive() *GratitudePrimitive { return &GratitudePrimitive{} }
-
-func (p *GratitudePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Gratitude") }
-func (p *GratitudePrimitive) Layer() types.Layer               { return layer2 }
-func (p *GratitudePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *GratitudePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *GratitudePrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("obligation.fulfilled"),
-		types.MustSubscriptionPattern("trust.*"),
-	}
-}
-
-func (p *GratitudePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	fulfilled := 0
+	relevant := 0
 	for _, ev := range events {
-		if ev.Type().Value() == "obligation.fulfilled" {
-			fulfilled++
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "agreement.") || strings.HasPrefix(t, "commitment.") {
+			relevant++
 		}
 	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "fulfilmentsObserved", Value: fulfilled},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// --- Group 2: Agreement ---
+// FulfillmentPrimitive records when an obligation has been met.
+type FulfillmentPrimitive struct{}
 
-// NegotiationPrimitive works toward agreement through iterative proposals.
-type NegotiationPrimitive struct{}
+func NewFulfillmentPrimitive() *FulfillmentPrimitive { return &FulfillmentPrimitive{} }
 
-func NewNegotiationPrimitive() *NegotiationPrimitive { return &NegotiationPrimitive{} }
-
-func (p *NegotiationPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Negotiation") }
-func (p *NegotiationPrimitive) Layer() types.Layer               { return layer2 }
-func (p *NegotiationPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *NegotiationPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *NegotiationPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *FulfillmentPrimitive) ID() types.PrimitiveID          { return types.MustPrimitiveID("Fulfillment") }
+func (p *FulfillmentPrimitive) Layer() types.Layer              { return layer2 }
+func (p *FulfillmentPrimitive) Lifecycle() types.LifecycleState { return types.LifecycleActive }
+func (p *FulfillmentPrimitive) Cadence() types.Cadence          { return cadence1 }
+func (p *FulfillmentPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("offer.*"),
-		types.MustSubscriptionPattern("message.*"),
+		types.MustSubscriptionPattern("obligation.*"),
+		types.MustSubscriptionPattern("act.*"),
 	}
 }
 
-func (p *NegotiationPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *FulfillmentPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "obligation.") || strings.HasPrefix(t, "act.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// ConsentPrimitive ensures both parties explicitly agree.
-type ConsentPrimitive struct{}
+// BreachPrimitive detects and records when an obligation is violated.
+type BreachPrimitive struct{}
 
-func NewConsentPrimitive() *ConsentPrimitive { return &ConsentPrimitive{} }
+func NewBreachPrimitive() *BreachPrimitive { return &BreachPrimitive{} }
 
-func (p *ConsentPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Consent") }
-func (p *ConsentPrimitive) Layer() types.Layer               { return layer2 }
-func (p *ConsentPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *ConsentPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *ConsentPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *BreachPrimitive) ID() types.PrimitiveID          { return types.MustPrimitiveID("Breach") }
+func (p *BreachPrimitive) Layer() types.Layer              { return layer2 }
+func (p *BreachPrimitive) Lifecycle() types.LifecycleState { return types.LifecycleActive }
+func (p *BreachPrimitive) Cadence() types.Cadence          { return cadence1 }
+func (p *BreachPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("negotiation.concluded"),
-		types.MustSubscriptionPattern("offer.accepted"),
-		types.MustSubscriptionPattern("authority.*"),
+		types.MustSubscriptionPattern("obligation.*"),
+		types.MustSubscriptionPattern("violation.*"),
 	}
 }
 
-func (p *ConsentPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// ContractPrimitive manages binding bilateral agreements with terms and enforcement.
-type ContractPrimitive struct{}
-
-func NewContractPrimitive() *ContractPrimitive { return &ContractPrimitive{} }
-
-func (p *ContractPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Contract") }
-func (p *ContractPrimitive) Layer() types.Layer               { return layer2 }
-func (p *ContractPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *ContractPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *ContractPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("consent.given"),
-		types.MustSubscriptionPattern("negotiation.concluded"),
-	}
-}
-
-func (p *ContractPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// DisputePrimitive handles disagreements about contracts or obligations.
-type DisputePrimitive struct{}
-
-func NewDisputePrimitive() *DisputePrimitive { return &DisputePrimitive{} }
-
-func (p *DisputePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Dispute") }
-func (p *DisputePrimitive) Layer() types.Layer               { return layer2 }
-func (p *DisputePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *DisputePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *DisputePrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("contract.breached"),
-		types.MustSubscriptionPattern("obligation.defaulted"),
-		types.MustSubscriptionPattern("contradiction.found"),
-	}
-}
-
-func (p *DisputePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *BreachPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
 	breaches := 0
 	for _, ev := range events {
-		if strings.HasPrefix(ev.Type().Value(), "contract.") || strings.HasPrefix(ev.Type().Value(), "obligation.") {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "obligation.") || strings.HasPrefix(t, "violation.") {
 			breaches++
 		}
 	}
 	return []primitive.Mutation{
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "breachesDetected", Value: breaches},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// --- Group C: Value Transfer ---
+
+// ExchangePrimitive manages the actual transfer of value between parties.
+type ExchangePrimitive struct{}
+
+func NewExchangePrimitive() *ExchangePrimitive { return &ExchangePrimitive{} }
+
+func (p *ExchangePrimitive) ID() types.PrimitiveID          { return types.MustPrimitiveID("Exchange") }
+func (p *ExchangePrimitive) Layer() types.Layer              { return layer2 }
+func (p *ExchangePrimitive) Lifecycle() types.LifecycleState { return types.LifecycleActive }
+func (p *ExchangePrimitive) Cadence() types.Cadence          { return cadence1 }
+func (p *ExchangePrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("fulfillment.*"),
+		types.MustSubscriptionPattern("agreement.*"),
+		types.MustSubscriptionPattern("resource.*"),
+	}
+}
+
+func (p *ExchangePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "fulfillment.") || strings.HasPrefix(t, "agreement.") || strings.HasPrefix(t, "resource.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// AccountabilityPrimitive tracks who is responsible for what in an exchange.
+type AccountabilityPrimitive struct{}
+
+func NewAccountabilityPrimitive() *AccountabilityPrimitive { return &AccountabilityPrimitive{} }
+
+func (p *AccountabilityPrimitive) ID() types.PrimitiveID          { return types.MustPrimitiveID("Accountability") }
+func (p *AccountabilityPrimitive) Layer() types.Layer              { return layer2 }
+func (p *AccountabilityPrimitive) Lifecycle() types.LifecycleState { return types.LifecycleActive }
+func (p *AccountabilityPrimitive) Cadence() types.Cadence          { return cadence1 }
+func (p *AccountabilityPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("breach.*"),
+		types.MustSubscriptionPattern("fulfillment.*"),
+		types.MustSubscriptionPattern("consequence.*"),
+	}
+}
+
+func (p *AccountabilityPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "breach.") || strings.HasPrefix(t, "fulfillment.") || strings.HasPrefix(t, "consequence.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// DebtPrimitive tracks outstanding value owed between actors.
+type DebtPrimitive struct{}
+
+func NewDebtPrimitive() *DebtPrimitive { return &DebtPrimitive{} }
+
+func (p *DebtPrimitive) ID() types.PrimitiveID          { return types.MustPrimitiveID("Debt") }
+func (p *DebtPrimitive) Layer() types.Layer              { return layer2 }
+func (p *DebtPrimitive) Lifecycle() types.LifecycleState { return types.LifecycleActive }
+func (p *DebtPrimitive) Cadence() types.Cadence          { return cadence1 }
+func (p *DebtPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("obligation.*"),
+		types.MustSubscriptionPattern("exchange.*"),
+		types.MustSubscriptionPattern("breach.*"),
+	}
+}
+
+func (p *DebtPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "obligation.") || strings.HasPrefix(t, "exchange.") || strings.HasPrefix(t, "breach.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// ReciprocityPrimitive tracks the balance of give-and-take between actors over time.
+type ReciprocityPrimitive struct{}
+
+func NewReciprocityPrimitive() *ReciprocityPrimitive { return &ReciprocityPrimitive{} }
+
+func (p *ReciprocityPrimitive) ID() types.PrimitiveID          { return types.MustPrimitiveID("Reciprocity") }
+func (p *ReciprocityPrimitive) Layer() types.Layer              { return layer2 }
+func (p *ReciprocityPrimitive) Lifecycle() types.LifecycleState { return types.LifecycleActive }
+func (p *ReciprocityPrimitive) Cadence() types.Cadence          { return cadence1 }
+func (p *ReciprocityPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("exchange.*"),
+		types.MustSubscriptionPattern("debt.*"),
+		types.MustSubscriptionPattern("trust.*"),
+	}
+}
+
+func (p *ReciprocityPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "exchange.") || strings.HasPrefix(t, "debt.") || strings.HasPrefix(t, "trust.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }

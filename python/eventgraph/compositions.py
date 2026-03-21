@@ -251,7 +251,7 @@ class WorkGrammar:
         subtasks: list[str], assignees: list[ActorID], scopes: list[DomainScope],
         causes: list[EventID], conv_id: ConversationID, signer: Signer,
     ) -> SprintResult:
-        """Plan a work cycle: Intend + Decompose + Assign (batch)."""
+        """Run a work cycle: Intend + Decompose + Assign (batch)."""
         if len(subtasks) != len(assignees) or len(subtasks) != len(scopes):
             raise ValueError("sprint: subtasks, assignees, and scopes must have equal length")
 

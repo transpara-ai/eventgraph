@@ -210,7 +210,7 @@ export class SoulPrimitive implements Primitive {
   }
 }
 
-export class ModelPrimitive implements Primitive {
+export class AgentModelPrimitive implements Primitive {
   id() { return new PrimitiveId("agent.Model"); }
   layer() { return AGENT_LAYER; }
   cadence() { return CADENCE_1; }
@@ -284,7 +284,7 @@ export class StatePrimitive implements Primitive {
   }
 }
 
-export class AuthorityPrimitive implements Primitive {
+export class AgentAuthorityPrimitive implements Primitive {
   id() { return new PrimitiveId("agent.Authority"); }
   layer() { return AGENT_LAYER; }
   cadence() { return CADENCE_1; }
@@ -513,7 +513,7 @@ export class DecidePrimitive implements Primitive {
   }
 }
 
-export class ActPrimitive implements Primitive {
+export class AgentActPrimitive implements Primitive {
   id() { return new PrimitiveId("agent.Act"); }
   layer() { return AGENT_LAYER; }
   cadence() { return CADENCE_1; }
@@ -656,7 +656,7 @@ export class CommunicatePrimitive implements Primitive {
   }
 }
 
-export class RepairPrimitive implements Primitive {
+export class AgentRepairPrimitive implements Primitive {
   id() { return new PrimitiveId("agent.Repair"); }
   layer() { return AGENT_LAYER; }
   cadence() { return CADENCE_1; }
@@ -733,7 +733,7 @@ export class AgentConsentPrimitive implements Primitive {
   }
 }
 
-export class ChannelPrimitive implements Primitive {
+export class AgentChannelPrimitive implements Primitive {
   id() { return new PrimitiveId("agent.Channel"); }
   layer() { return AGENT_LAYER; }
   cadence() { return CADENCE_1; }
@@ -831,10 +831,10 @@ export function allAgentPrimitives(): Primitive[] {
     // Structural (11)
     new IdentityPrimitive(),
     new SoulPrimitive(),
-    new ModelPrimitive(),
+    new AgentModelPrimitive(),
     new AgentMemoryPrimitive(),
     new StatePrimitive(),
-    new AuthorityPrimitive(),
+    new AgentAuthorityPrimitive(),
     new TrustPrimitive(),
     new BudgetPrimitive(),
     new AgentRolePrimitive(),
@@ -845,18 +845,18 @@ export function allAgentPrimitives(): Primitive[] {
     new ProbePrimitive(),
     new EvaluatePrimitive(),
     new DecidePrimitive(),
-    new ActPrimitive(),
+    new AgentActPrimitive(),
     new DelegatePrimitive(),
     new EscalatePrimitive(),
     new RefusePrimitive(),
     new LearnPrimitive(),
     new IntrospectPrimitive(),
     new CommunicatePrimitive(),
-    new RepairPrimitive(),
+    new AgentRepairPrimitive(),
     new ExpectPrimitive(),
     // Relational (3)
     new AgentConsentPrimitive(),
-    new ChannelPrimitive(),
+    new AgentChannelPrimitive(),
     new CompositionPrimitive(),
     // Modal (1)
     new AttenuationPrimitive(),

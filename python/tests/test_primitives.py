@@ -77,9 +77,10 @@ class TestCreateAllPrimitives:
         assert len(create_all_primitives()) == 201
 
     def test_all_unique_ids(self) -> None:
+        """Primitive IDs must be globally unique across all layers."""
         primitives = create_all_primitives()
         ids = [p.id().value for p in primitives]
-        assert len(set(ids)) == 201, f"Duplicate IDs found: {[x for x in ids if ids.count(x) > 1]}"
+        assert len(ids) == len(set(ids)), f"Duplicate IDs found: {[x for x in ids if ids.count(x) > 1]}"
 
 
 # ---------------------------------------------------------------------------
@@ -212,7 +213,8 @@ class TestSpecificPrimitives:
         p = WonderPrimitive()
         assert p.id().value == "Wonder"
         assert p.layer().value == 13
-        assert SubscriptionPattern("*") in p.subscriptions()
+        subs = [s.value for s in p.subscriptions()]
+        assert "mystery.*" in subs
 
     def test_deception_indicator_multi_sub(self) -> None:
         from eventgraph.primitives import DeceptionIndicatorPrimitive

@@ -1,10 +1,12 @@
 // Package layer11 implements the Layer 11 Culture primitives.
-// Groups: Reflection (SelfAwareness, Perspective, Critique, Wisdom),
-// Expression (Aesthetic, Metaphor, Humour, Silence),
-// Transmission (Teaching, Translation, Archive, Prophecy).
+// Groups: CulturalAwareness (Reflexivity, Encounter, Translation, Pluralism),
+// CulturalCreation (Creativity, Aesthetic, Interpretation, Dialogue),
+// CulturalDynamics (Syncretism, Critique, Hegemony, CulturalEvolution).
 package layer11
 
 import (
+	"strings"
+
 	"github.com/lovyou-ai/eventgraph/go/pkg/event"
 	"github.com/lovyou-ai/eventgraph/go/pkg/primitive"
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
@@ -13,108 +15,166 @@ import (
 var layer11 = types.MustLayer(11)
 var cadence1 = types.MustCadence(1)
 
-// --- Group 0: Reflection ---
+// --- Group A: Cultural Awareness ---
 
-// SelfAwarenessPrimitive reports on the system's awareness of its own processes.
-type SelfAwarenessPrimitive struct{}
+// ReflexivityPrimitive turns awareness back on itself, examining the cultural assumptions embedded in observation.
+type ReflexivityPrimitive struct{}
 
-func NewSelfAwarenessPrimitive() *SelfAwarenessPrimitive { return &SelfAwarenessPrimitive{} }
+func NewReflexivityPrimitive() *ReflexivityPrimitive { return &ReflexivityPrimitive{} }
 
-func (p *SelfAwarenessPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("SelfAwareness") }
-func (p *SelfAwarenessPrimitive) Layer() types.Layer               { return layer11 }
-func (p *SelfAwarenessPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *SelfAwarenessPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *SelfAwarenessPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *ReflexivityPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Reflexivity") }
+func (p *ReflexivityPrimitive) Layer() types.Layer               { return layer11 }
+func (p *ReflexivityPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *ReflexivityPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *ReflexivityPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("health.*"),
+		types.MustSubscriptionPattern("culture.*"),
+		types.MustSubscriptionPattern("critique.*"),
 		types.MustSubscriptionPattern("self.model.*"),
-		types.MustSubscriptionPattern("bias.detected"),
 	}
 }
 
-func (p *SelfAwarenessPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *ReflexivityPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "culture.") || strings.HasPrefix(t, "critique.") || strings.HasPrefix(t, "self.model.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// PerspectivePrimitive sees from different viewpoints.
-type PerspectivePrimitive struct{}
+// EncounterPrimitive registers contact with cultural otherness — perspectives, practices, or values unlike one's own.
+type EncounterPrimitive struct{}
 
-func NewPerspectivePrimitive() *PerspectivePrimitive { return &PerspectivePrimitive{} }
+func NewEncounterPrimitive() *EncounterPrimitive { return &EncounterPrimitive{} }
 
-func (p *PerspectivePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Perspective") }
-func (p *PerspectivePrimitive) Layer() types.Layer               { return layer11 }
-func (p *PerspectivePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *PerspectivePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *PerspectivePrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *EncounterPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Encounter") }
+func (p *EncounterPrimitive) Layer() types.Layer               { return layer11 }
+func (p *EncounterPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *EncounterPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *EncounterPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("narrative.*"),
+		types.MustSubscriptionPattern("actor.*"),
+		types.MustSubscriptionPattern("perspective.*"),
+		types.MustSubscriptionPattern("dialogue.*"),
+	}
+}
+
+func (p *EncounterPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "actor.") || strings.HasPrefix(t, "perspective.") || strings.HasPrefix(t, "dialogue.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// TranslationPrimitive makes meaning accessible across cultural boundaries without collapsing difference.
+type TranslationPrimitive struct{}
+
+func NewTranslationPrimitive() *TranslationPrimitive { return &TranslationPrimitive{} }
+
+func (p *TranslationPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Translation") }
+func (p *TranslationPrimitive) Layer() types.Layer               { return layer11 }
+func (p *TranslationPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *TranslationPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *TranslationPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("encounter.*"),
+		types.MustSubscriptionPattern("encoding.*"),
+		types.MustSubscriptionPattern("message.*"),
+	}
+}
+
+func (p *TranslationPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "encounter.") || strings.HasPrefix(t, "encoding.") || strings.HasPrefix(t, "message.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// PluralismPrimitive sustains multiple coexisting value systems and cultural frameworks without requiring resolution.
+type PluralismPrimitive struct{}
+
+func NewPluralismPrimitive() *PluralismPrimitive { return &PluralismPrimitive{} }
+
+func (p *PluralismPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Pluralism") }
+func (p *PluralismPrimitive) Layer() types.Layer               { return layer11 }
+func (p *PluralismPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *PluralismPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *PluralismPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("value.*"),
 		types.MustSubscriptionPattern("dissent.*"),
-		types.MustSubscriptionPattern("value.conflict"),
+		types.MustSubscriptionPattern("encounter.*"),
 	}
 }
 
-func (p *PerspectivePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *PluralismPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "value.") || strings.HasPrefix(t, "dissent.") || strings.HasPrefix(t, "encounter.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// CritiquePrimitive questions what is taken for granted.
-type CritiquePrimitive struct{}
+// --- Group B: Cultural Creation ---
 
-func NewCritiquePrimitive() *CritiquePrimitive { return &CritiquePrimitive{} }
+// CreativityPrimitive generates novel cultural forms — ideas, artefacts, practices — that did not previously exist.
+type CreativityPrimitive struct{}
 
-func (p *CritiquePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Critique") }
-func (p *CritiquePrimitive) Layer() types.Layer               { return layer11 }
-func (p *CritiquePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *CritiquePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *CritiquePrimitive) Subscriptions() []types.SubscriptionPattern {
+func NewCreativityPrimitive() *CreativityPrimitive { return &CreativityPrimitive{} }
+
+func (p *CreativityPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Creativity") }
+func (p *CreativityPrimitive) Layer() types.Layer               { return layer11 }
+func (p *CreativityPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *CreativityPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *CreativityPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("convention.*"),
-		types.MustSubscriptionPattern("norm.*"),
-		types.MustSubscriptionPattern("tradition.*"),
+		types.MustSubscriptionPattern("innovation.*"),
+		types.MustSubscriptionPattern("artefact.*"),
+		types.MustSubscriptionPattern("aesthetic.*"),
 	}
 }
 
-func (p *CritiquePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *CreativityPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "innovation.") || strings.HasPrefix(t, "artefact.") || strings.HasPrefix(t, "aesthetic.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// WisdomPrimitive distils knowledge of what matters and what doesn't.
-type WisdomPrimitive struct{}
-
-func NewWisdomPrimitive() *WisdomPrimitive { return &WisdomPrimitive{} }
-
-func (p *WisdomPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Wisdom") }
-func (p *WisdomPrimitive) Layer() types.Layer               { return layer11 }
-func (p *WisdomPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *WisdomPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *WisdomPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("learning.*"),
-		types.MustSubscriptionPattern("moral.growth"),
-		types.MustSubscriptionPattern("consequence.*"),
-		types.MustSubscriptionPattern("memory.*"),
-	}
-}
-
-func (p *WisdomPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// --- Group 1: Expression ---
-
-// AestheticPrimitive assesses beauty, elegance, and form.
+// AestheticPrimitive assesses beauty, elegance, and form as culturally meaningful qualities.
 type AestheticPrimitive struct{}
 
 func NewAestheticPrimitive() *AestheticPrimitive { return &AestheticPrimitive{} }
@@ -127,181 +187,210 @@ func (p *AestheticPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
 		types.MustSubscriptionPattern("artefact.*"),
 		types.MustSubscriptionPattern("quality.*"),
+		types.MustSubscriptionPattern("creativity.*"),
 	}
 }
 
 func (p *AestheticPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "artefact.") || strings.HasPrefix(t, "quality.") || strings.HasPrefix(t, "creativity.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// MetaphorPrimitive understands one thing in terms of another.
-type MetaphorPrimitive struct{}
+// InterpretationPrimitive constructs meaning from cultural artefacts, events, and symbols.
+type InterpretationPrimitive struct{}
 
-func NewMetaphorPrimitive() *MetaphorPrimitive { return &MetaphorPrimitive{} }
+func NewInterpretationPrimitive() *InterpretationPrimitive { return &InterpretationPrimitive{} }
 
-func (p *MetaphorPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Metaphor") }
-func (p *MetaphorPrimitive) Layer() types.Layer               { return layer11 }
-func (p *MetaphorPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *MetaphorPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *MetaphorPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *InterpretationPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Interpretation") }
+func (p *InterpretationPrimitive) Layer() types.Layer               { return layer11 }
+func (p *InterpretationPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *InterpretationPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *InterpretationPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("abstraction.*"),
 		types.MustSubscriptionPattern("symbol.*"),
 		types.MustSubscriptionPattern("narrative.*"),
+		types.MustSubscriptionPattern("abstraction.*"),
 	}
 }
 
-func (p *MetaphorPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *InterpretationPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "symbol.") || strings.HasPrefix(t, "narrative.") || strings.HasPrefix(t, "abstraction.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// HumourPrimitive finds incongruity, lightness, and play.
-type HumourPrimitive struct{}
+// DialoguePrimitive sustains open-ended exchange between cultural perspectives that transforms both participants.
+type DialoguePrimitive struct{}
 
-func NewHumourPrimitive() *HumourPrimitive { return &HumourPrimitive{} }
+func NewDialoguePrimitive() *DialoguePrimitive { return &DialoguePrimitive{} }
 
-func (p *HumourPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Humour") }
-func (p *HumourPrimitive) Layer() types.Layer               { return layer11 }
-func (p *HumourPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *HumourPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *HumourPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *DialoguePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Dialogue") }
+func (p *DialoguePrimitive) Layer() types.Layer               { return layer11 }
+func (p *DialoguePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *DialoguePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *DialoguePrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("contradiction.found"),
-		types.MustSubscriptionPattern("perspective.shift"),
-		types.MustSubscriptionPattern("*"),
+		types.MustSubscriptionPattern("encounter.*"),
+		types.MustSubscriptionPattern("signal.*"),
+		types.MustSubscriptionPattern("pluralism.*"),
 	}
 }
 
-func (p *HumourPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *DialoguePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "encounter.") || strings.HasPrefix(t, "signal.") || strings.HasPrefix(t, "pluralism.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// SilencePrimitive detects what is communicated by absence.
-type SilencePrimitive struct{}
+// --- Group C: Cultural Dynamics ---
 
-func NewSilencePrimitive() *SilencePrimitive { return &SilencePrimitive{} }
+// SyncretismPrimitive blends elements from different cultural traditions into new hybrid forms.
+type SyncretismPrimitive struct{}
 
-func (p *SilencePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Silence") }
-func (p *SilencePrimitive) Layer() types.Layer               { return layer11 }
-func (p *SilencePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *SilencePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *SilencePrimitive) Subscriptions() []types.SubscriptionPattern {
+func NewSyncretismPrimitive() *SyncretismPrimitive { return &SyncretismPrimitive{} }
+
+func (p *SyncretismPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Syncretism") }
+func (p *SyncretismPrimitive) Layer() types.Layer               { return layer11 }
+func (p *SyncretismPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *SyncretismPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *SyncretismPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("clock.tick"),
-		types.MustSubscriptionPattern("presence.*"),
-		types.MustSubscriptionPattern("acknowledgement.absent"),
+		types.MustSubscriptionPattern("pluralism.*"),
+		types.MustSubscriptionPattern("translation.*"),
+		types.MustSubscriptionPattern("creativity.*"),
 	}
 }
 
-func (p *SilencePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *SyncretismPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "pluralism.") || strings.HasPrefix(t, "translation.") || strings.HasPrefix(t, "creativity.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// --- Group 2: Transmission ---
+// CritiquePrimitive questions what is taken for granted, exposing hidden assumptions and power structures.
+type CritiquePrimitive struct{}
 
-// TeachingPrimitive deliberately shares knowledge.
-type TeachingPrimitive struct{}
+func NewCritiquePrimitive() *CritiquePrimitive { return &CritiquePrimitive{} }
 
-func NewTeachingPrimitive() *TeachingPrimitive { return &TeachingPrimitive{} }
-
-func (p *TeachingPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Teaching") }
-func (p *TeachingPrimitive) Layer() types.Layer               { return layer11 }
-func (p *TeachingPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *TeachingPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *TeachingPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *CritiquePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Critique") }
+func (p *CritiquePrimitive) Layer() types.Layer               { return layer11 }
+func (p *CritiquePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *CritiquePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *CritiquePrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("learning.*"),
-		types.MustSubscriptionPattern("wisdom.*"),
-		types.MustSubscriptionPattern("memory.*"),
+		types.MustSubscriptionPattern("convention.*"),
+		types.MustSubscriptionPattern("norm.*"),
+		types.MustSubscriptionPattern("hegemony.*"),
 	}
 }
 
-func (p *TeachingPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *CritiquePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "convention.") || strings.HasPrefix(t, "norm.") || strings.HasPrefix(t, "hegemony.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// TranslationPrimitive makes meaning accessible across boundaries.
-type TranslationPrimitive struct{}
+// HegemonyPrimitive detects when one cultural framework dominates others, suppressing alternatives.
+type HegemonyPrimitive struct{}
 
-func NewTranslationPrimitive() *TranslationPrimitive { return &TranslationPrimitive{} }
+func NewHegemonyPrimitive() *HegemonyPrimitive { return &HegemonyPrimitive{} }
 
-func (p *TranslationPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Translation") }
-func (p *TranslationPrimitive) Layer() types.Layer               { return layer11 }
-func (p *TranslationPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *TranslationPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *TranslationPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *HegemonyPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Hegemony") }
+func (p *HegemonyPrimitive) Layer() types.Layer               { return layer11 }
+func (p *HegemonyPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *HegemonyPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *HegemonyPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("encoding.*"),
-		types.MustSubscriptionPattern("message.*"),
+		types.MustSubscriptionPattern("dominance.*"),
+		types.MustSubscriptionPattern("norm.*"),
+		types.MustSubscriptionPattern("critique.*"),
 	}
 }
 
-func (p *TranslationPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *HegemonyPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "dominance.") || strings.HasPrefix(t, "norm.") || strings.HasPrefix(t, "critique.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// ArchivePrimitive preserves knowledge for the future.
-type ArchivePrimitive struct{}
+// CulturalEvolutionPrimitive tracks how cultural forms change over time through variation, selection, and transmission.
+type CulturalEvolutionPrimitive struct{}
 
-func NewArchivePrimitive() *ArchivePrimitive { return &ArchivePrimitive{} }
+func NewCulturalEvolutionPrimitive() *CulturalEvolutionPrimitive {
+	return &CulturalEvolutionPrimitive{}
+}
 
-func (p *ArchivePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Archive") }
-func (p *ArchivePrimitive) Layer() types.Layer               { return layer11 }
-func (p *ArchivePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *ArchivePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *ArchivePrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *CulturalEvolutionPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("CulturalEvolution") }
+func (p *CulturalEvolutionPrimitive) Layer() types.Layer               { return layer11 }
+func (p *CulturalEvolutionPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *CulturalEvolutionPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *CulturalEvolutionPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("memory.*"),
-		types.MustSubscriptionPattern("legacy.*"),
-		types.MustSubscriptionPattern("community.story"),
+		types.MustSubscriptionPattern("syncretism.*"),
+		types.MustSubscriptionPattern("adaptation.*"),
+		types.MustSubscriptionPattern("tradition.*"),
 	}
 }
 
-func (p *ArchivePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// ProphecyPrimitive anticipates what might come.
-type ProphecyPrimitive struct{}
-
-func NewProphecyPrimitive() *ProphecyPrimitive { return &ProphecyPrimitive{} }
-
-func (p *ProphecyPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Prophecy") }
-func (p *ProphecyPrimitive) Layer() types.Layer               { return layer11 }
-func (p *ProphecyPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *ProphecyPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *ProphecyPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("pattern.detected"),
-		types.MustSubscriptionPattern("sustainability.*"),
-		types.MustSubscriptionPattern("wisdom.*"),
+func (p *CulturalEvolutionPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "syncretism.") || strings.HasPrefix(t, "adaptation.") || strings.HasPrefix(t, "tradition.") {
+			relevant++
+		}
 	}
-}
-
-func (p *ProphecyPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }

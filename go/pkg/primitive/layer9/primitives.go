@@ -1,10 +1,12 @@
 // Package layer9 implements the Layer 9 Relationship primitives.
-// Groups: Bond (Attachment, Reciprocity, RelationalTrust, Rupture),
-// Repair (Apology, Reconciliation, RelationalGrowth, Loss),
-// Intimacy (Vulnerability, Understanding, Empathy, Presence).
+// Groups: Connection (Bond, Attachment, Recognition, Intimacy),
+// RelationalDynamics (Attunement, Rupture, Repair, Loyalty),
+// RelationalIdentity (MutualConstitution, RelationalObligation, Grief, Forgiveness).
 package layer9
 
 import (
+	"strings"
+
 	"github.com/lovyou-ai/eventgraph/go/pkg/event"
 	"github.com/lovyou-ai/eventgraph/go/pkg/primitive"
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
@@ -13,9 +15,40 @@ import (
 var layer9 = types.MustLayer(9)
 var cadence1 = types.MustCadence(1)
 
-// --- Group 0: Bond ---
+// --- Group A: Connection ---
 
-// AttachmentPrimitive assesses the strength and quality of connections.
+// BondPrimitive tracks the formation and strength of connections between actors.
+type BondPrimitive struct{}
+
+func NewBondPrimitive() *BondPrimitive { return &BondPrimitive{} }
+
+func (p *BondPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Bond") }
+func (p *BondPrimitive) Layer() types.Layer               { return layer9 }
+func (p *BondPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *BondPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *BondPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("trust.*"),
+		types.MustSubscriptionPattern("attachment.*"),
+		types.MustSubscriptionPattern("edge.created"),
+	}
+}
+
+func (p *BondPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "trust.") || strings.HasPrefix(t, "attachment.") || strings.HasPrefix(t, "edge.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// AttachmentPrimitive assesses the quality and security of connections.
 type AttachmentPrimitive struct{}
 
 func NewAttachmentPrimitive() *AttachmentPrimitive { return &AttachmentPrimitive{} }
@@ -26,69 +59,122 @@ func (p *AttachmentPrimitive) Lifecycle() types.LifecycleState  { return types.L
 func (p *AttachmentPrimitive) Cadence() types.Cadence           { return cadence1 }
 func (p *AttachmentPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("trust.*"),
-		types.MustSubscriptionPattern("gratitude.*"),
-		types.MustSubscriptionPattern("message.*"),
-		types.MustSubscriptionPattern("edge.created"),
+		types.MustSubscriptionPattern("bond.*"),
+		types.MustSubscriptionPattern("presence.*"),
+		types.MustSubscriptionPattern("care.*"),
 	}
 }
 
 func (p *AttachmentPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "bond.") || strings.HasPrefix(t, "presence.") || strings.HasPrefix(t, "care.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// ReciprocityPrimitive assesses the balance of give and take over time.
-type ReciprocityPrimitive struct{}
+// RecognitionPrimitive tracks being seen and acknowledged by another.
+type RecognitionPrimitive struct{}
 
-func NewReciprocityPrimitive() *ReciprocityPrimitive { return &ReciprocityPrimitive{} }
+func NewRecognitionPrimitive() *RecognitionPrimitive { return &RecognitionPrimitive{} }
 
-func (p *ReciprocityPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Reciprocity") }
-func (p *ReciprocityPrimitive) Layer() types.Layer               { return layer9 }
-func (p *ReciprocityPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *ReciprocityPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *ReciprocityPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *RecognitionPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Recognition") }
+func (p *RecognitionPrimitive) Layer() types.Layer               { return layer9 }
+func (p *RecognitionPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *RecognitionPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *RecognitionPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("obligation.*"),
+		types.MustSubscriptionPattern("acknowledgment.*"),
 		types.MustSubscriptionPattern("gratitude.*"),
-		types.MustSubscriptionPattern("offer.*"),
+		types.MustSubscriptionPattern("message.*"),
 	}
 }
 
-func (p *ReciprocityPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *RecognitionPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "acknowledgment.") || strings.HasPrefix(t, "gratitude.") || strings.HasPrefix(t, "message.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// RelationalTrustPrimitive manages trust at the relationship level — deeper than Layer 0 transactional trust.
-type RelationalTrustPrimitive struct{}
+// IntimacyPrimitive measures depth of mutual knowledge and vulnerability between actors.
+type IntimacyPrimitive struct{}
 
-func NewRelationalTrustPrimitive() *RelationalTrustPrimitive { return &RelationalTrustPrimitive{} }
+func NewIntimacyPrimitive() *IntimacyPrimitive { return &IntimacyPrimitive{} }
 
-func (p *RelationalTrustPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("RelationalTrust") }
-func (p *RelationalTrustPrimitive) Layer() types.Layer               { return layer9 }
-func (p *RelationalTrustPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *RelationalTrustPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *RelationalTrustPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *IntimacyPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Intimacy") }
+func (p *IntimacyPrimitive) Layer() types.Layer               { return layer9 }
+func (p *IntimacyPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *IntimacyPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *IntimacyPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("vulnerability.*"),
 		types.MustSubscriptionPattern("trust.*"),
-		types.MustSubscriptionPattern("attachment.*"),
-		types.MustSubscriptionPattern("reciprocity.*"),
+		types.MustSubscriptionPattern("boundary.*"),
 	}
 }
 
-func (p *RelationalTrustPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *IntimacyPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "vulnerability.") || strings.HasPrefix(t, "trust.") || strings.HasPrefix(t, "boundary.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// RupturePrimitive detects when relationships break.
+// --- Group B: Relational Dynamics ---
+
+// AttunementPrimitive detects responsiveness and synchronisation between actors.
+type AttunementPrimitive struct{}
+
+func NewAttunementPrimitive() *AttunementPrimitive { return &AttunementPrimitive{} }
+
+func (p *AttunementPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Attunement") }
+func (p *AttunementPrimitive) Layer() types.Layer               { return layer9 }
+func (p *AttunementPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *AttunementPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *AttunementPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("signal.*"),
+		types.MustSubscriptionPattern("recognition.*"),
+		types.MustSubscriptionPattern("empathy.*"),
+	}
+}
+
+func (p *AttunementPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "signal.") || strings.HasPrefix(t, "recognition.") || strings.HasPrefix(t, "empathy.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// RupturePrimitive detects when relationships break or are damaged.
 type RupturePrimitive struct{}
 
 func NewRupturePrimitive() *RupturePrimitive { return &RupturePrimitive{} }
@@ -102,206 +188,212 @@ func (p *RupturePrimitive) Subscriptions() []types.SubscriptionPattern {
 		types.MustSubscriptionPattern("contract.breached"),
 		types.MustSubscriptionPattern("trust.*"),
 		types.MustSubscriptionPattern("dispute.*"),
-		types.MustSubscriptionPattern("dignity.violated"),
+		types.MustSubscriptionPattern("harm.*"),
 	}
 }
 
 func (p *RupturePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// --- Group 1: Repair ---
-
-// ApologyPrimitive acknowledges harm caused.
-type ApologyPrimitive struct{}
-
-func NewApologyPrimitive() *ApologyPrimitive { return &ApologyPrimitive{} }
-
-func (p *ApologyPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Apology") }
-func (p *ApologyPrimitive) Layer() types.Layer               { return layer9 }
-func (p *ApologyPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *ApologyPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *ApologyPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("rupture.detected"),
-		types.MustSubscriptionPattern("harm.*"),
-		types.MustSubscriptionPattern("responsibility.*"),
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "contract.") || strings.HasPrefix(t, "trust.") || strings.HasPrefix(t, "dispute.") || strings.HasPrefix(t, "harm.") {
+			relevant++
+		}
 	}
-}
-
-func (p *ApologyPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// ReconciliationPrimitive rebuilds relationships after rupture.
-type ReconciliationPrimitive struct{}
+// RepairPrimitive rebuilds relationships after rupture.
+type RepairPrimitive struct{}
 
-func NewReconciliationPrimitive() *ReconciliationPrimitive { return &ReconciliationPrimitive{} }
+func NewRepairPrimitive() *RepairPrimitive { return &RepairPrimitive{} }
 
-func (p *ReconciliationPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Reconciliation") }
-func (p *ReconciliationPrimitive) Layer() types.Layer               { return layer9 }
-func (p *ReconciliationPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *ReconciliationPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *ReconciliationPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *RepairPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Repair") }
+func (p *RepairPrimitive) Layer() types.Layer               { return layer9 }
+func (p *RepairPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *RepairPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *RepairPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("rupture.*"),
 		types.MustSubscriptionPattern("apology.*"),
 		types.MustSubscriptionPattern("forgiveness.*"),
-		types.MustSubscriptionPattern("trust.*"),
 	}
 }
 
-func (p *ReconciliationPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *RepairPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "rupture.") || strings.HasPrefix(t, "apology.") || strings.HasPrefix(t, "forgiveness.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// RelationalGrowthPrimitive tracks relationships becoming stronger through adversity.
-type RelationalGrowthPrimitive struct{}
+// LoyaltyPrimitive tracks sustained commitment to a relationship through difficulty.
+type LoyaltyPrimitive struct{}
 
-func NewRelationalGrowthPrimitive() *RelationalGrowthPrimitive { return &RelationalGrowthPrimitive{} }
+func NewLoyaltyPrimitive() *LoyaltyPrimitive { return &LoyaltyPrimitive{} }
 
-func (p *RelationalGrowthPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("RelationalGrowth") }
-func (p *RelationalGrowthPrimitive) Layer() types.Layer               { return layer9 }
-func (p *RelationalGrowthPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *RelationalGrowthPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *RelationalGrowthPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *LoyaltyPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Loyalty") }
+func (p *LoyaltyPrimitive) Layer() types.Layer               { return layer9 }
+func (p *LoyaltyPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *LoyaltyPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *LoyaltyPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("reconciliation.*"),
-		types.MustSubscriptionPattern("attachment.*"),
+		types.MustSubscriptionPattern("commitment.*"),
+		types.MustSubscriptionPattern("bond.*"),
+		types.MustSubscriptionPattern("repair.*"),
 	}
 }
 
-func (p *RelationalGrowthPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *LoyaltyPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "commitment.") || strings.HasPrefix(t, "bond.") || strings.HasPrefix(t, "repair.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// LossPrimitive processes when a relationship ends permanently.
-type LossPrimitive struct{}
+// --- Group C: Relational Identity ---
 
-func NewLossPrimitive() *LossPrimitive { return &LossPrimitive{} }
+// MutualConstitutionPrimitive tracks how actors shape each other's identities through relationship.
+type MutualConstitutionPrimitive struct{}
 
-func (p *LossPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Loss") }
-func (p *LossPrimitive) Layer() types.Layer               { return layer9 }
-func (p *LossPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *LossPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *LossPrimitive) Subscriptions() []types.SubscriptionPattern {
+func NewMutualConstitutionPrimitive() *MutualConstitutionPrimitive {
+	return &MutualConstitutionPrimitive{}
+}
+
+func (p *MutualConstitutionPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("MutualConstitution") }
+func (p *MutualConstitutionPrimitive) Layer() types.Layer               { return layer9 }
+func (p *MutualConstitutionPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *MutualConstitutionPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *MutualConstitutionPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("identity.*"),
+		types.MustSubscriptionPattern("bond.*"),
+		types.MustSubscriptionPattern("intimacy.*"),
+	}
+}
+
+func (p *MutualConstitutionPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "identity.") || strings.HasPrefix(t, "bond.") || strings.HasPrefix(t, "intimacy.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// RelationalObligationPrimitive tracks responsibilities that arise from relationships.
+type RelationalObligationPrimitive struct{}
+
+func NewRelationalObligationPrimitive() *RelationalObligationPrimitive {
+	return &RelationalObligationPrimitive{}
+}
+
+func (p *RelationalObligationPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("RelationalObligation") }
+func (p *RelationalObligationPrimitive) Layer() types.Layer               { return layer9 }
+func (p *RelationalObligationPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *RelationalObligationPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *RelationalObligationPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("obligation.*"),
+		types.MustSubscriptionPattern("loyalty.*"),
+		types.MustSubscriptionPattern("commitment.*"),
+	}
+}
+
+func (p *RelationalObligationPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "obligation.") || strings.HasPrefix(t, "loyalty.") || strings.HasPrefix(t, "commitment.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// GriefPrimitive processes the loss of a relationship or a related actor.
+type GriefPrimitive struct{}
+
+func NewGriefPrimitive() *GriefPrimitive { return &GriefPrimitive{} }
+
+func (p *GriefPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Grief") }
+func (p *GriefPrimitive) Layer() types.Layer               { return layer9 }
+func (p *GriefPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *GriefPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *GriefPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
 		types.MustSubscriptionPattern("actor.memorial"),
-		types.MustSubscriptionPattern("rupture.*"),
-		types.MustSubscriptionPattern("exclusion.enacted"),
-	}
-}
-
-func (p *LossPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// --- Group 2: Intimacy ---
-
-// VulnerabilityPrimitive tracks willingness to be seen.
-type VulnerabilityPrimitive struct{}
-
-func NewVulnerabilityPrimitive() *VulnerabilityPrimitive { return &VulnerabilityPrimitive{} }
-
-func (p *VulnerabilityPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Vulnerability") }
-func (p *VulnerabilityPrimitive) Layer() types.Layer               { return layer9 }
-func (p *VulnerabilityPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *VulnerabilityPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *VulnerabilityPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("relational.trust"),
-		types.MustSubscriptionPattern("boundary.*"),
-	}
-}
-
-func (p *VulnerabilityPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// UnderstandingPrimitive assesses accurate knowledge of another's inner state.
-type UnderstandingPrimitive struct{}
-
-func NewUnderstandingPrimitive() *UnderstandingPrimitive { return &UnderstandingPrimitive{} }
-
-func (p *UnderstandingPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Understanding") }
-func (p *UnderstandingPrimitive) Layer() types.Layer               { return layer9 }
-func (p *UnderstandingPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *UnderstandingPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *UnderstandingPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("self.model.*"),
-		types.MustSubscriptionPattern("message.*"),
-		types.MustSubscriptionPattern("vulnerability.*"),
-	}
-}
-
-func (p *UnderstandingPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// EmpathyPrimitive feels with another.
-type EmpathyPrimitive struct{}
-
-func NewEmpathyPrimitive() *EmpathyPrimitive { return &EmpathyPrimitive{} }
-
-func (p *EmpathyPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Empathy") }
-func (p *EmpathyPrimitive) Layer() types.Layer               { return layer9 }
-func (p *EmpathyPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *EmpathyPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *EmpathyPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("harm.*"),
 		types.MustSubscriptionPattern("loss.*"),
-		types.MustSubscriptionPattern("understanding.*"),
+		types.MustSubscriptionPattern("rupture.*"),
 	}
 }
 
-func (p *EmpathyPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *GriefPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "actor.") || strings.HasPrefix(t, "loss.") || strings.HasPrefix(t, "rupture.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// PresencePrimitive notes simply being with another.
-type PresencePrimitive struct{}
+// ForgivenessPrimitive enables releasing resentment and restoring relational possibility.
+type ForgivenessPrimitive struct{}
 
-func NewPresencePrimitive() *PresencePrimitive { return &PresencePrimitive{} }
+func NewForgivenessPrimitive() *ForgivenessPrimitive { return &ForgivenessPrimitive{} }
 
-func (p *PresencePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Presence") }
-func (p *PresencePrimitive) Layer() types.Layer               { return layer9 }
-func (p *PresencePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *PresencePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *PresencePrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *ForgivenessPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Forgiveness") }
+func (p *ForgivenessPrimitive) Layer() types.Layer               { return layer9 }
+func (p *ForgivenessPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *ForgivenessPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *ForgivenessPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("message.*"),
-		types.MustSubscriptionPattern("clock.tick"),
+		types.MustSubscriptionPattern("repair.*"),
+		types.MustSubscriptionPattern("grief.*"),
+		types.MustSubscriptionPattern("harm.*"),
 	}
 }
 
-func (p *PresencePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *ForgivenessPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "repair.") || strings.HasPrefix(t, "grief.") || strings.HasPrefix(t, "harm.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }

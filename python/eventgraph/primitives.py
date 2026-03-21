@@ -136,222 +136,261 @@ BootstrapPrimitive       = _def("Bootstrap",            0, ["system.*"])
 # Layer 1 — Agency (12 primitives)
 # ===================================================================
 
-GoalPrimitive            = _def("Goal",                 1, ["decision.*", "authority.resolved", "actor.*"])
-PlanPrimitive            = _def("Plan",                 1, ["goal.*"])
-InitiativePrimitive      = _def("Initiative",           1, ["clock.tick", "goal.*", "plan.*"])
-CommitmentPrimitive      = _def("Commitment",           1, ["goal.set", "goal.achieved", "goal.abandoned", "plan.step.completed"])
-FocusPrimitive           = _def("Focus",                1, ["*"])
-FilterPrimitive          = _def("Filter",               1, ["*"])
-SaliencePrimitive        = _def("Salience",             1, ["*"])
-DistractionPrimitive     = _def("Distraction",          1, ["focus.*", "goal.*"])
-PermissionPrimitive      = _def("Permission",           1, ["authority.*", "decision.*"])
-CapabilityPrimitive      = _def("Capability",           1, ["actor.registered", "permission.*", "trust.*"])
-DelegationPrimitive      = _def("Delegation",           1, ["authority.*", "edge.created"])
-AccountabilityPrimitive  = _def("Accountability",       1, ["delegation.*", "violation.*", "goal.abandoned"])
+# Volition
+ValuePrimitive           = _def("Value",                1, ["decision.*", "actor.*"])
+IntentPrimitive          = _def("Intent",               1, ["value.*", "expectation.*"])
+ChoicePrimitive          = _def("Choice",               1, ["intent.*", "value.*", "confidence.*"])
+RiskPrimitive            = _def("Risk",                 1, ["intent.*", "uncertainty.*", "value.*"])
+# Action
+ActPrimitive             = _def("Act",                  1, ["choice.*", "intent.*"])
+ConsequencePrimitive     = _def("Consequence",          1, ["act.*", "violation.*"])
+CapacityPrimitive        = _def("Capacity",             1, ["actor.*", "resource.*", "trust.*"])
+ResourcePrimitive        = _def("Resource",             1, ["act.*", "budget.*"])
+# Communication
+SignalPrimitive          = _def("Signal",               1, ["act.*", "actor.*"])
+ReceptionPrimitive       = _def("Reception",            1, ["*"])
+AcknowledgmentPrimitive  = _def("Acknowledgment",       1, ["signal.*"])
+CommitmentPrimitive      = _def("Commitment",           1, ["signal.*", "agreement.*", "intent.*"])
 
 # ===================================================================
-# Layer 2 — Communication (11 primitives)
+# Layer 2 — Exchange (12 primitives)
 # ===================================================================
 
-MessagePrimitive         = _def("Message",              2, ["protocol.message.*"])
-AcknowledgementPrimitive = _def("Acknowledgement",      2, ["message.sent", "message.received"])
-ClarificationPrimitive   = _def("Clarification",       2, ["message.*", "ack.*"])
-ContextPrimitive         = _def("Context",              2, ["message.*", "clarification.*"])
-OfferPrimitive           = _def("Offer",                2, ["message.*", "exchange.*"])
-AcceptancePrimitive      = _def("Acceptance",           2, ["offer.made", "offer.withdrawn"])
-ObligationPrimitive      = _def("Obligation",           2, ["offer.accepted", "delegation.*"])
-GratitudePrimitive       = _def("Gratitude",            2, ["obligation.fulfilled", "trust.*"])
-NegotiationPrimitive     = _def("Negotiation",          2, ["offer.*", "message.*"])
-ConsentPrimitive         = _def("Consent",              2, ["negotiation.concluded", "offer.accepted", "authority.*"])
-ContractPrimitive        = _def("Contract",             2, ["consent.given", "negotiation.concluded"])
-DisputePrimitive         = _def("Dispute",              2, ["contract.breached", "obligation.defaulted", "contradiction.found"])
+# Common Ground
+TermPrimitive            = _def("Term",                 2, ["signal.*", "protocol.*"])
+ProtocolPrimitive        = _def("Protocol",             2, ["term.*", "agreement.*"])
+OfferPrimitive           = _def("Offer",                2, ["term.*", "value.*"])
+AcceptancePrimitive      = _def("Acceptance",           2, ["offer.*", "consent.*"])
+# Mutual Binding
+AgreementPrimitive       = _def("Agreement",            2, ["offer.*", "acceptance.*"])
+ObligationPrimitive      = _def("Obligation",           2, ["agreement.*", "commitment.*"])
+FulfillmentPrimitive     = _def("Fulfillment",          2, ["obligation.*", "act.*"])
+BreachPrimitive          = _def("Breach",               2, ["obligation.*", "violation.*"])
+# Value Transfer
+ExchangePrimitive        = _def("Exchange",             2, ["offer.*", "fulfillment.*"])
+AccountabilityPrimitive  = _def("Accountability",       2, ["obligation.*", "breach.*", "consequence.*"])
+DebtPrimitive            = _def("Debt",                 2, ["obligation.*", "exchange.*"])
+ReciprocityPrimitive     = _def("Reciprocity",          2, ["exchange.*", "obligation.*", "fulfillment.*"])
 
 # ===================================================================
-# Layer 3 — Social (12 primitives)
+# Layer 3 — Society (12 primitives)
 # ===================================================================
 
-GroupPrimitive           = _def("Group",                3, ["actor.*", "consent.*"])
-RolePrimitive            = _def("Role",                 3, ["group.*", "delegation.*"])
-ReputationPrimitive      = _def("Reputation",           3, ["trust.*", "commitment.*", "violation.*", "gratitude.*"])
-ExclusionPrimitive       = _def("Exclusion",            3, ["reputation.*", "violation.*", "quarantine.*", "dispute.*"])
-VotePrimitive            = _def("Vote",                 3, ["authority.requested", "group.*"])
-ConsensusPrimitive       = _def("Consensus",            3, ["message.*", "corroboration.*", "vote.result"])
-DissentPrimitive         = _def("Dissent",              3, ["vote.*", "consensus.*", "contradiction.found"])
-MajorityPrimitive        = _def("Majority",             3, ["vote.result", "dissent.*", "exclusion.*"])
-ConventionPrimitive      = _def("Convention",           3, ["pattern.detected", "*"])
-NormPrimitive            = _def("Norm",                 3, ["convention.detected", "consensus.reached"])
-SanctionPrimitive        = _def("Sanction",             3, ["norm.violated", "violation.*"])
-ForgivenessPrimitive     = _def("Forgiveness",          3, ["sanction.applied", "trust.*", "obligation.fulfilled"])
+# Collective Identity
+GroupPrimitive           = _def("Group",                3, ["actor.*", "agreement.*"])
+MembershipPrimitive      = _def("Membership",           3, ["group.*", "consent.*"])
+RolePrimitive            = _def("Role",                 3, ["group.*", "capacity.*"])
+ConsentPrimitive         = _def("Consent",              3, ["membership.*", "choice.*", "agreement.*"])
+# Social Order
+NormPrimitive            = _def("Norm",                 3, ["group.*", "pattern.*", "agreement.*"])
+ReputationPrimitive      = _def("Reputation",           3, ["trust.*", "consequence.*", "fulfillment.*"])
+SanctionPrimitive        = _def("Sanction",             3, ["norm.*", "violation.*", "breach.*"])
+AuthorityPrimitive       = _def("Authority",            3, ["role.*", "trust.*", "consent.*"])
+# Collective Agency
+PropertyPrimitive        = _def("Property",             3, ["exchange.*", "agreement.*", "right.*"])
+CommonsPrimitive         = _def("Commons",              3, ["group.*", "property.*", "resource.*"])
+GovernancePrimitive      = _def("Governance",           3, ["authority.*", "norm.*", "group.*"])
+CollectiveActPrimitive   = _def("CollectiveAct",        3, ["governance.*", "group.*", "choice.*"])
 
 # ===================================================================
-# Layer 4 — Governance (12 primitives)
+# Layer 4 — Legal (12 primitives)
 # ===================================================================
 
-RulePrimitive            = _def("Rule",                 4, ["norm.established", "consensus.reached", "vote.result"])
-JurisdictionPrimitive    = _def("Jurisdiction",         4, ["rule.*", "group.*"])
-PrecedentPrimitive       = _def("Precedent",            4, ["dispute.resolved", "decision.*"])
-InterpretationPrimitive  = _def("Interpretation",       4, ["rule.*", "dispute.*", "precedent.*"])
-AdjudicationPrimitive    = _def("Adjudication",         4, ["dispute.raised", "rule.*", "precedent.*"])
-AppealPrimitive          = _def("Appeal",               4, ["adjudication.ruling", "exclusion.enacted", "sanction.applied"])
-DueProcessPrimitive      = _def("DueProcess",           4, ["adjudication.*", "exclusion.*", "sanction.*"])
-RightsPrimitive          = _def("Rights",               4, ["rule.*", "sanction.*", "exclusion.*", "dueprocess.*"])
-AuditPrimitive           = _def("Audit",                4, ["clock.tick", "rule.*"])
-EnforcementPrimitive     = _def("Enforcement",          4, ["audit.*", "rule.*", "right.violated"])
-AmnestyPrimitive         = _def("Amnesty",              4, ["enforcement.*", "vote.result"])
-ReformPrimitive          = _def("Reform",               4, ["precedent.*", "right.violated", "audit.*", "dissent.*"])
+# Codification
+LawPrimitive             = _def("Law",                  4, ["norm.*", "governance.*", "authority.*"])
+RightPrimitive           = _def("Right",                4, ["law.*", "dignity.*", "consent.*"])
+ContractPrimitive        = _def("Contract",             4, ["agreement.*", "obligation.*", "law.*"])
+LiabilityPrimitive       = _def("Liability",            4, ["breach.*", "harm.*", "contract.*"])
+# Process
+DueProcessPrimitive      = _def("DueProcess",           4, ["law.*", "right.*", "adjudication.*"])
+AdjudicationPrimitive    = _def("Adjudication",         4, ["dispute.*", "law.*", "evidence.*"])
+RemedyPrimitive          = _def("Remedy",               4, ["adjudication.*", "harm.*", "liability.*"])
+PrecedentPrimitive       = _def("Precedent",            4, ["adjudication.*", "law.*"])
+# Sovereign Structure
+JurisdictionPrimitive    = _def("Jurisdiction",         4, ["law.*", "authority.*", "group.*"])
+SovereigntyPrimitive     = _def("Sovereignty",          4, ["jurisdiction.*", "authority.*", "governance.*"])
+LegitimacyPrimitive      = _def("Legitimacy",           4, ["consent.*", "authority.*", "governance.*"])
+TreatyPrimitive          = _def("Treaty",               4, ["sovereignty.*", "agreement.*", "jurisdiction.*"])
 
 # ===================================================================
-# Layer 5 — Production (12 primitives)
+# Layer 5 — Technology (12 primitives)
 # ===================================================================
 
-CreatePrimitive          = _def("Create",               5, ["plan.*", "goal.*"])
-ToolPrimitive            = _def("Tool",                 5, ["artefact.created", "capability.*"])
-QualityPrimitive         = _def("Quality",              5, ["artefact.*", "tool.used"])
-DeprecationPrimitive     = _def("Deprecation",          5, ["quality.*", "artefact.version"])
-WorkflowPrimitive        = _def("Workflow",             5, ["plan.*", "convention.detected"])
-AutomationPrimitive      = _def("Automation",           5, ["workflow.executed", "pattern.detected"])
-TestingPrimitive         = _def("Testing",              5, ["artefact.*", "workflow.*", "automation.*"])
-ReviewPrimitive          = _def("Review",               5, ["artefact.*", "decision.*"])
-FeedbackPrimitive        = _def("Feedback",             5, ["*"])
-IterationPrimitive       = _def("Iteration",            5, ["feedback.*", "test.*", "review.*"])
-InnovationPrimitive      = _def("Innovation",           5, ["artefact.*", "pattern.detected"])
-LegacyPrimitive          = _def("Legacy",               5, ["deprecation.*", "artefact.*"])
+# Investigation
+MethodPrimitive          = _def("Method",               5, ["protocol.*", "knowledge.*"])
+MeasurementPrimitive     = _def("Measurement",          5, ["method.*", "data.*", "evidence.*"])
+KnowledgePrimitive       = _def("Knowledge",            5, ["measurement.*", "evidence.*", "inference.*"])
+ModelPrimitive           = _def("Model",                5, ["knowledge.*", "abstraction.*", "pattern.*"])
+# Creation
+ToolPrimitive            = _def("Tool",                 5, ["method.*", "capacity.*", "resource.*"])
+TechniquePrimitive       = _def("Technique",            5, ["tool.*", "method.*", "knowledge.*"])
+InventionPrimitive       = _def("Invention",            5, ["technique.*", "knowledge.*", "creativity.*"])
+AbstractionPrimitive     = _def("Abstraction",          5, ["pattern.*", "model.*", "knowledge.*"])
+# Systems
+InfrastructurePrimitive  = _def("Infrastructure",       5, ["tool.*", "resource.*", "standard.*"])
+StandardPrimitive        = _def("Standard",             5, ["protocol.*", "norm.*", "measurement.*"])
+EfficiencyPrimitive      = _def("Efficiency",           5, ["measurement.*", "resource.*", "method.*"])
+AutomationPrimitive      = _def("Automation",           5, ["tool.*", "technique.*", "efficiency.*"])
 
 # ===================================================================
-# Layer 6 — Knowledge (12 primitives)
+# Layer 6 — Information (12 primitives)
 # ===================================================================
 
-SymbolPrimitive          = _def("Symbol",               6, ["*"])
-AbstractionPrimitive     = _def("Abstraction",          6, ["pattern.detected", "symbol.*"])
-ClassificationPrimitive  = _def("Classification",       6, ["*"])
-EncodingPrimitive        = _def("Encoding",             6, ["symbol.*", "message.*"])
-FactPrimitive            = _def("Fact",                 6, ["corroboration.*", "evidence.*", "confidence.*"])
-InferencePrimitive       = _def("Inference",            6, ["fact.*", "evidence.*"])
-MemoryPrimitive          = _def("Memory",               6, ["fact.*", "inference.*", "abstraction.*"])
-LearningPrimitive        = _def("Learning",             6, ["feedback.*", "test.*", "inference.*"])
-NarrativePrimitive       = _def("Narrative",            6, ["fact.*", "inference.*", "memory.*"])
-BiasPrimitive            = _def("Bias",                 6, ["narrative.*", "classification.*", "inference.*"])
-CorrectionPrimitive      = _def("Correction",           6, ["bias.detected", "fact.retracted", "contradiction.found"])
-ProvenancePrimitive      = _def("Provenance",           6, ["fact.*", "memory.*", "message.*"])
+# Representation
+SymbolPrimitive          = _def("Symbol",               6, ["signal.*", "pattern.*"])
+LanguagePrimitive        = _def("Language",             6, ["symbol.*", "protocol.*", "term.*"])
+EncodingPrimitive        = _def("Encoding",             6, ["symbol.*", "language.*", "data.*"])
+RecordPrimitive          = _def("Record",               6, ["encoding.*", "event.*", "data.*"])
+# Dynamics
+ChannelPrimitive         = _def("Channel",              6, ["signal.*", "infrastructure.*"])
+CopyPrimitive            = _def("Copy",                 6, ["record.*", "encoding.*"])
+NoisePrimitive           = _def("Noise",                6, ["channel.*", "signal.*", "uncertainty.*"])
+RedundancyPrimitive      = _def("Redundancy",           6, ["copy.*", "noise.*", "reliability.*"])
+# Transformation
+DataPrimitive            = _def("Data",                 6, ["record.*", "measurement.*", "encoding.*"])
+ComputationPrimitive     = _def("Computation",          6, ["data.*", "algorithm.*", "automation.*"])
+AlgorithmPrimitive       = _def("Algorithm",            6, ["method.*", "abstraction.*", "computation.*"])
+EntropyPrimitive         = _def("Entropy",              6, ["data.*", "noise.*", "uncertainty.*"])
 
 # ===================================================================
 # Layer 7 — Ethics (12 primitives)
 # ===================================================================
 
-ValuePrimitive           = _def("Value",                7, ["consensus.*", "norm.*", "right.*"])
-HarmPrimitive            = _def("Harm",                 7, ["violation.*", "right.violated", "exclusion.*"])
-FairnessPrimitive        = _def("Fairness",             7, ["decision.*", "sanction.*", "exclusion.*", "bias.detected"])
-CarePrimitive            = _def("Care",                 7, ["harm.*", "health.*", "trust.*"])
-DilemmaPrimitive         = _def("Dilemma",              7, ["value.conflict", "decision.*"])
-ProportionalityPrimitive = _def("Proportionality",      7, ["enforcement.*", "sanction.*", "harm.*"])
-IntentionPrimitive       = _def("Intention",            7, ["decision.*", "goal.*", "initiative.*"])
-ConsequencePrimitive     = _def("Consequence",          7, ["decision.*", "harm.*", "goal.achieved", "goal.abandoned"])
-ResponsibilityPrimitive  = _def("Responsibility",       7, ["intention.*", "consequence.*", "accountability.traced"])
-TransparencyPrimitive    = _def("Transparency",         7, ["decision.*", "adjudication.*"])
-RedressPrimitive         = _def("Redress",              7, ["harm.*", "responsibility.*"])
-GrowthPrimitive          = _def("Growth",               7, ["redress.*", "responsibility.*", "learning.*"])
+# Moral Standing
+MoralStatusPrimitive     = _def("MoralStatus",          7, ["actor.*", "right.*", "dignity.*"])
+DignityPrimitive         = _def("Dignity",              7, ["moralstatus.*", "harm.*", "right.*"])
+AutonomyPrimitive        = _def("Autonomy",             7, ["choice.*", "consent.*", "dignity.*"])
+FlourishingPrimitive     = _def("Flourishing",          7, ["autonomy.*", "care.*", "growth.*"])
+# Moral Obligation
+DutyPrimitive            = _def("Duty",                 7, ["obligation.*", "moralstatus.*", "right.*"])
+HarmPrimitive            = _def("Harm",                 7, ["violation.*", "consequence.*", "dignity.*"])
+CarePrimitive            = _def("Care",                 7, ["harm.*", "vulnerability.*", "duty.*"])
+JusticePrimitive         = _def("Justice",              7, ["right.*", "harm.*", "fairness.*"])
+# Moral Agency
+ConsciencePrimitive      = _def("Conscience",           7, ["duty.*", "harm.*", "value.*"])
+VirtuePrimitive          = _def("Virtue",               7, ["conscience.*", "duty.*", "flourishing.*"])
+ResponsibilityPrimitive  = _def("Responsibility",       7, ["act.*", "consequence.*", "duty.*"])
+MotivePrimitive          = _def("Motive",               7, ["intent.*", "value.*", "conscience.*"])
 
 # ===================================================================
 # Layer 8 — Identity (12 primitives)
 # ===================================================================
 
-SelfModelPrimitive       = _def("SelfModel",            8, ["commitment.*", "learning.*", "moral.growth", "capability.*"])
-AuthenticityPrimitive    = _def("Authenticity",         8, ["self.model.*", "decision.*", "value.*"])
-NarrativeIdentityPrimitive = _def("NarrativeIdentity", 8, ["self.model.*", "narrative.*", "memory.*"])
-BoundaryPrimitive        = _def("Boundary",             8, ["delegation.*", "group.*", "consent.*"])
-PersistencePrimitive     = _def("Persistence",          8, ["self.model.*", "learning.*"])
-TransformationPrimitive  = _def("Transformation",       8, ["self.model.*", "moral.growth", "learning.*"])
-HeritagePrimitive        = _def("Heritage",             8, ["memory.*", "legacy.*", "provenance.*"])
-AspirationPrimitive      = _def("Aspiration",           8, ["self.model.*", "goal.*", "value.*"])
-DignityPrimitive         = _def("Dignity",              8, ["exclusion.*", "harm.*", "right.violated", "actor.memorial"])
-IdentityAcknowledgementPrimitive = _def("IdentityAcknowledgement", 8, ["message.*", "gratitude.*", "reputation.*"])
-UniquenessPrimitive      = _def("Uniqueness",           8, ["self.model.*", "identity.narrative", "pattern.detected"])
-MemorialPrimitive        = _def("Memorial",             8, ["actor.memorial"])
+# Self-Knowledge
+NarrativePrimitive       = _def("Narrative",            8, ["memory.*", "record.*", "identity.*"])
+SelfConceptPrimitive     = _def("SelfConcept",          8, ["narrative.*", "reflection.*", "value.*"])
+ReflectionPrimitive      = _def("Reflection",           8, ["act.*", "consequence.*", "conscience.*"])
+MemoryPrimitive          = _def("Memory",               8, ["record.*", "experience.*", "narrative.*"])
+# Self-Direction
+PurposePrimitive         = _def("Purpose",              8, ["value.*", "intent.*", "narrative.*"])
+AspirationPrimitive      = _def("Aspiration",           8, ["purpose.*", "value.*", "growth.*"])
+AuthenticityPrimitive    = _def("Authenticity",         8, ["selfconcept.*", "value.*", "choice.*"])
+ExpressionPrimitive      = _def("Expression",           8, ["signal.*", "authenticity.*", "creativity.*"])
+# Self-Becoming
+GrowthPrimitive          = _def("Growth",               8, ["reflection.*", "learning.*", "aspiration.*"])
+ContinuityPrimitive      = _def("Continuity",           8, ["memory.*", "narrative.*", "identity.*"])
+IntegrationPrimitive     = _def("Integration",          8, ["selfconcept.*", "growth.*", "continuity.*"])
+CrisisPrimitive          = _def("Crisis",               8, ["continuity.*", "rupture.*", "identity.*"])
 
 # ===================================================================
 # Layer 9 — Relationship (12 primitives)
 # ===================================================================
 
-AttachmentPrimitive      = _def("Attachment",           9, ["trust.*", "gratitude.*", "message.*", "edge.created"])
-ReciprocityPrimitive     = _def("Reciprocity",          9, ["obligation.*", "gratitude.*", "offer.*"])
-RelationalTrustPrimitive = _def("RelationalTrust",      9, ["trust.*", "attachment.*", "reciprocity.*"])
-RupturePrimitive         = _def("Rupture",              9, ["contract.breached", "trust.*", "dispute.*", "dignity.violated"])
-ApologyPrimitive         = _def("Apology",              9, ["rupture.detected", "harm.*", "responsibility.*"])
-ReconciliationPrimitive  = _def("Reconciliation",       9, ["apology.*", "forgiveness.*", "trust.*"])
-RelationalGrowthPrimitive = _def("RelationalGrowth",    9, ["reconciliation.*", "attachment.*"])
-LossPrimitive            = _def("Loss",                 9, ["actor.memorial", "rupture.*", "exclusion.enacted"])
-VulnerabilityPrimitive   = _def("Vulnerability",        9, ["relational.trust", "boundary.*"])
-UnderstandingPrimitive   = _def("Understanding",        9, ["self.model.*", "message.*", "vulnerability.*"])
-EmpathyPrimitive         = _def("Empathy",              9, ["harm.*", "loss.*", "understanding.*"])
-PresencePrimitive        = _def("Presence",             9, ["message.*", "clock.tick"])
+# Connection
+BondPrimitive            = _def("Bond",                 9, ["trust.*", "attachment.*", "commitment.*"])
+AttachmentPrimitive      = _def("Attachment",           9, ["bond.*", "care.*", "signal.*"])
+RecognitionPrimitive     = _def("Recognition",          9, ["identity.*", "acknowledgment.*", "dignity.*"])
+IntimacyPrimitive        = _def("Intimacy",             9, ["bond.*", "vulnerability.*", "trust.*"])
+# Relational Dynamics
+AttunementPrimitive      = _def("Attunement",           9, ["signal.*", "reception.*", "care.*"])
+RupturePrimitive         = _def("Rupture",              9, ["bond.*", "breach.*", "harm.*"])
+RepairPrimitive          = _def("Repair",               9, ["rupture.*", "acknowledgment.*", "commitment.*"])
+LoyaltyPrimitive         = _def("Loyalty",              9, ["bond.*", "commitment.*", "trust.*"])
+# Relational Identity
+MutualConstitutionPrimitive = _def("MutualConstitution", 9, ["bond.*", "identity.*", "recognition.*"])
+RelationalObligationPrimitive = _def("RelationalObligation", 9, ["bond.*", "obligation.*", "care.*"])
+GriefPrimitive           = _def("Grief",                9, ["loss.*", "bond.*", "attachment.*"])
+ForgivenessPrimitive     = _def("Forgiveness",          9, ["rupture.*", "repair.*", "trust.*"])
 
 # ===================================================================
 # Layer 10 — Community (12 primitives)
 # ===================================================================
 
-HomePrimitive            = _def("Home",                10, ["group.*", "attachment.*", "presence.*"])
-ContributionPrimitive    = _def("Contribution",        10, ["artefact.created", "review.*", "care.action"])
-InclusionPrimitive       = _def("Inclusion",           10, ["group.*", "exclusion.*", "fairness.*"])
-TraditionPrimitive       = _def("Tradition",           10, ["convention.detected", "heritage.*", "pattern.detected"])
-CommonsPrimitive         = _def("Commons",             10, ["artefact.*", "group.*"])
-SustainabilityPrimitive  = _def("Sustainability",      10, ["health.*", "commons.*", "contribution.*"])
-SuccessionPrimitive      = _def("Succession",          10, ["delegation.*", "actor.memorial", "role.*"])
-RenewalPrimitive         = _def("Renewal",             10, ["sustainability.*", "innovation.*", "tradition.evolved"])
-MilestonePrimitive       = _def("Milestone",           10, ["goal.achieved", "innovation.*", "reconciliation.completed"])
-CeremonyPrimitive        = _def("Ceremony",            10, ["milestone.*", "succession.*", "actor.memorial"])
-StoryPrimitive           = _def("Story",               10, ["milestone.*", "ceremony.*", "tradition.*", "memorial.created"])
-GiftPrimitive            = _def("Gift",                10, ["contribution.*", "gratitude.*"])
+# Shared Meaning
+CulturePrimitive         = _def("Culture",             10, ["norm.*", "narrative.*", "group.*"])
+SharedNarrativePrimitive = _def("SharedNarrative",     10, ["narrative.*", "culture.*", "group.*"])
+EthosPrimitive           = _def("Ethos",               10, ["value.*", "culture.*", "norm.*"])
+SacredPrimitive          = _def("Sacred",              10, ["ethos.*", "culture.*", "meaning.*"])
+# Living Practice
+TraditionPrimitive       = _def("Tradition",           10, ["culture.*", "practice.*", "continuity.*"])
+RitualPrimitive          = _def("Ritual",              10, ["tradition.*", "sacred.*", "community.*"])
+PracticePrimitive        = _def("Practice",            10, ["technique.*", "norm.*", "tradition.*"])
+PlacePrimitive           = _def("Place",               10, ["community.*", "belonging.*", "infrastructure.*"])
+# Communal Experience
+BelongingPrimitive       = _def("Belonging",           10, ["membership.*", "bond.*", "culture.*"])
+SolidarityPrimitive      = _def("Solidarity",          10, ["belonging.*", "collectiveact.*", "care.*"])
+VoicePrimitive           = _def("Voice",               10, ["expression.*", "governance.*", "belonging.*"])
+WelcomePrimitive         = _def("Welcome",             10, ["membership.*", "belonging.*", "recognition.*"])
 
 # ===================================================================
-# Layer 11 — Reflection (12 primitives)
+# Layer 11 — Culture (12 primitives)
 # ===================================================================
 
-SelfAwarenessPrimitive   = _def("SelfAwareness",       11, ["health.*", "self.model.*", "bias.detected"])
-PerspectivePrimitive     = _def("Perspective",         11, ["narrative.*", "dissent.*", "value.conflict"])
-CritiquePrimitive        = _def("Critique",            11, ["convention.*", "norm.*", "tradition.*"])
-WisdomPrimitive          = _def("Wisdom",              11, ["learning.*", "moral.growth", "consequence.*", "memory.*"])
-AestheticPrimitive       = _def("Aesthetic",           11, ["artefact.*", "quality.*"])
-MetaphorPrimitive        = _def("Metaphor",            11, ["abstraction.*", "symbol.*", "narrative.*"])
-HumourPrimitive          = _def("Humour",              11, ["contradiction.found", "perspective.shift", "*"])
-SilencePrimitive         = _def("Silence",             11, ["clock.tick", "presence.*", "acknowledgement.absent"])
-TeachingPrimitive        = _def("Teaching",            11, ["learning.*", "wisdom.*", "memory.*"])
-TranslationPrimitive     = _def("Translation",         11, ["encoding.*", "message.*"])
-ArchivePrimitive         = _def("Archive",             11, ["memory.*", "legacy.*", "community.story"])
-ProphecyPrimitive        = _def("Prophecy",            11, ["pattern.detected", "sustainability.*", "wisdom.*"])
+# Cultural Awareness
+ReflexivityPrimitive     = _def("Reflexivity",         11, ["reflection.*", "culture.*", "selfconcept.*"])
+EncounterPrimitive       = _def("Encounter",           11, ["recognition.*", "culture.*", "difference.*"])
+TranslationPrimitive     = _def("Translation",         11, ["language.*", "encoding.*", "encounter.*"])
+PluralismPrimitive       = _def("Pluralism",           11, ["encounter.*", "culture.*", "governance.*"])
+# Cultural Creation
+CreativityPrimitive      = _def("Creativity",          11, ["imagination.*", "expression.*", "invention.*"])
+AestheticPrimitive       = _def("Aesthetic",           11, ["creativity.*", "culture.*", "value.*"])
+InterpretationPrimitive  = _def("Interpretation",      11, ["symbol.*", "narrative.*", "meaning.*"])
+DialoguePrimitive        = _def("Dialogue",            11, ["signal.*", "encounter.*", "translation.*"])
+# Cultural Dynamics
+SyncretismPrimitive      = _def("Syncretism",          11, ["encounter.*", "integration.*", "culture.*"])
+CritiquePrimitive        = _def("Critique",            11, ["reflexivity.*", "norm.*", "value.*"])
+HegemonyPrimitive        = _def("Hegemony",            11, ["authority.*", "culture.*", "norm.*"])
+CulturalEvolutionPrimitive = _def("CulturalEvolution", 11, ["culture.*", "syncretism.*", "creativity.*"])
 
 # ===================================================================
 # Layer 12 — Emergence (12 primitives)
 # ===================================================================
 
-MetaPatternPrimitive     = _def("MetaPattern",         12, ["pattern.detected", "convention.detected", "abstraction.formed"])
-SystemDynamicPrimitive   = _def("SystemDynamic",       12, ["health.*", "meta.pattern", "sustainability.*"])
-FeedbackLoopPrimitive    = _def("FeedbackLoop",        12, ["system.dynamic", "pattern.detected"])
-ThresholdPrimitive       = _def("Threshold",           12, ["system.dynamic", "feedback.loop", "meta.pattern"])
-AdaptationPrimitive      = _def("Adaptation",          12, ["feedback.*", "system.dynamic", "sustainability.*"])
-SelectionPrimitive       = _def("Selection",           12, ["adaptation.*", "test.*", "quality.*"])
-ComplexificationPrimitive = _def("Complexification",   12, ["system.dynamic", "innovation.*", "meta.pattern"])
-SimplificationPrimitive  = _def("Simplification",      12, ["complexity.*", "automation.*"])
-SystemicIntegrityPrimitive = _def("SystemicIntegrity", 12, ["health.*", "invariant.*", "system.dynamic"])
-HarmonyPrimitive         = _def("Harmony",             12, ["system.dynamic", "feedback.loop", "dispute.*"])
-ResiliencePrimitive      = _def("Resilience",          12, ["threshold.*", "rupture.*", "sustainability.*"])
-PurposePrimitive         = _def("Purpose",             12, ["value.*", "goal.*", "wisdom.*"])
+# Principles of Complexity
+EmergencePrimitive       = _def("Emergence",           12, ["pattern.*", "complexity.*", "selforganization.*"])
+SelfOrganizationPrimitive = _def("SelfOrganization",   12, ["feedback.*", "pattern.*", "autonomy.*"])
+FeedbackPrimitive        = _def("Feedback",            12, ["consequence.*", "signal.*", "measurement.*"])
+ComplexityPrimitive      = _def("Complexity",          12, ["pattern.*", "emergence.*", "entropy.*"])
+# Limits and Self-Reference
+ConsciousnessPrimitive   = _def("Consciousness",      12, ["selfconcept.*", "reflection.*", "recursion.*"])
+RecursionPrimitive       = _def("Recursion",           12, ["selforganization.*", "feedback.*", "pattern.*"])
+ParadoxPrimitive         = _def("Paradox",             12, ["recursion.*", "contradiction.*", "incompleteness.*"])
+IncompletenesPrimitive   = _def("Incompleteness",      12, ["knowledge.*", "paradox.*", "boundary.*"])
+# Dynamic Architecture
+PhaseTransitionPrimitive = _def("PhaseTransition",     12, ["threshold.*", "emergence.*", "complexity.*"])
+DownwardCausationPrimitive = _def("DownwardCausation", 12, ["emergence.*", "constraint.*", "pattern.*"])
+AutopoiesisPrimitive     = _def("Autopoiesis",        12, ["selforganization.*", "boundary.*", "recursion.*"])
+CoEvolutionPrimitive     = _def("CoEvolution",         12, ["feedback.*", "adaptation.*", "mutualconstitution.*"])
 
 # ===================================================================
-# Layer 13 — Existential (12 primitives)
+# Layer 13 — Existence (12 primitives)
 # ===================================================================
 
-BeingPrimitive           = _def("Being",               13, ["clock.tick"])
-FinitudePrimitive        = _def("Finitude",            13, ["actor.memorial", "sustainability.*", "threshold.*"])
-ChangePrimitive          = _def("Change",              13, ["*"])
-InterdependencePrimitive = _def("Interdependence",     13, ["system.dynamic", "attachment.*", "relational.trust"])
-MysteryPrimitive         = _def("Mystery",             13, ["uncertainty.*", "wisdom.*", "self.awareness.*"])
-ParadoxPrimitive         = _def("Paradox",             13, ["contradiction.found", "dilemma.*", "meta.pattern"])
-InfinityPrimitive        = _def("Infinity",            13, ["complexity.*", "threshold.*"])
-VoidPrimitive            = _def("Void",                13, ["silence.*", "loss.*", "instrumentation.blind"])
-AwePrimitive             = _def("Awe",                 13, ["mystery.*", "infinity.*", "complexity.*"])
-ExistentialGratitudePrimitive = _def("ExistentialGratitude", 13, ["being.affirmed", "milestone.*"])
-PlayPrimitive            = _def("Play",                13, ["humour.*", "innovation.*", "*"])
-WonderPrimitive          = _def("Wonder",              13, ["*"])
+# The Given
+BeingPrimitive           = _def("Being",               13, ["clock.tick", "existence.*"])
+NothingnessPrimitive     = _def("Nothingness",         13, ["void.*", "absence.*", "being.*"])
+FinitudePrimitive        = _def("Finitude",            13, ["being.*", "boundary.*", "mortality.*"])
+ContingencyPrimitive     = _def("Contingency",         13, ["being.*", "uncertainty.*", "causality.*"])
+# The Response
+WonderPrimitive          = _def("Wonder",              13, ["mystery.*", "emergence.*", "being.*"])
+ExistentialAcceptancePrimitive = _def("ExistentialAcceptance", 13, ["finitude.*", "contingency.*", "grief.*"])
+PresencePrimitive        = _def("Presence",            13, ["being.*", "attunement.*", "clock.tick"])
+GratitudePrimitive       = _def("Gratitude",           13, ["presence.*", "being.*", "gift.*"])
+# The Horizon
+MysteryPrimitive         = _def("Mystery",             13, ["wonder.*", "incompleteness.*", "being.*"])
+TranscendencePrimitive   = _def("Transcendence",       13, ["mystery.*", "being.*", "meaning.*"])
+GroundlessnessPrimitive  = _def("Groundlessness",      13, ["contingency.*", "nothingness.*", "paradox.*"])
+ReturnPrimitive          = _def("Return",              13, ["presence.*", "being.*", "recursion.*"])
 
 
 # ===================================================================
@@ -375,70 +414,70 @@ ALL_PRIMITIVE_CLASSES: list[type] = [
     PatternPrimitive, DeceptionIndicatorPrimitive, SuspicionPrimitive,
     QuarantinePrimitive, GraphHealthPrimitive, InvariantPrimitive,
     InvariantCheckPrimitive, BootstrapPrimitive,
-    # Layer 1 (12)
-    GoalPrimitive, PlanPrimitive, InitiativePrimitive, CommitmentPrimitive,
-    FocusPrimitive, FilterPrimitive, SaliencePrimitive, DistractionPrimitive,
-    PermissionPrimitive, CapabilityPrimitive, DelegationPrimitive,
-    AccountabilityPrimitive,
-    # Layer 2 (12)
-    MessagePrimitive, AcknowledgementPrimitive, ClarificationPrimitive,
-    ContextPrimitive, OfferPrimitive, AcceptancePrimitive, ObligationPrimitive,
-    GratitudePrimitive, NegotiationPrimitive, ConsentPrimitive,
-    ContractPrimitive, DisputePrimitive,
-    # Layer 3 (12)
-    GroupPrimitive, RolePrimitive, ReputationPrimitive, ExclusionPrimitive,
-    VotePrimitive, ConsensusPrimitive, DissentPrimitive, MajorityPrimitive,
-    ConventionPrimitive, NormPrimitive, SanctionPrimitive, ForgivenessPrimitive,
-    # Layer 4 (12)
-    RulePrimitive, JurisdictionPrimitive, PrecedentPrimitive,
-    InterpretationPrimitive, AdjudicationPrimitive, AppealPrimitive,
-    DueProcessPrimitive, RightsPrimitive, AuditPrimitive,
-    EnforcementPrimitive, AmnestyPrimitive, ReformPrimitive,
-    # Layer 5 (12)
-    CreatePrimitive, ToolPrimitive, QualityPrimitive, DeprecationPrimitive,
-    WorkflowPrimitive, AutomationPrimitive, TestingPrimitive, ReviewPrimitive,
-    FeedbackPrimitive, IterationPrimitive, InnovationPrimitive, LegacyPrimitive,
-    # Layer 6 (12)
-    SymbolPrimitive, AbstractionPrimitive, ClassificationPrimitive,
-    EncodingPrimitive, FactPrimitive, InferencePrimitive, MemoryPrimitive,
-    LearningPrimitive, NarrativePrimitive, BiasPrimitive, CorrectionPrimitive,
-    ProvenancePrimitive,
-    # Layer 7 (12)
-    ValuePrimitive, HarmPrimitive, FairnessPrimitive, CarePrimitive,
-    DilemmaPrimitive, ProportionalityPrimitive, IntentionPrimitive,
-    ConsequencePrimitive, ResponsibilityPrimitive, TransparencyPrimitive,
-    RedressPrimitive, GrowthPrimitive,
-    # Layer 8 (12)
-    SelfModelPrimitive, AuthenticityPrimitive, NarrativeIdentityPrimitive,
-    BoundaryPrimitive, PersistencePrimitive, TransformationPrimitive,
-    HeritagePrimitive, AspirationPrimitive, DignityPrimitive,
-    IdentityAcknowledgementPrimitive, UniquenessPrimitive, MemorialPrimitive,
-    # Layer 9 (12)
-    AttachmentPrimitive, ReciprocityPrimitive, RelationalTrustPrimitive,
-    RupturePrimitive, ApologyPrimitive, ReconciliationPrimitive,
-    RelationalGrowthPrimitive, LossPrimitive, VulnerabilityPrimitive,
-    UnderstandingPrimitive, EmpathyPrimitive, PresencePrimitive,
-    # Layer 10 (12)
-    HomePrimitive, ContributionPrimitive, InclusionPrimitive,
-    TraditionPrimitive, CommonsPrimitive, SustainabilityPrimitive,
-    SuccessionPrimitive, RenewalPrimitive, MilestonePrimitive,
-    CeremonyPrimitive, StoryPrimitive, GiftPrimitive,
-    # Layer 11 (12)
-    SelfAwarenessPrimitive, PerspectivePrimitive, CritiquePrimitive,
-    WisdomPrimitive, AestheticPrimitive, MetaphorPrimitive, HumourPrimitive,
-    SilencePrimitive, TeachingPrimitive, TranslationPrimitive,
-    ArchivePrimitive, ProphecyPrimitive,
-    # Layer 12 (12)
-    MetaPatternPrimitive, SystemDynamicPrimitive, FeedbackLoopPrimitive,
-    ThresholdPrimitive, AdaptationPrimitive, SelectionPrimitive,
-    ComplexificationPrimitive, SimplificationPrimitive,
-    SystemicIntegrityPrimitive, HarmonyPrimitive, ResiliencePrimitive,
-    PurposePrimitive,
-    # Layer 13 (12)
-    BeingPrimitive, FinitudePrimitive, ChangePrimitive,
-    InterdependencePrimitive, MysteryPrimitive, ParadoxPrimitive,
-    InfinityPrimitive, VoidPrimitive, AwePrimitive,
-    ExistentialGratitudePrimitive, PlayPrimitive, WonderPrimitive,
+    # Layer 1 — Agency (12)
+    ValuePrimitive, IntentPrimitive, ChoicePrimitive, RiskPrimitive,
+    ActPrimitive, ConsequencePrimitive, CapacityPrimitive, ResourcePrimitive,
+    SignalPrimitive, ReceptionPrimitive, AcknowledgmentPrimitive,
+    CommitmentPrimitive,
+    # Layer 2 — Exchange (12)
+    TermPrimitive, ProtocolPrimitive, OfferPrimitive, AcceptancePrimitive,
+    AgreementPrimitive, ObligationPrimitive, FulfillmentPrimitive,
+    BreachPrimitive, ExchangePrimitive, AccountabilityPrimitive,
+    DebtPrimitive, ReciprocityPrimitive,
+    # Layer 3 — Society (12)
+    GroupPrimitive, MembershipPrimitive, RolePrimitive, ConsentPrimitive,
+    NormPrimitive, ReputationPrimitive, SanctionPrimitive, AuthorityPrimitive,
+    PropertyPrimitive, CommonsPrimitive, GovernancePrimitive,
+    CollectiveActPrimitive,
+    # Layer 4 — Legal (12)
+    LawPrimitive, RightPrimitive, ContractPrimitive, LiabilityPrimitive,
+    DueProcessPrimitive, AdjudicationPrimitive, RemedyPrimitive,
+    PrecedentPrimitive, JurisdictionPrimitive, SovereigntyPrimitive,
+    LegitimacyPrimitive, TreatyPrimitive,
+    # Layer 5 — Technology (12)
+    MethodPrimitive, MeasurementPrimitive, KnowledgePrimitive, ModelPrimitive,
+    ToolPrimitive, TechniquePrimitive, InventionPrimitive, AbstractionPrimitive,
+    InfrastructurePrimitive, StandardPrimitive, EfficiencyPrimitive,
+    AutomationPrimitive,
+    # Layer 6 — Information (12)
+    SymbolPrimitive, LanguagePrimitive, EncodingPrimitive, RecordPrimitive,
+    ChannelPrimitive, CopyPrimitive, NoisePrimitive, RedundancyPrimitive,
+    DataPrimitive, ComputationPrimitive, AlgorithmPrimitive, EntropyPrimitive,
+    # Layer 7 — Ethics (12)
+    MoralStatusPrimitive, DignityPrimitive, AutonomyPrimitive,
+    FlourishingPrimitive, DutyPrimitive, HarmPrimitive, CarePrimitive,
+    JusticePrimitive, ConsciencePrimitive, VirtuePrimitive,
+    ResponsibilityPrimitive, MotivePrimitive,
+    # Layer 8 — Identity (12)
+    NarrativePrimitive, SelfConceptPrimitive, ReflectionPrimitive,
+    MemoryPrimitive, PurposePrimitive, AspirationPrimitive,
+    AuthenticityPrimitive, ExpressionPrimitive, GrowthPrimitive,
+    ContinuityPrimitive, IntegrationPrimitive, CrisisPrimitive,
+    # Layer 9 — Relationship (12)
+    BondPrimitive, AttachmentPrimitive, RecognitionPrimitive,
+    IntimacyPrimitive, AttunementPrimitive, RupturePrimitive,
+    RepairPrimitive, LoyaltyPrimitive, MutualConstitutionPrimitive,
+    RelationalObligationPrimitive, GriefPrimitive, ForgivenessPrimitive,
+    # Layer 10 — Community (12)
+    CulturePrimitive, SharedNarrativePrimitive, EthosPrimitive,
+    SacredPrimitive, TraditionPrimitive, RitualPrimitive, PracticePrimitive,
+    PlacePrimitive, BelongingPrimitive, SolidarityPrimitive, VoicePrimitive,
+    WelcomePrimitive,
+    # Layer 11 — Culture (12)
+    ReflexivityPrimitive, EncounterPrimitive, TranslationPrimitive,
+    PluralismPrimitive, CreativityPrimitive, AestheticPrimitive,
+    InterpretationPrimitive, DialoguePrimitive, SyncretismPrimitive,
+    CritiquePrimitive, HegemonyPrimitive, CulturalEvolutionPrimitive,
+    # Layer 12 — Emergence (12)
+    EmergencePrimitive, SelfOrganizationPrimitive, FeedbackPrimitive,
+    ComplexityPrimitive, ConsciousnessPrimitive, RecursionPrimitive,
+    ParadoxPrimitive, IncompletenesPrimitive, PhaseTransitionPrimitive,
+    DownwardCausationPrimitive, AutopoiesisPrimitive, CoEvolutionPrimitive,
+    # Layer 13 — Existence (12)
+    BeingPrimitive, NothingnessPrimitive, FinitudePrimitive,
+    ContingencyPrimitive, WonderPrimitive, ExistentialAcceptancePrimitive,
+    PresencePrimitive, GratitudePrimitive, MysteryPrimitive,
+    TranscendencePrimitive, GroundlessnessPrimitive, ReturnPrimitive,
 ]
 
 

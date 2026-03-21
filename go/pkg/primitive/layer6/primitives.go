@@ -1,7 +1,7 @@
 // Package layer6 implements the Layer 6 Information primitives.
-// Groups: Representation (Symbol, Abstraction, Classification, Encoding),
-// Knowledge (Fact, Inference, Memory, Learning),
-// Truth (Narrative, Bias, Correction, Provenance).
+// Groups: Representation (Symbol, Language, Encoding, Record),
+// Dynamics (Channel, Copy, Noise, Redundancy),
+// Transformation (Data, Computation, Algorithm, Entropy).
 package layer6
 
 import (
@@ -15,9 +15,9 @@ import (
 var layer6 = types.MustLayer(6)
 var cadence1 = types.MustCadence(1)
 
-// --- Group 0: Representation ---
+// --- Group A: Representation ---
 
-// SymbolPrimitive creates and interprets symbolic representations.
+// SymbolPrimitive represents a token that stands for something else by convention.
 type SymbolPrimitive struct{}
 
 func NewSymbolPrimitive() *SymbolPrimitive { return &SymbolPrimitive{} }
@@ -27,60 +27,57 @@ func (p *SymbolPrimitive) Layer() types.Layer               { return layer6 }
 func (p *SymbolPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
 func (p *SymbolPrimitive) Cadence() types.Cadence           { return cadence1 }
 func (p *SymbolPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{types.MustSubscriptionPattern("*")}
-}
-
-func (p *SymbolPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// AbstractionPrimitive generalises from specifics.
-type AbstractionPrimitive struct{}
-
-func NewAbstractionPrimitive() *AbstractionPrimitive { return &AbstractionPrimitive{} }
-
-func (p *AbstractionPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Abstraction") }
-func (p *AbstractionPrimitive) Layer() types.Layer               { return layer6 }
-func (p *AbstractionPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *AbstractionPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *AbstractionPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("pattern.detected"),
-		types.MustSubscriptionPattern("symbol.*"),
+		types.MustSubscriptionPattern("language.*"),
+		types.MustSubscriptionPattern("encoding.*"),
 	}
 }
 
-func (p *AbstractionPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *SymbolPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "language.") || strings.HasPrefix(t, "encoding.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// ClassificationPrimitive organises information into categories.
-type ClassificationPrimitive struct{}
+// LanguagePrimitive represents a structured system of symbols with grammar and semantics.
+type LanguagePrimitive struct{}
 
-func NewClassificationPrimitive() *ClassificationPrimitive { return &ClassificationPrimitive{} }
+func NewLanguagePrimitive() *LanguagePrimitive { return &LanguagePrimitive{} }
 
-func (p *ClassificationPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Classification") }
-func (p *ClassificationPrimitive) Layer() types.Layer               { return layer6 }
-func (p *ClassificationPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *ClassificationPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *ClassificationPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{types.MustSubscriptionPattern("*")}
+func (p *LanguagePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Language") }
+func (p *LanguagePrimitive) Layer() types.Layer               { return layer6 }
+func (p *LanguagePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *LanguagePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *LanguagePrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("symbol.*"),
+		types.MustSubscriptionPattern("record.*"),
+	}
 }
 
-func (p *ClassificationPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *LanguagePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "symbol.") || strings.HasPrefix(t, "record.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// EncodingPrimitive transforms information between representations.
+// EncodingPrimitive represents the mapping between information and its physical representation.
 type EncodingPrimitive struct{}
 
 func NewEncodingPrimitive() *EncodingPrimitive { return &EncodingPrimitive{} }
@@ -92,220 +89,294 @@ func (p *EncodingPrimitive) Cadence() types.Cadence           { return cadence1 
 func (p *EncodingPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
 		types.MustSubscriptionPattern("symbol.*"),
-		types.MustSubscriptionPattern("message.*"),
+		types.MustSubscriptionPattern("channel.*"),
 	}
 }
 
 func (p *EncodingPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// --- Group 1: Knowledge ---
-
-// FactPrimitive establishes verified claims.
-type FactPrimitive struct{}
-
-func NewFactPrimitive() *FactPrimitive { return &FactPrimitive{} }
-
-func (p *FactPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Fact") }
-func (p *FactPrimitive) Layer() types.Layer               { return layer6 }
-func (p *FactPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *FactPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *FactPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("corroboration.*"),
-		types.MustSubscriptionPattern("evidence.*"),
-		types.MustSubscriptionPattern("confidence.*"),
-	}
-}
-
-func (p *FactPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	evidenceCount := 0
+	relevant := 0
 	for _, ev := range events {
-		if strings.HasPrefix(ev.Type().Value(), "evidence.") || strings.HasPrefix(ev.Type().Value(), "corroboration.") {
-			evidenceCount++
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "symbol.") || strings.HasPrefix(t, "channel.") {
+			relevant++
 		}
 	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "evidenceProcessed", Value: evidenceCount},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// InferencePrimitive derives new knowledge from existing facts.
-type InferencePrimitive struct{}
+// RecordPrimitive represents information persisted for retrieval across time.
+type RecordPrimitive struct{}
 
-func NewInferencePrimitive() *InferencePrimitive { return &InferencePrimitive{} }
+func NewRecordPrimitive() *RecordPrimitive { return &RecordPrimitive{} }
 
-func (p *InferencePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Inference") }
-func (p *InferencePrimitive) Layer() types.Layer               { return layer6 }
-func (p *InferencePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *InferencePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *InferencePrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *RecordPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Record") }
+func (p *RecordPrimitive) Layer() types.Layer               { return layer6 }
+func (p *RecordPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *RecordPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *RecordPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("fact.*"),
-		types.MustSubscriptionPattern("evidence.*"),
+		types.MustSubscriptionPattern("encoding.*"),
+		types.MustSubscriptionPattern("data.*"),
 	}
 }
 
-func (p *InferencePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// MemoryPrimitive handles long-term knowledge retention and retrieval.
-type MemoryPrimitive struct{}
-
-func NewMemoryPrimitive() *MemoryPrimitive { return &MemoryPrimitive{} }
-
-func (p *MemoryPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Memory") }
-func (p *MemoryPrimitive) Layer() types.Layer               { return layer6 }
-func (p *MemoryPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *MemoryPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *MemoryPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("fact.*"),
-		types.MustSubscriptionPattern("inference.*"),
-		types.MustSubscriptionPattern("abstraction.*"),
-	}
-}
-
-func (p *MemoryPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// LearningPrimitive updates behaviour based on experience.
-type LearningPrimitive struct{}
-
-func NewLearningPrimitive() *LearningPrimitive { return &LearningPrimitive{} }
-
-func (p *LearningPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Learning") }
-func (p *LearningPrimitive) Layer() types.Layer               { return layer6 }
-func (p *LearningPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *LearningPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *LearningPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("feedback.*"),
-		types.MustSubscriptionPattern("test.*"),
-		types.MustSubscriptionPattern("inference.*"),
-	}
-}
-
-func (p *LearningPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// --- Group 2: Truth ---
-
-// NarrativePrimitive constructs coherent stories from events.
-type NarrativePrimitive struct{}
-
-func NewNarrativePrimitive() *NarrativePrimitive { return &NarrativePrimitive{} }
-
-func (p *NarrativePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Narrative") }
-func (p *NarrativePrimitive) Layer() types.Layer               { return layer6 }
-func (p *NarrativePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *NarrativePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *NarrativePrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("fact.*"),
-		types.MustSubscriptionPattern("inference.*"),
-		types.MustSubscriptionPattern("memory.*"),
-	}
-}
-
-func (p *NarrativePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// BiasPrimitive detects systematic distortions in information.
-type BiasPrimitive struct{}
-
-func NewBiasPrimitive() *BiasPrimitive { return &BiasPrimitive{} }
-
-func (p *BiasPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Bias") }
-func (p *BiasPrimitive) Layer() types.Layer               { return layer6 }
-func (p *BiasPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *BiasPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *BiasPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("narrative.*"),
-		types.MustSubscriptionPattern("classification.*"),
-		types.MustSubscriptionPattern("inference.*"),
-	}
-}
-
-func (p *BiasPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// CorrectionPrimitive fixes errors in the knowledge base.
-type CorrectionPrimitive struct{}
-
-func NewCorrectionPrimitive() *CorrectionPrimitive { return &CorrectionPrimitive{} }
-
-func (p *CorrectionPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Correction") }
-func (p *CorrectionPrimitive) Layer() types.Layer               { return layer6 }
-func (p *CorrectionPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *CorrectionPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *CorrectionPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("bias.detected"),
-		types.MustSubscriptionPattern("fact.retracted"),
-		types.MustSubscriptionPattern("contradiction.found"),
-	}
-}
-
-func (p *CorrectionPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	corrections := 0
+func (p *RecordPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
 	for _, ev := range events {
-		if strings.HasPrefix(ev.Type().Value(), "bias.") || strings.HasPrefix(ev.Type().Value(), "contradiction.") {
-			corrections++
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "encoding.") || strings.HasPrefix(t, "data.") {
+			relevant++
 		}
 	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "correctionsNeeded", Value: corrections},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// ProvenancePrimitive tracks the origin and chain of custody of information.
-type ProvenancePrimitive struct{}
+// --- Group B: Dynamics ---
 
-func NewProvenancePrimitive() *ProvenancePrimitive { return &ProvenancePrimitive{} }
+// ChannelPrimitive represents a medium through which information flows between actors.
+type ChannelPrimitive struct{}
 
-func (p *ProvenancePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Provenance") }
-func (p *ProvenancePrimitive) Layer() types.Layer               { return layer6 }
-func (p *ProvenancePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *ProvenancePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *ProvenancePrimitive) Subscriptions() []types.SubscriptionPattern {
+func NewChannelPrimitive() *ChannelPrimitive { return &ChannelPrimitive{} }
+
+func (p *ChannelPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Channel") }
+func (p *ChannelPrimitive) Layer() types.Layer               { return layer6 }
+func (p *ChannelPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *ChannelPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *ChannelPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("fact.*"),
-		types.MustSubscriptionPattern("memory.*"),
-		types.MustSubscriptionPattern("message.*"),
+		types.MustSubscriptionPattern("signal.*"),
+		types.MustSubscriptionPattern("noise.*"),
 	}
 }
 
-func (p *ProvenancePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *ChannelPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "signal.") || strings.HasPrefix(t, "noise.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// CopyPrimitive represents the reproduction of information in a new location.
+type CopyPrimitive struct{}
+
+func NewCopyPrimitive() *CopyPrimitive { return &CopyPrimitive{} }
+
+func (p *CopyPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Copy") }
+func (p *CopyPrimitive) Layer() types.Layer               { return layer6 }
+func (p *CopyPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *CopyPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *CopyPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("channel.*"),
+		types.MustSubscriptionPattern("redundancy.*"),
+	}
+}
+
+func (p *CopyPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "channel.") || strings.HasPrefix(t, "redundancy.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// NoisePrimitive represents unwanted distortion introduced during transmission or storage.
+type NoisePrimitive struct{}
+
+func NewNoisePrimitive() *NoisePrimitive { return &NoisePrimitive{} }
+
+func (p *NoisePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Noise") }
+func (p *NoisePrimitive) Layer() types.Layer               { return layer6 }
+func (p *NoisePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *NoisePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *NoisePrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("channel.*"),
+		types.MustSubscriptionPattern("entropy.*"),
+	}
+}
+
+func (p *NoisePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "channel.") || strings.HasPrefix(t, "entropy.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// RedundancyPrimitive represents intentional duplication that protects against loss.
+type RedundancyPrimitive struct{}
+
+func NewRedundancyPrimitive() *RedundancyPrimitive { return &RedundancyPrimitive{} }
+
+func (p *RedundancyPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Redundancy") }
+func (p *RedundancyPrimitive) Layer() types.Layer               { return layer6 }
+func (p *RedundancyPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *RedundancyPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *RedundancyPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("noise.*"),
+		types.MustSubscriptionPattern("copy.*"),
+	}
+}
+
+func (p *RedundancyPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "noise.") || strings.HasPrefix(t, "copy.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// --- Group C: Transformation ---
+
+// DataPrimitive represents raw distinguishable differences before interpretation.
+type DataPrimitive struct{}
+
+func NewDataPrimitive() *DataPrimitive { return &DataPrimitive{} }
+
+func (p *DataPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Data") }
+func (p *DataPrimitive) Layer() types.Layer               { return layer6 }
+func (p *DataPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *DataPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *DataPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("record.*"),
+		types.MustSubscriptionPattern("encoding.*"),
+	}
+}
+
+func (p *DataPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "record.") || strings.HasPrefix(t, "encoding.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// ComputationPrimitive represents the systematic transformation of data according to rules.
+type ComputationPrimitive struct{}
+
+func NewComputationPrimitive() *ComputationPrimitive { return &ComputationPrimitive{} }
+
+func (p *ComputationPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Computation") }
+func (p *ComputationPrimitive) Layer() types.Layer               { return layer6 }
+func (p *ComputationPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *ComputationPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *ComputationPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("algorithm.*"),
+		types.MustSubscriptionPattern("data.*"),
+	}
+}
+
+func (p *ComputationPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "algorithm.") || strings.HasPrefix(t, "data.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// AlgorithmPrimitive represents a finite, deterministic sequence of steps that solves a class of problems.
+type AlgorithmPrimitive struct{}
+
+func NewAlgorithmPrimitive() *AlgorithmPrimitive { return &AlgorithmPrimitive{} }
+
+func (p *AlgorithmPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Algorithm") }
+func (p *AlgorithmPrimitive) Layer() types.Layer               { return layer6 }
+func (p *AlgorithmPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *AlgorithmPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *AlgorithmPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("computation.*"),
+		types.MustSubscriptionPattern("data.*"),
+	}
+}
+
+func (p *AlgorithmPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "computation.") || strings.HasPrefix(t, "data.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// EntropyPrimitive measures the uncertainty or disorder in an information source.
+type EntropyPrimitive struct{}
+
+func NewEntropyPrimitive() *EntropyPrimitive { return &EntropyPrimitive{} }
+
+func (p *EntropyPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Entropy") }
+func (p *EntropyPrimitive) Layer() types.Layer               { return layer6 }
+func (p *EntropyPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *EntropyPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *EntropyPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("noise.*"),
+		types.MustSubscriptionPattern("data.*"),
+	}
+}
+
+func (p *EntropyPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "noise.") || strings.HasPrefix(t, "data.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }

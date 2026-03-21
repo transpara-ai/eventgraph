@@ -190,21 +190,21 @@ public class PrimitivesTests
         Assert.Equal(201, all.Count);
 
         // Spot-check some primitives from different layers
-        Assert.NotNull(registry.Get(new PrimitiveId("Event")));
-        Assert.NotNull(registry.Get(new PrimitiveId("Goal")));
-        Assert.NotNull(registry.Get(new PrimitiveId("Message")));
-        Assert.NotNull(registry.Get(new PrimitiveId("Group")));
-        Assert.NotNull(registry.Get(new PrimitiveId("Rule")));
-        Assert.NotNull(registry.Get(new PrimitiveId("Create")));
-        Assert.NotNull(registry.Get(new PrimitiveId("Symbol")));
-        Assert.NotNull(registry.Get(new PrimitiveId("Value")));
-        Assert.NotNull(registry.Get(new PrimitiveId("SelfModel")));
-        Assert.NotNull(registry.Get(new PrimitiveId("Attachment")));
-        Assert.NotNull(registry.Get(new PrimitiveId("Home")));
-        Assert.NotNull(registry.Get(new PrimitiveId("SelfAwareness")));
-        Assert.NotNull(registry.Get(new PrimitiveId("MetaPattern")));
-        Assert.NotNull(registry.Get(new PrimitiveId("Being")));
-        Assert.NotNull(registry.Get(new PrimitiveId("Wonder")));
+        Assert.NotNull(registry.Get(new PrimitiveId("Event")));        // Layer 0
+        Assert.NotNull(registry.Get(new PrimitiveId("Intent")));       // Layer 1
+        Assert.NotNull(registry.Get(new PrimitiveId("Term")));         // Layer 2
+        Assert.NotNull(registry.Get(new PrimitiveId("Group")));        // Layer 3
+        Assert.NotNull(registry.Get(new PrimitiveId("Law")));          // Layer 4
+        Assert.NotNull(registry.Get(new PrimitiveId("Method")));       // Layer 5
+        Assert.NotNull(registry.Get(new PrimitiveId("Symbol")));       // Layer 6
+        Assert.NotNull(registry.Get(new PrimitiveId("Value")));        // Layer 1 (cross-check)
+        Assert.NotNull(registry.Get(new PrimitiveId("SelfConcept"))); // Layer 8
+        Assert.NotNull(registry.Get(new PrimitiveId("Attachment")));   // Layer 9
+        Assert.NotNull(registry.Get(new PrimitiveId("Culture")));      // Layer 10
+        Assert.NotNull(registry.Get(new PrimitiveId("Reflexivity"))); // Layer 11
+        Assert.NotNull(registry.Get(new PrimitiveId("Emergence")));    // Layer 12
+        Assert.NotNull(registry.Get(new PrimitiveId("Being")));        // Layer 13
+        Assert.NotNull(registry.Get(new PrimitiveId("Wonder")));       // Layer 13
     }
 
     [Fact]

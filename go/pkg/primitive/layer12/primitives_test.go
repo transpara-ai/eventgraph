@@ -10,23 +10,80 @@ import (
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
 )
 
-var systemActor = types.MustActorID("actor_00000000000000000000000000000001")
+var (
+	systemActor = types.MustActorID("actor_00000000000000000000000000000001")
+	actor2      = types.MustActorID("actor_00000000000000000000000000000002")
+	convID      = types.MustConversationID("conv_00000000000000000000000000000001")
+)
 
 type testSigner struct{}
+
 func (testSigner) Sign(data []byte) (types.Signature, error) {
-	sig := make([]byte, 64); copy(sig, data); return types.MustSignature(sig), nil
+	sig := make([]byte, 64)
+	copy(sig, data)
+	return types.MustSignature(sig), nil
+}
+
+type headFromStore struct{ s store.Store }
+
+func (h headFromStore) Head() (types.Option[event.Event], error) { return h.s.Head() }
+
+func bootstrapStore(t *testing.T) (store.Store, event.Event) {
+	t.Helper()
+	s := store.NewInMemoryStore()
+	factory := event.NewBootstrapFactory(event.DefaultRegistry())
+	ev, err := factory.Init(systemActor, testSigner{})
+	if err != nil {
+		t.Fatalf("bootstrap: %v", err)
+	}
+	if _, err := s.Append(ev); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	return s, ev
+}
+
+func chainEvent(t *testing.T, s store.Store, causes []types.EventID) event.Event {
+	t.Helper()
+	factory := event.NewEventFactory(event.DefaultRegistry())
+	ev, err := factory.Create(
+		event.EventTypeTrustUpdated, systemActor,
+		event.TrustUpdatedContent{
+			Actor: actor2, Previous: types.MustScore(0.5),
+			Current: types.MustScore(0.6), Domain: types.MustDomainScope("test"),
+			Cause: causes[0],
+		},
+		causes, convID, headFromStore{s}, testSigner{},
+	)
+	if err != nil {
+		t.Fatalf("create event: %v", err)
+	}
+	if _, err := s.Append(ev); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+	return ev
 }
 
 func TestAllPrimitivesRegister(t *testing.T) {
 	reg := primitive.NewRegistry()
+
 	prims := []primitive.Primitive{
-		layer12.NewMetaPatternPrimitive(), layer12.NewSystemDynamicPrimitive(),
-		layer12.NewFeedbackLoopPrimitive(), layer12.NewThresholdPrimitive(),
-		layer12.NewAdaptationPrimitive(), layer12.NewSelectionPrimitive(),
-		layer12.NewComplexificationPrimitive(), layer12.NewSimplificationPrimitive(),
-		layer12.NewSystemicIntegrityPrimitive(), layer12.NewHarmonyPrimitive(),
-		layer12.NewResiliencePrimitive(), layer12.NewPurposePrimitive(),
+		// Group A: Principles of Complexity
+		layer12.NewEmergencePrimitive(),
+		layer12.NewSelfOrganizationPrimitive(),
+		layer12.NewFeedbackPrimitive(),
+		layer12.NewComplexityPrimitive(),
+		// Group B: Limits and Self-Reference
+		layer12.NewConsciousnessPrimitive(),
+		layer12.NewRecursionPrimitive(),
+		layer12.NewParadoxPrimitive(),
+		layer12.NewIncompletenesPrimitive(),
+		// Group C: Dynamic Architecture
+		layer12.NewPhaseTransitionPrimitive(),
+		layer12.NewDownwardCausationPrimitive(),
+		layer12.NewAutopoiesisPrimitive(),
+		layer12.NewCoEvolutionPrimitive(),
 	}
+
 	for _, p := range prims {
 		if err := reg.Register(p); err != nil {
 			t.Errorf("Register %q: %v", p.ID().Value(), err)
@@ -34,22 +91,71 @@ func TestAllPrimitivesRegister(t *testing.T) {
 		if p.Layer().Value() != 12 {
 			t.Errorf("%q: Layer = %d, want 12", p.ID().Value(), p.Layer().Value())
 		}
+		if p.Lifecycle() != types.LifecycleActive {
+			t.Errorf("%q: Lifecycle = %v, want Active", p.ID().Value(), p.Lifecycle())
+		}
 		if len(p.Subscriptions()) == 0 {
 			t.Errorf("%q: no subscriptions", p.ID().Value())
 		}
 	}
+
 	if reg.Count() != 12 {
 		t.Errorf("registered %d primitives, want 12", reg.Count())
 	}
 }
 
-func TestPurposeProcess(t *testing.T) {
-	s := store.NewInMemoryStore()
-	factory := event.NewBootstrapFactory(event.DefaultRegistry())
-	bootstrap, _ := factory.Init(systemActor, testSigner{})
-	s.Append(bootstrap)
-	p := layer12.NewPurposePrimitive()
-	mutations, err := p.Process(types.MustTick(1), []event.Event{bootstrap}, primitive.Snapshot{})
-	if err != nil { t.Fatalf("Process: %v", err) }
-	if len(mutations) == 0 { t.Fatal("expected mutations") }
+func TestEmergenceProcess(t *testing.T) {
+	s, bootstrap := bootstrapStore(t)
+	ev := chainEvent(t, s, []types.EventID{bootstrap.ID()})
+	p := layer12.NewEmergencePrimitive()
+
+	mutations, err := p.Process(types.MustTick(1), []event.Event{ev}, primitive.Snapshot{})
+	if err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if len(mutations) == 0 {
+		t.Fatal("expected mutations")
+	}
+}
+
+func TestParadoxProcess(t *testing.T) {
+	s, bootstrap := bootstrapStore(t)
+	ev := chainEvent(t, s, []types.EventID{bootstrap.ID()})
+	p := layer12.NewParadoxPrimitive()
+
+	mutations, err := p.Process(types.MustTick(1), []event.Event{ev}, primitive.Snapshot{})
+	if err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if len(mutations) == 0 {
+		t.Fatal("expected mutations")
+	}
+}
+
+func TestCoEvolutionProcess(t *testing.T) {
+	s, bootstrap := bootstrapStore(t)
+	ev := chainEvent(t, s, []types.EventID{bootstrap.ID()})
+	p := layer12.NewCoEvolutionPrimitive()
+
+	mutations, err := p.Process(types.MustTick(1), []event.Event{ev}, primitive.Snapshot{})
+	if err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if len(mutations) == 0 {
+		t.Fatal("expected mutations")
+	}
+}
+
+func TestAutopoiesisProcess(t *testing.T) {
+	s, bootstrap := bootstrapStore(t)
+	ev := chainEvent(t, s, []types.EventID{bootstrap.ID()})
+	p := layer12.NewAutopoiesisPrimitive()
+
+	mutations, err := p.Process(types.MustTick(1), []event.Event{ev}, primitive.Snapshot{})
+	if err != nil {
+		t.Fatalf("Process: %v", err)
+	}
+	if len(mutations) == 0 {
+		t.Fatal("expected mutations")
+	}
 }

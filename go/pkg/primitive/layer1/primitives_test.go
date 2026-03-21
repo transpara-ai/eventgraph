@@ -67,21 +67,21 @@ func TestAllPrimitivesRegister(t *testing.T) {
 	reg := primitive.NewRegistry()
 
 	prims := []primitive.Primitive{
-		// Group 0: Intention
-		layer1.NewGoalPrimitive(),
-		layer1.NewPlanPrimitive(),
-		layer1.NewInitiativePrimitive(),
+		// Group A: Volition
+		layer1.NewValuePrimitive(),
+		layer1.NewIntentPrimitive(),
+		layer1.NewChoicePrimitive(),
+		layer1.NewRiskPrimitive(),
+		// Group B: Action
+		layer1.NewActPrimitive(),
+		layer1.NewConsequencePrimitive(),
+		layer1.NewCapacityPrimitive(),
+		layer1.NewResourcePrimitive(),
+		// Group C: Communication
+		layer1.NewSignalPrimitive(),
+		layer1.NewReceptionPrimitive(),
+		layer1.NewAcknowledgmentPrimitive(),
 		layer1.NewCommitmentPrimitive(),
-		// Group 1: Attention
-		layer1.NewFocusPrimitive(),
-		layer1.NewFilterPrimitive(),
-		layer1.NewSaliencePrimitive(),
-		layer1.NewDistractionPrimitive(),
-		// Group 2: Autonomy
-		layer1.NewPermissionPrimitive(),
-		layer1.NewCapabilityPrimitive(),
-		layer1.NewDelegationPrimitive(),
-		layer1.NewAccountabilityPrimitive(),
 	}
 
 	for _, p := range prims {
@@ -104,10 +104,10 @@ func TestAllPrimitivesRegister(t *testing.T) {
 	}
 }
 
-func TestGoalProcess(t *testing.T) {
+func TestValueProcess(t *testing.T) {
 	s, bootstrap := bootstrapStore(t)
 	ev := chainEvent(t, s, []types.EventID{bootstrap.ID()})
-	p := layer1.NewGoalPrimitive()
+	p := layer1.NewValuePrimitive()
 
 	mutations, err := p.Process(types.MustTick(1), []event.Event{ev}, primitive.Snapshot{})
 	if err != nil {
@@ -132,10 +132,10 @@ func TestCommitmentProcess(t *testing.T) {
 	}
 }
 
-func TestFocusProcess(t *testing.T) {
+func TestReceptionProcess(t *testing.T) {
 	s, bootstrap := bootstrapStore(t)
 	ev := chainEvent(t, s, []types.EventID{bootstrap.ID()})
-	p := layer1.NewFocusPrimitive()
+	p := layer1.NewReceptionPrimitive()
 
 	mutations, err := p.Process(types.MustTick(1), []event.Event{ev}, primitive.Snapshot{})
 	if err != nil {
@@ -146,10 +146,10 @@ func TestFocusProcess(t *testing.T) {
 	}
 }
 
-func TestAccountabilityProcess(t *testing.T) {
+func TestConsequenceProcess(t *testing.T) {
 	s, bootstrap := bootstrapStore(t)
 	ev := chainEvent(t, s, []types.EventID{bootstrap.ID()})
-	p := layer1.NewAccountabilityPrimitive()
+	p := layer1.NewConsequencePrimitive()
 
 	mutations, err := p.Process(types.MustTick(1), []event.Event{ev}, primitive.Snapshot{})
 	if err != nil {

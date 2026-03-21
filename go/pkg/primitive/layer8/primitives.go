@@ -1,10 +1,12 @@
 // Package layer8 implements the Layer 8 Identity primitives.
-// Groups: Self-Knowledge (SelfModel, Authenticity, NarrativeIdentity, Boundary),
-// Continuity (Persistence, Transformation, Heritage, Aspiration),
-// Recognition (Dignity, Acknowledgement, Uniqueness, Memorial).
+// Groups: SelfKnowledge (Narrative, SelfConcept, Reflection, Memory),
+// SelfDirection (Purpose, Aspiration, Authenticity, Expression),
+// SelfBecoming (Growth, Continuity, Integration, Crisis).
 package layer8
 
 import (
+	"strings"
+
 	"github.com/lovyou-ai/eventgraph/go/pkg/event"
 	"github.com/lovyou-ai/eventgraph/go/pkg/primitive"
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
@@ -13,174 +15,161 @@ import (
 var layer8 = types.MustLayer(8)
 var cadence1 = types.MustCadence(1)
 
-// --- Group 0: Self-Knowledge ---
+// --- Group A: Self-Knowledge ---
 
-// SelfModelPrimitive maintains an actor's model of itself.
-type SelfModelPrimitive struct{}
+// NarrativePrimitive maintains the story an actor tells about itself over time.
+type NarrativePrimitive struct{}
 
-func NewSelfModelPrimitive() *SelfModelPrimitive { return &SelfModelPrimitive{} }
+func NewNarrativePrimitive() *NarrativePrimitive { return &NarrativePrimitive{} }
 
-func (p *SelfModelPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("SelfModel") }
-func (p *SelfModelPrimitive) Layer() types.Layer               { return layer8 }
-func (p *SelfModelPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *SelfModelPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *SelfModelPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *NarrativePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Narrative") }
+func (p *NarrativePrimitive) Layer() types.Layer               { return layer8 }
+func (p *NarrativePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *NarrativePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *NarrativePrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("commitment.*"),
-		types.MustSubscriptionPattern("learning.*"),
-		types.MustSubscriptionPattern("moral.growth"),
-		types.MustSubscriptionPattern("capability.*"),
+		types.MustSubscriptionPattern("identity.*"),
+		types.MustSubscriptionPattern("memory.*"),
+		types.MustSubscriptionPattern("reflection.*"),
 	}
 }
 
-func (p *SelfModelPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *NarrativePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "identity.") || strings.HasPrefix(t, "memory.") || strings.HasPrefix(t, "reflection.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// AuthenticityPrimitive assesses alignment between self-model and behaviour.
-type AuthenticityPrimitive struct{}
+// SelfConceptPrimitive maintains an actor's model of what it is.
+type SelfConceptPrimitive struct{}
 
-func NewAuthenticityPrimitive() *AuthenticityPrimitive { return &AuthenticityPrimitive{} }
+func NewSelfConceptPrimitive() *SelfConceptPrimitive { return &SelfConceptPrimitive{} }
 
-func (p *AuthenticityPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Authenticity") }
-func (p *AuthenticityPrimitive) Layer() types.Layer               { return layer8 }
-func (p *AuthenticityPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *AuthenticityPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *AuthenticityPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *SelfConceptPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("SelfConcept") }
+func (p *SelfConceptPrimitive) Layer() types.Layer               { return layer8 }
+func (p *SelfConceptPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *SelfConceptPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *SelfConceptPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("self.model.*"),
-		types.MustSubscriptionPattern("decision.*"),
+		types.MustSubscriptionPattern("identity.*"),
+		types.MustSubscriptionPattern("capability.*"),
 		types.MustSubscriptionPattern("value.*"),
 	}
 }
 
-func (p *AuthenticityPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *SelfConceptPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "identity.") || strings.HasPrefix(t, "capability.") || strings.HasPrefix(t, "value.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// NarrativeIdentityPrimitive maintains the story an actor tells about itself.
-type NarrativeIdentityPrimitive struct{}
+// ReflectionPrimitive enables an actor to examine its own states and processes.
+type ReflectionPrimitive struct{}
 
-func NewNarrativeIdentityPrimitive() *NarrativeIdentityPrimitive { return &NarrativeIdentityPrimitive{} }
+func NewReflectionPrimitive() *ReflectionPrimitive { return &ReflectionPrimitive{} }
 
-func (p *NarrativeIdentityPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("NarrativeIdentity") }
-func (p *NarrativeIdentityPrimitive) Layer() types.Layer               { return layer8 }
-func (p *NarrativeIdentityPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *NarrativeIdentityPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *NarrativeIdentityPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *ReflectionPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Reflection") }
+func (p *ReflectionPrimitive) Layer() types.Layer               { return layer8 }
+func (p *ReflectionPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *ReflectionPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *ReflectionPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("self.model.*"),
+		types.MustSubscriptionPattern("decision.*"),
+		types.MustSubscriptionPattern("consequence.*"),
+		types.MustSubscriptionPattern("learning.*"),
+	}
+}
+
+func (p *ReflectionPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "decision.") || strings.HasPrefix(t, "consequence.") || strings.HasPrefix(t, "learning.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// MemoryPrimitive tracks what an actor retains from past experience.
+type MemoryPrimitive struct{}
+
+func NewMemoryPrimitive() *MemoryPrimitive { return &MemoryPrimitive{} }
+
+func (p *MemoryPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Memory") }
+func (p *MemoryPrimitive) Layer() types.Layer               { return layer8 }
+func (p *MemoryPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *MemoryPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *MemoryPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("experience.*"),
 		types.MustSubscriptionPattern("narrative.*"),
-		types.MustSubscriptionPattern("memory.*"),
-	}
-}
-
-func (p *NarrativeIdentityPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// BoundaryPrimitive defines where one actor ends and another begins.
-type BoundaryPrimitive struct{}
-
-func NewBoundaryPrimitive() *BoundaryPrimitive { return &BoundaryPrimitive{} }
-
-func (p *BoundaryPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Boundary") }
-func (p *BoundaryPrimitive) Layer() types.Layer               { return layer8 }
-func (p *BoundaryPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *BoundaryPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *BoundaryPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("delegation.*"),
-		types.MustSubscriptionPattern("group.*"),
-		types.MustSubscriptionPattern("consent.*"),
-	}
-}
-
-func (p *BoundaryPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// --- Group 1: Continuity ---
-
-// PersistencePrimitive tracks what stays the same as everything else changes.
-type PersistencePrimitive struct{}
-
-func NewPersistencePrimitive() *PersistencePrimitive { return &PersistencePrimitive{} }
-
-func (p *PersistencePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Persistence") }
-func (p *PersistencePrimitive) Layer() types.Layer               { return layer8 }
-func (p *PersistencePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *PersistencePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *PersistencePrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("self.model.*"),
 		types.MustSubscriptionPattern("learning.*"),
 	}
 }
 
-func (p *PersistencePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *MemoryPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "experience.") || strings.HasPrefix(t, "narrative.") || strings.HasPrefix(t, "learning.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// TransformationPrimitive detects fundamental changes in identity.
-type TransformationPrimitive struct{}
+// --- Group B: Self-Direction ---
 
-func NewTransformationPrimitive() *TransformationPrimitive { return &TransformationPrimitive{} }
+// PurposePrimitive tracks an actor's sense of why it exists and what it serves.
+type PurposePrimitive struct{}
 
-func (p *TransformationPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Transformation") }
-func (p *TransformationPrimitive) Layer() types.Layer               { return layer8 }
-func (p *TransformationPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *TransformationPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *TransformationPrimitive) Subscriptions() []types.SubscriptionPattern {
+func NewPurposePrimitive() *PurposePrimitive { return &PurposePrimitive{} }
+
+func (p *PurposePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Purpose") }
+func (p *PurposePrimitive) Layer() types.Layer               { return layer8 }
+func (p *PurposePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *PurposePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *PurposePrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("self.model.*"),
-		types.MustSubscriptionPattern("moral.growth"),
-		types.MustSubscriptionPattern("learning.*"),
+		types.MustSubscriptionPattern("goal.*"),
+		types.MustSubscriptionPattern("value.*"),
+		types.MustSubscriptionPattern("mission.*"),
 	}
 }
 
-func (p *TransformationPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// HeritagePrimitive recognises what came before — identity from history.
-type HeritagePrimitive struct{}
-
-func NewHeritagePrimitive() *HeritagePrimitive { return &HeritagePrimitive{} }
-
-func (p *HeritagePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Heritage") }
-func (p *HeritagePrimitive) Layer() types.Layer               { return layer8 }
-func (p *HeritagePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *HeritagePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *HeritagePrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("memory.*"),
-		types.MustSubscriptionPattern("legacy.*"),
-		types.MustSubscriptionPattern("provenance.*"),
+func (p *PurposePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "goal.") || strings.HasPrefix(t, "value.") || strings.HasPrefix(t, "mission.") {
+			relevant++
+		}
 	}
-}
-
-func (p *HeritagePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
@@ -196,110 +185,210 @@ func (p *AspirationPrimitive) Lifecycle() types.LifecycleState  { return types.L
 func (p *AspirationPrimitive) Cadence() types.Cadence           { return cadence1 }
 func (p *AspirationPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("self.model.*"),
-		types.MustSubscriptionPattern("goal.*"),
-		types.MustSubscriptionPattern("value.*"),
+		types.MustSubscriptionPattern("purpose.*"),
+		types.MustSubscriptionPattern("growth.*"),
+		types.MustSubscriptionPattern("potential.*"),
 	}
 }
 
 func (p *AspirationPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "purpose.") || strings.HasPrefix(t, "growth.") || strings.HasPrefix(t, "potential.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// --- Group 2: Recognition ---
+// AuthenticityPrimitive assesses alignment between self-concept and behaviour.
+type AuthenticityPrimitive struct{}
 
-// DignityPrimitive affirms the inherent worth of every actor. The DIGNITY invariant flows through this.
-type DignityPrimitive struct{}
+func NewAuthenticityPrimitive() *AuthenticityPrimitive { return &AuthenticityPrimitive{} }
 
-func NewDignityPrimitive() *DignityPrimitive { return &DignityPrimitive{} }
-
-func (p *DignityPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Dignity") }
-func (p *DignityPrimitive) Layer() types.Layer               { return layer8 }
-func (p *DignityPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *DignityPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *DignityPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *AuthenticityPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Authenticity") }
+func (p *AuthenticityPrimitive) Layer() types.Layer               { return layer8 }
+func (p *AuthenticityPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *AuthenticityPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *AuthenticityPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("exclusion.*"),
+		types.MustSubscriptionPattern("self.concept.*"),
+		types.MustSubscriptionPattern("decision.*"),
+		types.MustSubscriptionPattern("expression.*"),
+	}
+}
+
+func (p *AuthenticityPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "self.concept.") || strings.HasPrefix(t, "decision.") || strings.HasPrefix(t, "expression.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// ExpressionPrimitive handles how an actor manifests its identity outward.
+type ExpressionPrimitive struct{}
+
+func NewExpressionPrimitive() *ExpressionPrimitive { return &ExpressionPrimitive{} }
+
+func (p *ExpressionPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Expression") }
+func (p *ExpressionPrimitive) Layer() types.Layer               { return layer8 }
+func (p *ExpressionPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *ExpressionPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *ExpressionPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("authenticity.*"),
+		types.MustSubscriptionPattern("signal.*"),
+		types.MustSubscriptionPattern("act.*"),
+	}
+}
+
+func (p *ExpressionPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "authenticity.") || strings.HasPrefix(t, "signal.") || strings.HasPrefix(t, "act.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// --- Group C: Self-Becoming ---
+
+// GrowthPrimitive tracks an actor's development and maturation over time.
+type GrowthPrimitive struct{}
+
+func NewGrowthPrimitive() *GrowthPrimitive { return &GrowthPrimitive{} }
+
+func (p *GrowthPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Growth") }
+func (p *GrowthPrimitive) Layer() types.Layer               { return layer8 }
+func (p *GrowthPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *GrowthPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *GrowthPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("learning.*"),
+		types.MustSubscriptionPattern("moral.growth"),
+		types.MustSubscriptionPattern("aspiration.*"),
+	}
+}
+
+func (p *GrowthPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "learning.") || strings.HasPrefix(t, "moral.") || strings.HasPrefix(t, "aspiration.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// ContinuityPrimitive tracks what persists as identity changes over time.
+type ContinuityPrimitive struct{}
+
+func NewContinuityPrimitive() *ContinuityPrimitive { return &ContinuityPrimitive{} }
+
+func (p *ContinuityPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Continuity") }
+func (p *ContinuityPrimitive) Layer() types.Layer               { return layer8 }
+func (p *ContinuityPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *ContinuityPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *ContinuityPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("self.concept.*"),
+		types.MustSubscriptionPattern("memory.*"),
+		types.MustSubscriptionPattern("persistence.*"),
+	}
+}
+
+func (p *ContinuityPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "self.concept.") || strings.HasPrefix(t, "memory.") || strings.HasPrefix(t, "persistence.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// IntegrationPrimitive synthesises disparate aspects of identity into coherence.
+type IntegrationPrimitive struct{}
+
+func NewIntegrationPrimitive() *IntegrationPrimitive { return &IntegrationPrimitive{} }
+
+func (p *IntegrationPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Integration") }
+func (p *IntegrationPrimitive) Layer() types.Layer               { return layer8 }
+func (p *IntegrationPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *IntegrationPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *IntegrationPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("narrative.*"),
+		types.MustSubscriptionPattern("self.concept.*"),
+		types.MustSubscriptionPattern("growth.*"),
+	}
+}
+
+func (p *IntegrationPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "narrative.") || strings.HasPrefix(t, "self.concept.") || strings.HasPrefix(t, "growth.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// CrisisPrimitive detects when identity is fundamentally threatened or disrupted.
+type CrisisPrimitive struct{}
+
+func NewCrisisPrimitive() *CrisisPrimitive { return &CrisisPrimitive{} }
+
+func (p *CrisisPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Crisis") }
+func (p *CrisisPrimitive) Layer() types.Layer               { return layer8 }
+func (p *CrisisPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *CrisisPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *CrisisPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("continuity.*"),
+		types.MustSubscriptionPattern("rupture.*"),
 		types.MustSubscriptionPattern("harm.*"),
-		types.MustSubscriptionPattern("right.violated"),
-		types.MustSubscriptionPattern("actor.memorial"),
 	}
 }
 
-func (p *DignityPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// AcknowledgementPrimitive tracks being seen and recognised by others.
-type AcknowledgementPrimitive struct{}
-
-func NewAcknowledgementPrimitive() *AcknowledgementPrimitive { return &AcknowledgementPrimitive{} }
-
-func (p *AcknowledgementPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("IdentityAcknowledgement") }
-func (p *AcknowledgementPrimitive) Layer() types.Layer               { return layer8 }
-func (p *AcknowledgementPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *AcknowledgementPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *AcknowledgementPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("message.*"),
-		types.MustSubscriptionPattern("gratitude.*"),
-		types.MustSubscriptionPattern("reputation.*"),
+func (p *CrisisPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "continuity.") || strings.HasPrefix(t, "rupture.") || strings.HasPrefix(t, "harm.") {
+			relevant++
+		}
 	}
-}
-
-func (p *AcknowledgementPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// UniquenessPrimitive identifies what makes each actor distinct.
-type UniquenessPrimitive struct{}
-
-func NewUniquenessPrimitive() *UniquenessPrimitive { return &UniquenessPrimitive{} }
-
-func (p *UniquenessPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Uniqueness") }
-func (p *UniquenessPrimitive) Layer() types.Layer               { return layer8 }
-func (p *UniquenessPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *UniquenessPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *UniquenessPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("self.model.*"),
-		types.MustSubscriptionPattern("identity.narrative"),
-		types.MustSubscriptionPattern("pattern.detected"),
-	}
-}
-
-func (p *UniquenessPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// MemorialPrimitive honours actors who have left.
-type MemorialPrimitive struct{}
-
-func NewMemorialPrimitive() *MemorialPrimitive { return &MemorialPrimitive{} }
-
-func (p *MemorialPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Memorial") }
-func (p *MemorialPrimitive) Layer() types.Layer               { return layer8 }
-func (p *MemorialPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *MemorialPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *MemorialPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{types.MustSubscriptionPattern("actor.memorial")}
-}
-
-func (p *MemorialPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "memorialsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }

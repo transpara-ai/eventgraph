@@ -1,7 +1,7 @@
 // Package layer1 implements the Layer 1 Agency primitives.
-// Groups: Intention (Goal, Plan, Initiative, Commitment),
-// Attention (Focus, Filter, Salience, Distraction),
-// Autonomy (Permission, Capability, Delegation, Accountability).
+// Groups: Volition (Value, Intent, Choice, Risk),
+// Action (Act, Consequence, Capacity, Resource),
+// Communication (Signal, Reception, Acknowledgment, Commitment).
 package layer1
 
 import (
@@ -15,101 +15,334 @@ import (
 var layer1 = types.MustLayer(1)
 var cadence1 = types.MustCadence(1)
 
-// --- Group 0: Intention ---
+// --- Group A: Volition (why act) ---
 
-// GoalPrimitive sets and tracks objectives for actors.
-type GoalPrimitive struct{}
+// ValuePrimitive measures importance relative to Self. What matters and how much.
+type ValuePrimitive struct{}
 
-func NewGoalPrimitive() *GoalPrimitive { return &GoalPrimitive{} }
+func NewValuePrimitive() *ValuePrimitive { return &ValuePrimitive{} }
 
-func (p *GoalPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Goal") }
-func (p *GoalPrimitive) Layer() types.Layer               { return layer1 }
-func (p *GoalPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *GoalPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *GoalPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *ValuePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Value") }
+func (p *ValuePrimitive) Layer() types.Layer               { return layer1 }
+func (p *ValuePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *ValuePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *ValuePrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
 		types.MustSubscriptionPattern("decision.*"),
-		types.MustSubscriptionPattern("authority.resolved"),
 		types.MustSubscriptionPattern("actor.*"),
 	}
 }
 
-func (p *GoalPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	var mutations []primitive.Mutation
-	goalCount := 0
+func (p *ValuePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
 	for _, ev := range events {
 		t := ev.Type().Value()
 		if strings.HasPrefix(t, "decision.") || strings.HasPrefix(t, "actor.") {
-			goalCount++
-		}
-	}
-	mutations = append(mutations,
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "goalEventsProcessed", Value: goalCount},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	)
-	return mutations, nil
-}
-
-// PlanPrimitive decomposes goals into steps.
-type PlanPrimitive struct{}
-
-func NewPlanPrimitive() *PlanPrimitive { return &PlanPrimitive{} }
-
-func (p *PlanPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Plan") }
-func (p *PlanPrimitive) Layer() types.Layer               { return layer1 }
-func (p *PlanPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *PlanPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *PlanPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("goal.*"),
-	}
-}
-
-func (p *PlanPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	planEvents := 0
-	for _, ev := range events {
-		if strings.HasPrefix(ev.Type().Value(), "goal.") {
-			planEvents++
+			relevant++
 		}
 	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "goalEventsReceived", Value: planEvents},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// InitiativePrimitive decides when to act without being asked.
-type InitiativePrimitive struct{}
+// IntentPrimitive represents a desired future state the system seeks to bring about.
+type IntentPrimitive struct{}
 
-func NewInitiativePrimitive() *InitiativePrimitive { return &InitiativePrimitive{} }
+func NewIntentPrimitive() *IntentPrimitive { return &IntentPrimitive{} }
 
-func (p *InitiativePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Initiative") }
-func (p *InitiativePrimitive) Layer() types.Layer               { return layer1 }
-func (p *InitiativePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *InitiativePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *InitiativePrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *IntentPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Intent") }
+func (p *IntentPrimitive) Layer() types.Layer               { return layer1 }
+func (p *IntentPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *IntentPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *IntentPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("clock.tick"),
-		types.MustSubscriptionPattern("goal.*"),
-		types.MustSubscriptionPattern("plan.*"),
+		types.MustSubscriptionPattern("value.*"),
+		types.MustSubscriptionPattern("expectation.*"),
 	}
 }
 
-func (p *InitiativePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	triggers := 0
+func (p *IntentPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
 	for _, ev := range events {
 		t := ev.Type().Value()
-		if strings.HasPrefix(t, "goal.") || strings.HasPrefix(t, "plan.") {
-			triggers++
+		if strings.HasPrefix(t, "value.") || strings.HasPrefix(t, "expectation.") {
+			relevant++
 		}
 	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "triggerCount", Value: triggers},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// CommitmentPrimitive tracks whether actors follow through on goals.
+// ChoicePrimitive selects among possible Acts based on Value and Confidence.
+type ChoicePrimitive struct{}
+
+func NewChoicePrimitive() *ChoicePrimitive { return &ChoicePrimitive{} }
+
+func (p *ChoicePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Choice") }
+func (p *ChoicePrimitive) Layer() types.Layer               { return layer1 }
+func (p *ChoicePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *ChoicePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *ChoicePrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("intent.*"),
+		types.MustSubscriptionPattern("value.*"),
+		types.MustSubscriptionPattern("confidence.*"),
+	}
+}
+
+func (p *ChoicePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "intent.") || strings.HasPrefix(t, "value.") || strings.HasPrefix(t, "confidence.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// RiskPrimitive assesses potential loss from an Act under Uncertainty.
+type RiskPrimitive struct{}
+
+func NewRiskPrimitive() *RiskPrimitive { return &RiskPrimitive{} }
+
+func (p *RiskPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Risk") }
+func (p *RiskPrimitive) Layer() types.Layer               { return layer1 }
+func (p *RiskPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *RiskPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *RiskPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("intent.*"),
+		types.MustSubscriptionPattern("uncertainty.*"),
+		types.MustSubscriptionPattern("value.*"),
+	}
+}
+
+func (p *RiskPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "intent.") || strings.HasPrefix(t, "uncertainty.") || strings.HasPrefix(t, "value.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// --- Group B: Action (doing things) ---
+
+// ActPrimitive produces causally effective Events. Self becomes a FirstCause.
+type ActPrimitive struct{}
+
+func NewActPrimitive() *ActPrimitive { return &ActPrimitive{} }
+
+func (p *ActPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Act") }
+func (p *ActPrimitive) Layer() types.Layer               { return layer1 }
+func (p *ActPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *ActPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *ActPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("choice.*"),
+		types.MustSubscriptionPattern("intent.*"),
+	}
+}
+
+func (p *ActPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "choice.") || strings.HasPrefix(t, "intent.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// ConsequencePrimitive tracks effects of an Act attributed back to the actor.
+type ConsequencePrimitive struct{}
+
+func NewConsequencePrimitive() *ConsequencePrimitive { return &ConsequencePrimitive{} }
+
+func (p *ConsequencePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Consequence") }
+func (p *ConsequencePrimitive) Layer() types.Layer               { return layer1 }
+func (p *ConsequencePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *ConsequencePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *ConsequencePrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("act.*"),
+		types.MustSubscriptionPattern("violation.*"),
+	}
+}
+
+func (p *ConsequencePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "act.") || strings.HasPrefix(t, "violation.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// CapacityPrimitive tracks what the system is able to do.
+type CapacityPrimitive struct{}
+
+func NewCapacityPrimitive() *CapacityPrimitive { return &CapacityPrimitive{} }
+
+func (p *CapacityPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Capacity") }
+func (p *CapacityPrimitive) Layer() types.Layer               { return layer1 }
+func (p *CapacityPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *CapacityPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *CapacityPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("actor.*"),
+		types.MustSubscriptionPattern("resource.*"),
+		types.MustSubscriptionPattern("trust.*"),
+	}
+}
+
+func (p *CapacityPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "actor.") || strings.HasPrefix(t, "resource.") || strings.HasPrefix(t, "trust.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// ResourcePrimitive tracks finite things consumed or required by Acts.
+type ResourcePrimitive struct{}
+
+func NewResourcePrimitive() *ResourcePrimitive { return &ResourcePrimitive{} }
+
+func (p *ResourcePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Resource") }
+func (p *ResourcePrimitive) Layer() types.Layer               { return layer1 }
+func (p *ResourcePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *ResourcePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *ResourcePrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("act.*"),
+		types.MustSubscriptionPattern("budget.*"),
+	}
+}
+
+func (p *ResourcePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "act.") || strings.HasPrefix(t, "budget.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// --- Group C: Communication (exchanging with others) ---
+
+// SignalPrimitive is an Act directed at a specific ActorID to convey information.
+type SignalPrimitive struct{}
+
+func NewSignalPrimitive() *SignalPrimitive { return &SignalPrimitive{} }
+
+func (p *SignalPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Signal") }
+func (p *SignalPrimitive) Layer() types.Layer               { return layer1 }
+func (p *SignalPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *SignalPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *SignalPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("act.*"),
+		types.MustSubscriptionPattern("actor.*"),
+	}
+}
+
+func (p *SignalPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "act.") || strings.HasPrefix(t, "actor.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// ReceptionPrimitive handles external Events entering Self's awareness.
+type ReceptionPrimitive struct{}
+
+func NewReceptionPrimitive() *ReceptionPrimitive { return &ReceptionPrimitive{} }
+
+func (p *ReceptionPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Reception") }
+func (p *ReceptionPrimitive) Layer() types.Layer               { return layer1 }
+func (p *ReceptionPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *ReceptionPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *ReceptionPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{types.MustSubscriptionPattern("*")}
+}
+
+func (p *ReceptionPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsReceived", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// AcknowledgmentPrimitive confirms receipt of a prior Signal.
+type AcknowledgmentPrimitive struct{}
+
+func NewAcknowledgmentPrimitive() *AcknowledgmentPrimitive { return &AcknowledgmentPrimitive{} }
+
+func (p *AcknowledgmentPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Acknowledgment") }
+func (p *AcknowledgmentPrimitive) Layer() types.Layer               { return layer1 }
+func (p *AcknowledgmentPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *AcknowledgmentPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *AcknowledgmentPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("signal.*"),
+	}
+}
+
+func (p *AcknowledgmentPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	signals := 0
+	for _, ev := range events {
+		if strings.HasPrefix(ev.Type().Value(), "signal.") {
+			signals++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "signalsAcknowledged", Value: signals},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// CommitmentPrimitive is a Signal that binds future behavior.
 type CommitmentPrimitive struct{}
 
 func NewCommitmentPrimitive() *CommitmentPrimitive { return &CommitmentPrimitive{} }
@@ -120,244 +353,22 @@ func (p *CommitmentPrimitive) Lifecycle() types.LifecycleState  { return types.L
 func (p *CommitmentPrimitive) Cadence() types.Cadence           { return cadence1 }
 func (p *CommitmentPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("goal.set"),
-		types.MustSubscriptionPattern("goal.achieved"),
-		types.MustSubscriptionPattern("goal.abandoned"),
-		types.MustSubscriptionPattern("plan.step.completed"),
+		types.MustSubscriptionPattern("signal.*"),
+		types.MustSubscriptionPattern("agreement.*"),
+		types.MustSubscriptionPattern("intent.*"),
 	}
 }
 
 func (p *CommitmentPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	achieved := 0
-	abandoned := 0
+	relevant := 0
 	for _, ev := range events {
 		t := ev.Type().Value()
-		if strings.HasPrefix(t, "goal.achieved") {
-			achieved++
-		} else if strings.HasPrefix(t, "goal.abandoned") {
-			abandoned++
+		if strings.HasPrefix(t, "signal.") || strings.HasPrefix(t, "agreement.") || strings.HasPrefix(t, "intent.") {
+			relevant++
 		}
 	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "achieved", Value: achieved},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "abandoned", Value: abandoned},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// --- Group 1: Attention ---
-
-// FocusPrimitive directs processing resources to high-priority events.
-type FocusPrimitive struct{}
-
-func NewFocusPrimitive() *FocusPrimitive { return &FocusPrimitive{} }
-
-func (p *FocusPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Focus") }
-func (p *FocusPrimitive) Layer() types.Layer               { return layer1 }
-func (p *FocusPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *FocusPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *FocusPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{types.MustSubscriptionPattern("*")}
-}
-
-func (p *FocusPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsInFocus", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// FilterPrimitive suppresses noise by deciding what NOT to process.
-type FilterPrimitive struct{}
-
-func NewFilterPrimitive() *FilterPrimitive { return &FilterPrimitive{} }
-
-func (p *FilterPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Filter") }
-func (p *FilterPrimitive) Layer() types.Layer               { return layer1 }
-func (p *FilterPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *FilterPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *FilterPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{types.MustSubscriptionPattern("*")}
-}
-
-func (p *FilterPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	suppressed := 0
-	for range events {
-		// Mechanical: no filtering rules yet — count all events as passed
-		_ = suppressed
-	}
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "totalEvents", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "suppressedCount", Value: suppressed},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// SaliencePrimitive detects what matters in the current context.
-type SaliencePrimitive struct{}
-
-func NewSaliencePrimitive() *SaliencePrimitive { return &SaliencePrimitive{} }
-
-func (p *SaliencePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Salience") }
-func (p *SaliencePrimitive) Layer() types.Layer               { return layer1 }
-func (p *SaliencePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *SaliencePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *SaliencePrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{types.MustSubscriptionPattern("*")}
-}
-
-func (p *SaliencePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsScored", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// DistractionPrimitive detects when attention is pulled away from goals.
-type DistractionPrimitive struct{}
-
-func NewDistractionPrimitive() *DistractionPrimitive { return &DistractionPrimitive{} }
-
-func (p *DistractionPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Distraction") }
-func (p *DistractionPrimitive) Layer() types.Layer               { return layer1 }
-func (p *DistractionPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *DistractionPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *DistractionPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("focus.*"),
-		types.MustSubscriptionPattern("goal.*"),
-	}
-}
-
-func (p *DistractionPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	focusShifts := 0
-	for _, ev := range events {
-		if strings.HasPrefix(ev.Type().Value(), "focus.") {
-			focusShifts++
-		}
-	}
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "focusShifts", Value: focusShifts},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// --- Group 2: Autonomy ---
-
-// PermissionPrimitive requests and tracks permissions for actions.
-type PermissionPrimitive struct{}
-
-func NewPermissionPrimitive() *PermissionPrimitive { return &PermissionPrimitive{} }
-
-func (p *PermissionPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Permission") }
-func (p *PermissionPrimitive) Layer() types.Layer               { return layer1 }
-func (p *PermissionPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *PermissionPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *PermissionPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("authority.*"),
-		types.MustSubscriptionPattern("decision.*"),
-	}
-}
-
-func (p *PermissionPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	authorityEvents := 0
-	for _, ev := range events {
-		if strings.HasPrefix(ev.Type().Value(), "authority.") {
-			authorityEvents++
-		}
-	}
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "authorityEventsProcessed", Value: authorityEvents},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// CapabilityPrimitive tracks what an actor can do.
-type CapabilityPrimitive struct{}
-
-func NewCapabilityPrimitive() *CapabilityPrimitive { return &CapabilityPrimitive{} }
-
-func (p *CapabilityPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Capability") }
-func (p *CapabilityPrimitive) Layer() types.Layer               { return layer1 }
-func (p *CapabilityPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *CapabilityPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *CapabilityPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("actor.registered"),
-		types.MustSubscriptionPattern("permission.*"),
-		types.MustSubscriptionPattern("trust.*"),
-	}
-}
-
-func (p *CapabilityPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	actorEvents := 0
-	for _, ev := range events {
-		if strings.HasPrefix(ev.Type().Value(), "actor.") || strings.HasPrefix(ev.Type().Value(), "permission.") {
-			actorEvents++
-		}
-	}
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "capabilityEventsProcessed", Value: actorEvents},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// DelegationPrimitive assigns tasks or authority to others.
-type DelegationPrimitive struct{}
-
-func NewDelegationPrimitive() *DelegationPrimitive { return &DelegationPrimitive{} }
-
-func (p *DelegationPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Delegation") }
-func (p *DelegationPrimitive) Layer() types.Layer               { return layer1 }
-func (p *DelegationPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *DelegationPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *DelegationPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("authority.*"),
-		types.MustSubscriptionPattern("edge.created"),
-	}
-}
-
-func (p *DelegationPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	delegations := 0
-	for _, ev := range events {
-		if strings.HasPrefix(ev.Type().Value(), "edge.created") {
-			delegations++
-		}
-	}
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "delegationEvents", Value: delegations},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// AccountabilityPrimitive traces who is responsible when things go wrong.
-type AccountabilityPrimitive struct{}
-
-func NewAccountabilityPrimitive() *AccountabilityPrimitive { return &AccountabilityPrimitive{} }
-
-func (p *AccountabilityPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Accountability") }
-func (p *AccountabilityPrimitive) Layer() types.Layer               { return layer1 }
-func (p *AccountabilityPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *AccountabilityPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *AccountabilityPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("delegation.*"),
-		types.MustSubscriptionPattern("violation.*"),
-		types.MustSubscriptionPattern("goal.abandoned"),
-	}
-}
-
-func (p *AccountabilityPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	violations := 0
-	for _, ev := range events {
-		if strings.HasPrefix(ev.Type().Value(), "violation.") {
-			violations++
-		}
-	}
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "violationsTracked", Value: violations},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }

@@ -215,7 +215,7 @@ The subscription contracts for all 201 primitives are specified in `docs/primiti
 156 primitives across 13 layers (12 per layer, 3 groups of 4). Each implements the Primitive interface with correct layer, subscriptions matching `docs/primitives.md`, and state-tracking Process methods. All mechanical implementations — intelligent behaviour (IIntelligence, IDecisionMaker) will be wired when those interfaces are needed.
 
 ### Layer 1 — Agency (Observer → Participant) — DONE
-- [x] `go/pkg/primitive/layer1/` — Goal, Plan, Initiative, Commitment, Focus, Filter, Salience, Distraction, Permission, Capability, Delegation, Accountability
+- [x] `go/pkg/primitive/layer1/` — Value, Intent, Choice, Risk, Act, Consequence, Capacity, Resource, Signal, Reception, Acknowledgment, Commitment
 
 ### Layer 2 — Exchange (Individual → Dyad) — DONE
 - [x] `go/pkg/primitive/layer2/` — Message, Acknowledgement, Clarification, Context, Offer, Acceptance, Obligation, Gratitude, Negotiation, Consent, Contract, Dispute

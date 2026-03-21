@@ -1,10 +1,12 @@
 // Package layer10 implements the Layer 10 Community primitives.
-// Groups: Belonging (Home, Contribution, Inclusion, Tradition),
-// Stewardship (Commons, Sustainability, Succession, Renewal),
-// Celebration (Milestone, Ceremony, Story, Gift).
+// Groups: SharedMeaning (Culture, SharedNarrative, Ethos, Sacred),
+// LivingPractice (Tradition, Ritual, Practice, Place),
+// CommunalExperience (Belonging, Solidarity, Voice, Welcome).
 package layer10
 
 import (
+	"strings"
+
 	"github.com/lovyou-ai/eventgraph/go/pkg/event"
 	"github.com/lovyou-ai/eventgraph/go/pkg/primitive"
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
@@ -13,81 +15,135 @@ import (
 var layer10 = types.MustLayer(10)
 var cadence1 = types.MustCadence(1)
 
-// --- Group 0: Belonging ---
+// --- Group A: Shared Meaning ---
 
-// HomePrimitive identifies the sense of place in a community.
-type HomePrimitive struct{}
+// CulturePrimitive tracks the shared patterns of meaning within a community.
+type CulturePrimitive struct{}
 
-func NewHomePrimitive() *HomePrimitive { return &HomePrimitive{} }
+func NewCulturePrimitive() *CulturePrimitive { return &CulturePrimitive{} }
 
-func (p *HomePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Home") }
-func (p *HomePrimitive) Layer() types.Layer               { return layer10 }
-func (p *HomePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *HomePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *HomePrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *CulturePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Culture") }
+func (p *CulturePrimitive) Layer() types.Layer               { return layer10 }
+func (p *CulturePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *CulturePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *CulturePrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("group.*"),
-		types.MustSubscriptionPattern("attachment.*"),
-		types.MustSubscriptionPattern("presence.*"),
+		types.MustSubscriptionPattern("norm.*"),
+		types.MustSubscriptionPattern("tradition.*"),
+		types.MustSubscriptionPattern("ethos.*"),
 	}
 }
 
-func (p *HomePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *CulturePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "norm.") || strings.HasPrefix(t, "tradition.") || strings.HasPrefix(t, "ethos.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// ContributionPrimitive records what each member gives.
-type ContributionPrimitive struct{}
+// SharedNarrativePrimitive maintains the stories a community tells about itself.
+type SharedNarrativePrimitive struct{}
 
-func NewContributionPrimitive() *ContributionPrimitive { return &ContributionPrimitive{} }
+func NewSharedNarrativePrimitive() *SharedNarrativePrimitive { return &SharedNarrativePrimitive{} }
 
-func (p *ContributionPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Contribution") }
-func (p *ContributionPrimitive) Layer() types.Layer               { return layer10 }
-func (p *ContributionPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *ContributionPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *ContributionPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *SharedNarrativePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("SharedNarrative") }
+func (p *SharedNarrativePrimitive) Layer() types.Layer               { return layer10 }
+func (p *SharedNarrativePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *SharedNarrativePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *SharedNarrativePrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("artefact.created"),
-		types.MustSubscriptionPattern("review.*"),
-		types.MustSubscriptionPattern("care.action"),
+		types.MustSubscriptionPattern("narrative.*"),
+		types.MustSubscriptionPattern("milestone.*"),
+		types.MustSubscriptionPattern("memorial.*"),
 	}
 }
 
-func (p *ContributionPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *SharedNarrativePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "narrative.") || strings.HasPrefix(t, "milestone.") || strings.HasPrefix(t, "memorial.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// InclusionPrimitive actively ensures everyone can participate.
-type InclusionPrimitive struct{}
+// EthosPrimitive captures the moral character and guiding values of a community.
+type EthosPrimitive struct{}
 
-func NewInclusionPrimitive() *InclusionPrimitive { return &InclusionPrimitive{} }
+func NewEthosPrimitive() *EthosPrimitive { return &EthosPrimitive{} }
 
-func (p *InclusionPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Inclusion") }
-func (p *InclusionPrimitive) Layer() types.Layer               { return layer10 }
-func (p *InclusionPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *InclusionPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *InclusionPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *EthosPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Ethos") }
+func (p *EthosPrimitive) Layer() types.Layer               { return layer10 }
+func (p *EthosPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *EthosPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *EthosPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("group.*"),
-		types.MustSubscriptionPattern("exclusion.*"),
-		types.MustSubscriptionPattern("fairness.*"),
+		types.MustSubscriptionPattern("value.*"),
+		types.MustSubscriptionPattern("norm.*"),
+		types.MustSubscriptionPattern("governance.*"),
 	}
 }
 
-func (p *InclusionPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *EthosPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "value.") || strings.HasPrefix(t, "norm.") || strings.HasPrefix(t, "governance.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// TraditionPrimitive identifies practices that define a community.
+// SacredPrimitive identifies what a community holds inviolable.
+type SacredPrimitive struct{}
+
+func NewSacredPrimitive() *SacredPrimitive { return &SacredPrimitive{} }
+
+func (p *SacredPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Sacred") }
+func (p *SacredPrimitive) Layer() types.Layer               { return layer10 }
+func (p *SacredPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *SacredPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *SacredPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("ethos.*"),
+		types.MustSubscriptionPattern("ritual.*"),
+		types.MustSubscriptionPattern("boundary.*"),
+	}
+}
+
+func (p *SacredPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "ethos.") || strings.HasPrefix(t, "ritual.") || strings.HasPrefix(t, "boundary.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// --- Group B: Living Practice ---
+
+// TraditionPrimitive identifies practices passed down that define a community.
 type TraditionPrimitive struct{}
 
 func NewTraditionPrimitive() *TraditionPrimitive { return &TraditionPrimitive{} }
@@ -98,210 +154,241 @@ func (p *TraditionPrimitive) Lifecycle() types.LifecycleState  { return types.Li
 func (p *TraditionPrimitive) Cadence() types.Cadence           { return cadence1 }
 func (p *TraditionPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("convention.detected"),
+		types.MustSubscriptionPattern("convention.*"),
 		types.MustSubscriptionPattern("heritage.*"),
 		types.MustSubscriptionPattern("pattern.detected"),
 	}
 }
 
 func (p *TraditionPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// --- Group 1: Stewardship ---
-
-// CommonsPrimitive identifies shared resources belonging to the community.
-type CommonsPrimitive struct{}
-
-func NewCommonsPrimitive() *CommonsPrimitive { return &CommonsPrimitive{} }
-
-func (p *CommonsPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Commons") }
-func (p *CommonsPrimitive) Layer() types.Layer               { return layer10 }
-func (p *CommonsPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *CommonsPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *CommonsPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("artefact.*"),
-		types.MustSubscriptionPattern("group.*"),
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "convention.") || strings.HasPrefix(t, "heritage.") || strings.HasPrefix(t, "pattern.") {
+			relevant++
+		}
 	}
-}
-
-func (p *CommonsPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// SustainabilityPrimitive assesses whether the community can continue.
-type SustainabilityPrimitive struct{}
+// RitualPrimitive handles formal, repeated communal actions that carry shared meaning.
+type RitualPrimitive struct{}
 
-func NewSustainabilityPrimitive() *SustainabilityPrimitive { return &SustainabilityPrimitive{} }
+func NewRitualPrimitive() *RitualPrimitive { return &RitualPrimitive{} }
 
-func (p *SustainabilityPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Sustainability") }
-func (p *SustainabilityPrimitive) Layer() types.Layer               { return layer10 }
-func (p *SustainabilityPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *SustainabilityPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *SustainabilityPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *RitualPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Ritual") }
+func (p *RitualPrimitive) Layer() types.Layer               { return layer10 }
+func (p *RitualPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *RitualPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *RitualPrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("health.*"),
-		types.MustSubscriptionPattern("commons.*"),
-		types.MustSubscriptionPattern("contribution.*"),
-	}
-}
-
-func (p *SustainabilityPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// SuccessionPrimitive manages passing stewardship to the next generation.
-type SuccessionPrimitive struct{}
-
-func NewSuccessionPrimitive() *SuccessionPrimitive { return &SuccessionPrimitive{} }
-
-func (p *SuccessionPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Succession") }
-func (p *SuccessionPrimitive) Layer() types.Layer               { return layer10 }
-func (p *SuccessionPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *SuccessionPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *SuccessionPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("delegation.*"),
-		types.MustSubscriptionPattern("actor.memorial"),
-		types.MustSubscriptionPattern("role.*"),
-	}
-}
-
-func (p *SuccessionPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// RenewalPrimitive handles how communities regenerate.
-type RenewalPrimitive struct{}
-
-func NewRenewalPrimitive() *RenewalPrimitive { return &RenewalPrimitive{} }
-
-func (p *RenewalPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Renewal") }
-func (p *RenewalPrimitive) Layer() types.Layer               { return layer10 }
-func (p *RenewalPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *RenewalPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *RenewalPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("sustainability.*"),
-		types.MustSubscriptionPattern("innovation.*"),
-		types.MustSubscriptionPattern("tradition.evolved"),
-	}
-}
-
-func (p *RenewalPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// --- Group 2: Celebration ---
-
-// MilestonePrimitive recognises significant achievements.
-type MilestonePrimitive struct{}
-
-func NewMilestonePrimitive() *MilestonePrimitive { return &MilestonePrimitive{} }
-
-func (p *MilestonePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Milestone") }
-func (p *MilestonePrimitive) Layer() types.Layer               { return layer10 }
-func (p *MilestonePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *MilestonePrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *MilestonePrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("goal.achieved"),
-		types.MustSubscriptionPattern("innovation.*"),
-		types.MustSubscriptionPattern("reconciliation.completed"),
-	}
-}
-
-func (p *MilestonePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// CeremonyPrimitive handles formal recognition events.
-type CeremonyPrimitive struct{}
-
-func NewCeremonyPrimitive() *CeremonyPrimitive { return &CeremonyPrimitive{} }
-
-func (p *CeremonyPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Ceremony") }
-func (p *CeremonyPrimitive) Layer() types.Layer               { return layer10 }
-func (p *CeremonyPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *CeremonyPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *CeremonyPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("milestone.*"),
-		types.MustSubscriptionPattern("succession.*"),
-		types.MustSubscriptionPattern("actor.memorial"),
-	}
-}
-
-func (p *CeremonyPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
-	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
-	}, nil
-}
-
-// StoryPrimitive maintains the community's shared narrative.
-type StoryPrimitive struct{}
-
-func NewStoryPrimitive() *StoryPrimitive { return &StoryPrimitive{} }
-
-func (p *StoryPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Story") }
-func (p *StoryPrimitive) Layer() types.Layer               { return layer10 }
-func (p *StoryPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *StoryPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *StoryPrimitive) Subscriptions() []types.SubscriptionPattern {
-	return []types.SubscriptionPattern{
-		types.MustSubscriptionPattern("milestone.*"),
 		types.MustSubscriptionPattern("ceremony.*"),
 		types.MustSubscriptionPattern("tradition.*"),
-		types.MustSubscriptionPattern("memorial.created"),
+		types.MustSubscriptionPattern("sacred.*"),
 	}
 }
 
-func (p *StoryPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *RitualPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "ceremony.") || strings.HasPrefix(t, "tradition.") || strings.HasPrefix(t, "sacred.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }
 
-// GiftPrimitive handles giving without expectation of return.
-type GiftPrimitive struct{}
+// PracticePrimitive tracks embodied, repeated communal activities.
+type PracticePrimitive struct{}
 
-func NewGiftPrimitive() *GiftPrimitive { return &GiftPrimitive{} }
+func NewPracticePrimitive() *PracticePrimitive { return &PracticePrimitive{} }
 
-func (p *GiftPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Gift") }
-func (p *GiftPrimitive) Layer() types.Layer               { return layer10 }
-func (p *GiftPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
-func (p *GiftPrimitive) Cadence() types.Cadence           { return cadence1 }
-func (p *GiftPrimitive) Subscriptions() []types.SubscriptionPattern {
+func (p *PracticePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Practice") }
+func (p *PracticePrimitive) Layer() types.Layer               { return layer10 }
+func (p *PracticePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *PracticePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *PracticePrimitive) Subscriptions() []types.SubscriptionPattern {
 	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("habit.*"),
+		types.MustSubscriptionPattern("skill.*"),
 		types.MustSubscriptionPattern("contribution.*"),
-		types.MustSubscriptionPattern("gratitude.*"),
 	}
 }
 
-func (p *GiftPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+func (p *PracticePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "habit.") || strings.HasPrefix(t, "skill.") || strings.HasPrefix(t, "contribution.") {
+			relevant++
+		}
+	}
 	return []primitive.Mutation{
-		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: len(events)},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// PlacePrimitive identifies the sense of shared location and environment.
+type PlacePrimitive struct{}
+
+func NewPlacePrimitive() *PlacePrimitive { return &PlacePrimitive{} }
+
+func (p *PlacePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Place") }
+func (p *PlacePrimitive) Layer() types.Layer               { return layer10 }
+func (p *PlacePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *PlacePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *PlacePrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("group.*"),
+		types.MustSubscriptionPattern("commons.*"),
+		types.MustSubscriptionPattern("presence.*"),
+	}
+}
+
+func (p *PlacePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "group.") || strings.HasPrefix(t, "commons.") || strings.HasPrefix(t, "presence.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// --- Group C: Communal Experience ---
+
+// BelongingPrimitive tracks the felt sense of being part of a community.
+type BelongingPrimitive struct{}
+
+func NewBelongingPrimitive() *BelongingPrimitive { return &BelongingPrimitive{} }
+
+func (p *BelongingPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Belonging") }
+func (p *BelongingPrimitive) Layer() types.Layer               { return layer10 }
+func (p *BelongingPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *BelongingPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *BelongingPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("inclusion.*"),
+		types.MustSubscriptionPattern("welcome.*"),
+		types.MustSubscriptionPattern("recognition.*"),
+	}
+}
+
+func (p *BelongingPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "inclusion.") || strings.HasPrefix(t, "welcome.") || strings.HasPrefix(t, "recognition.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// SolidarityPrimitive tracks mutual support and collective action within a community.
+type SolidarityPrimitive struct{}
+
+func NewSolidarityPrimitive() *SolidarityPrimitive { return &SolidarityPrimitive{} }
+
+func (p *SolidarityPrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Solidarity") }
+func (p *SolidarityPrimitive) Layer() types.Layer               { return layer10 }
+func (p *SolidarityPrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *SolidarityPrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *SolidarityPrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("cooperation.*"),
+		types.MustSubscriptionPattern("sacrifice.*"),
+		types.MustSubscriptionPattern("care.*"),
+	}
+}
+
+func (p *SolidarityPrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "cooperation.") || strings.HasPrefix(t, "sacrifice.") || strings.HasPrefix(t, "care.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// VoicePrimitive ensures every member can be heard within the community.
+type VoicePrimitive struct{}
+
+func NewVoicePrimitive() *VoicePrimitive { return &VoicePrimitive{} }
+
+func (p *VoicePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Voice") }
+func (p *VoicePrimitive) Layer() types.Layer               { return layer10 }
+func (p *VoicePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *VoicePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *VoicePrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("expression.*"),
+		types.MustSubscriptionPattern("dissent.*"),
+		types.MustSubscriptionPattern("fairness.*"),
+	}
+}
+
+func (p *VoicePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "expression.") || strings.HasPrefix(t, "dissent.") || strings.HasPrefix(t, "fairness.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
+	}, nil
+}
+
+// WelcomePrimitive handles how a community receives new members.
+type WelcomePrimitive struct{}
+
+func NewWelcomePrimitive() *WelcomePrimitive { return &WelcomePrimitive{} }
+
+func (p *WelcomePrimitive) ID() types.PrimitiveID           { return types.MustPrimitiveID("Welcome") }
+func (p *WelcomePrimitive) Layer() types.Layer               { return layer10 }
+func (p *WelcomePrimitive) Lifecycle() types.LifecycleState  { return types.LifecycleActive }
+func (p *WelcomePrimitive) Cadence() types.Cadence           { return cadence1 }
+func (p *WelcomePrimitive) Subscriptions() []types.SubscriptionPattern {
+	return []types.SubscriptionPattern{
+		types.MustSubscriptionPattern("actor.joined"),
+		types.MustSubscriptionPattern("belonging.*"),
+		types.MustSubscriptionPattern("onboarding.*"),
+	}
+}
+
+func (p *WelcomePrimitive) Process(tick types.Tick, events []event.Event, snap primitive.Snapshot) ([]primitive.Mutation, error) {
+	relevant := 0
+	for _, ev := range events {
+		t := ev.Type().Value()
+		if strings.HasPrefix(t, "actor.") || strings.HasPrefix(t, "belonging.") || strings.HasPrefix(t, "onboarding.") {
+			relevant++
+		}
+	}
+	return []primitive.Mutation{
+		primitive.UpdateState{PrimitiveID: p.ID(), Key: "eventsProcessed", Value: relevant},
 		primitive.UpdateState{PrimitiveID: p.ID(), Key: "lastTick", Value: tick.Value()},
 	}, nil
 }

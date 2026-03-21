@@ -589,13 +589,17 @@ export class BootstrapPrimitive implements Primitive {
   }
 }
 
-// -- Layer 1 (Will) -- 12 primitives --
 
-export class GoalPrimitive implements Primitive {
-  id() { return new PrimitiveId("Goal"); }
+// -- Layer 1 (Agency) -- 12 primitives --
+// Volition: Value, Intent, Choice, Risk
+// Action: Act, Consequence, Capacity, Resource
+// Communication: Signal, Reception, Acknowledgment, Commitment
+
+export class ValuePrimitive implements Primitive {
+  id() { return new PrimitiveId("Value"); }
   layer() { return new Layer(1); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("decision.*"), new SubscriptionPattern("authority.*"), new SubscriptionPattern("actor.*")]; }
+  subscriptions() { return [new SubscriptionPattern("decision.*"), new SubscriptionPattern("actor.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -604,11 +608,11 @@ export class GoalPrimitive implements Primitive {
   }
 }
 
-export class PlanPrimitive implements Primitive {
-  id() { return new PrimitiveId("Plan"); }
+export class IntentPrimitive implements Primitive {
+  id() { return new PrimitiveId("Intent"); }
   layer() { return new Layer(1); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("goal.*")]; }
+  subscriptions() { return [new SubscriptionPattern("value.*"), new SubscriptionPattern("expectation.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -617,11 +621,115 @@ export class PlanPrimitive implements Primitive {
   }
 }
 
-export class InitiativePrimitive implements Primitive {
-  id() { return new PrimitiveId("Initiative"); }
+export class ChoicePrimitive implements Primitive {
+  id() { return new PrimitiveId("Choice"); }
   layer() { return new Layer(1); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("clock.*"), new SubscriptionPattern("goal.*"), new SubscriptionPattern("plan.*")]; }
+  subscriptions() { return [new SubscriptionPattern("intent.*"), new SubscriptionPattern("value.*"), new SubscriptionPattern("confidence.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class RiskPrimitive implements Primitive {
+  id() { return new PrimitiveId("Risk"); }
+  layer() { return new Layer(1); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("intent.*"), new SubscriptionPattern("uncertainty.*"), new SubscriptionPattern("value.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class ActPrimitive implements Primitive {
+  id() { return new PrimitiveId("Act"); }
+  layer() { return new Layer(1); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("choice.*"), new SubscriptionPattern("intent.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class ConsequencePrimitive implements Primitive {
+  id() { return new PrimitiveId("Consequence"); }
+  layer() { return new Layer(1); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("act.*"), new SubscriptionPattern("violation.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class CapacityPrimitive implements Primitive {
+  id() { return new PrimitiveId("Capacity"); }
+  layer() { return new Layer(1); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("actor.*"), new SubscriptionPattern("resource.*"), new SubscriptionPattern("trust.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class ResourcePrimitive implements Primitive {
+  id() { return new PrimitiveId("Resource"); }
+  layer() { return new Layer(1); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("act.*"), new SubscriptionPattern("budget.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class SignalPrimitive implements Primitive {
+  id() { return new PrimitiveId("Signal"); }
+  layer() { return new Layer(1); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("act.*"), new SubscriptionPattern("actor.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class ReceptionPrimitive implements Primitive {
+  id() { return new PrimitiveId("Reception"); }
+  layer() { return new Layer(1); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class AcknowledgmentPrimitive implements Primitive {
+  id() { return new PrimitiveId("Acknowledgment"); }
+  layer() { return new Layer(1); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("signal.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -634,7 +742,7 @@ export class CommitmentPrimitive implements Primitive {
   id() { return new PrimitiveId("Commitment"); }
   layer() { return new Layer(1); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("goal.*"), new SubscriptionPattern("plan.*")]; }
+  subscriptions() { return [new SubscriptionPattern("signal.*"), new SubscriptionPattern("agreement.*"), new SubscriptionPattern("intent.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -643,117 +751,13 @@ export class CommitmentPrimitive implements Primitive {
   }
 }
 
-export class FocusPrimitive implements Primitive {
-  id() { return new PrimitiveId("Focus"); }
-  layer() { return new Layer(1); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
+// -- Layer 2 (Exchange) -- 12 primitives --
 
-export class FilterPrimitive implements Primitive {
-  id() { return new PrimitiveId("Filter"); }
-  layer() { return new Layer(1); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class SaliencePrimitive implements Primitive {
-  id() { return new PrimitiveId("Salience"); }
-  layer() { return new Layer(1); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class DistractionPrimitive implements Primitive {
-  id() { return new PrimitiveId("Distraction"); }
-  layer() { return new Layer(1); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("focus.*"), new SubscriptionPattern("goal.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class PermissionPrimitive implements Primitive {
-  id() { return new PrimitiveId("Permission"); }
-  layer() { return new Layer(1); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("authority.*"), new SubscriptionPattern("decision.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class CapabilityPrimitive implements Primitive {
-  id() { return new PrimitiveId("Capability"); }
-  layer() { return new Layer(1); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("actor.*"), new SubscriptionPattern("permission.*"), new SubscriptionPattern("trust.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class DelegationPrimitive implements Primitive {
-  id() { return new PrimitiveId("Delegation"); }
-  layer() { return new Layer(1); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("authority.*"), new SubscriptionPattern("edge.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class AccountabilityPrimitive implements Primitive {
-  id() { return new PrimitiveId("Accountability"); }
-  layer() { return new Layer(1); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("delegation.*"), new SubscriptionPattern("violation.*"), new SubscriptionPattern("goal.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-// -- Layer 2 (Communication) -- 12 primitives --
-
-export class MessagePrimitive implements Primitive {
-  id() { return new PrimitiveId("Message"); }
+export class TermPrimitive implements Primitive {
+  id() { return new PrimitiveId("Term"); }
   layer() { return new Layer(2); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("protocol.*")]; }
+  subscriptions() { return [new SubscriptionPattern("agreement.*"), new SubscriptionPattern("obligation.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -762,37 +766,11 @@ export class MessagePrimitive implements Primitive {
   }
 }
 
-export class AcknowledgementPrimitive implements Primitive {
-  id() { return new PrimitiveId("Acknowledgement"); }
+export class ProtocolPrimitive implements Primitive {
+  id() { return new PrimitiveId("Protocol"); }
   layer() { return new Layer(2); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("message.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class ClarificationPrimitive implements Primitive {
-  id() { return new PrimitiveId("Clarification"); }
-  layer() { return new Layer(2); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("message.*"), new SubscriptionPattern("ack.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class ContextPrimitive implements Primitive {
-  id() { return new PrimitiveId("Context"); }
-  layer() { return new Layer(2); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("message.*"), new SubscriptionPattern("clarification.*")]; }
+  subscriptions() { return [new SubscriptionPattern("term.*"), new SubscriptionPattern("exchange.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -805,7 +783,7 @@ export class OfferPrimitive implements Primitive {
   id() { return new PrimitiveId("Offer"); }
   layer() { return new Layer(2); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("message.*"), new SubscriptionPattern("exchange.*")]; }
+  subscriptions() { return [new SubscriptionPattern("intent.*"), new SubscriptionPattern("value.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -818,7 +796,20 @@ export class AcceptancePrimitive implements Primitive {
   id() { return new PrimitiveId("Acceptance"); }
   layer() { return new Layer(2); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("offer.*")]; }
+  subscriptions() { return [new SubscriptionPattern("offer.*"), new SubscriptionPattern("choice.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class AgreementPrimitive implements Primitive {
+  id() { return new PrimitiveId("Agreement"); }
+  layer() { return new Layer(2); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("offer.*"), new SubscriptionPattern("acceptance.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -831,7 +822,7 @@ export class ObligationPrimitive implements Primitive {
   id() { return new PrimitiveId("Obligation"); }
   layer() { return new Layer(2); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("offer.*"), new SubscriptionPattern("delegation.*")]; }
+  subscriptions() { return [new SubscriptionPattern("agreement.*"), new SubscriptionPattern("commitment.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -840,11 +831,11 @@ export class ObligationPrimitive implements Primitive {
   }
 }
 
-export class GratitudePrimitive implements Primitive {
-  id() { return new PrimitiveId("Gratitude"); }
+export class FulfillmentPrimitive implements Primitive {
+  id() { return new PrimitiveId("Fulfillment"); }
   layer() { return new Layer(2); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("obligation.*"), new SubscriptionPattern("trust.*")]; }
+  subscriptions() { return [new SubscriptionPattern("obligation.*"), new SubscriptionPattern("act.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -853,11 +844,11 @@ export class GratitudePrimitive implements Primitive {
   }
 }
 
-export class NegotiationPrimitive implements Primitive {
-  id() { return new PrimitiveId("Negotiation"); }
+export class BreachPrimitive implements Primitive {
+  id() { return new PrimitiveId("Breach"); }
   layer() { return new Layer(2); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("offer.*"), new SubscriptionPattern("message.*")]; }
+  subscriptions() { return [new SubscriptionPattern("obligation.*"), new SubscriptionPattern("violation.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -866,11 +857,11 @@ export class NegotiationPrimitive implements Primitive {
   }
 }
 
-export class ConsentPrimitive implements Primitive {
-  id() { return new PrimitiveId("Consent"); }
+export class ExchangePrimitive implements Primitive {
+  id() { return new PrimitiveId("Exchange"); }
   layer() { return new Layer(2); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("negotiation.*"), new SubscriptionPattern("offer.*"), new SubscriptionPattern("authority.*")]; }
+  subscriptions() { return [new SubscriptionPattern("fulfillment.*"), new SubscriptionPattern("resource.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -879,11 +870,11 @@ export class ConsentPrimitive implements Primitive {
   }
 }
 
-export class ContractPrimitive implements Primitive {
-  id() { return new PrimitiveId("Contract"); }
+export class AccountabilityPrimitive implements Primitive {
+  id() { return new PrimitiveId("Accountability"); }
   layer() { return new Layer(2); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("consent.*"), new SubscriptionPattern("negotiation.*")]; }
+  subscriptions() { return [new SubscriptionPattern("act.*"), new SubscriptionPattern("consequence.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -892,11 +883,11 @@ export class ContractPrimitive implements Primitive {
   }
 }
 
-export class DisputePrimitive implements Primitive {
-  id() { return new PrimitiveId("Dispute"); }
+export class DebtPrimitive implements Primitive {
+  id() { return new PrimitiveId("Debt"); }
   layer() { return new Layer(2); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("contract.*"), new SubscriptionPattern("obligation.*"), new SubscriptionPattern("contradiction.*")]; }
+  subscriptions() { return [new SubscriptionPattern("obligation.*"), new SubscriptionPattern("breach.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -905,13 +896,39 @@ export class DisputePrimitive implements Primitive {
   }
 }
 
-// -- Layer 3 (Governance) -- 12 primitives --
+export class ReciprocityPrimitive implements Primitive {
+  id() { return new PrimitiveId("Reciprocity"); }
+  layer() { return new Layer(2); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("exchange.*"), new SubscriptionPattern("obligation.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+// -- Layer 3 (Society) -- 12 primitives --
 
 export class GroupPrimitive implements Primitive {
   id() { return new PrimitiveId("Group"); }
   layer() { return new Layer(3); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("actor.*"), new SubscriptionPattern("consent.*")]; }
+  subscriptions() { return [new SubscriptionPattern("actor.*"), new SubscriptionPattern("membership.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class MembershipPrimitive implements Primitive {
+  id() { return new PrimitiveId("Membership"); }
+  layer() { return new Layer(3); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("group.*"), new SubscriptionPattern("actor.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -924,7 +941,7 @@ export class RolePrimitive implements Primitive {
   id() { return new PrimitiveId("Role"); }
   layer() { return new Layer(3); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("group.*"), new SubscriptionPattern("delegation.*")]; }
+  subscriptions() { return [new SubscriptionPattern("group.*"), new SubscriptionPattern("membership.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -933,89 +950,11 @@ export class RolePrimitive implements Primitive {
   }
 }
 
-export class ReputationPrimitive implements Primitive {
-  id() { return new PrimitiveId("Reputation"); }
+export class ConsentPrimitive implements Primitive {
+  id() { return new PrimitiveId("Consent"); }
   layer() { return new Layer(3); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("trust.*"), new SubscriptionPattern("commitment.*"), new SubscriptionPattern("violation.*"), new SubscriptionPattern("gratitude.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class ExclusionPrimitive implements Primitive {
-  id() { return new PrimitiveId("Exclusion"); }
-  layer() { return new Layer(3); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("reputation.*"), new SubscriptionPattern("violation.*"), new SubscriptionPattern("quarantine.*"), new SubscriptionPattern("dispute.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class VotePrimitive implements Primitive {
-  id() { return new PrimitiveId("Vote"); }
-  layer() { return new Layer(3); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("authority.*"), new SubscriptionPattern("group.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class ConsensusPrimitive implements Primitive {
-  id() { return new PrimitiveId("Consensus"); }
-  layer() { return new Layer(3); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("message.*"), new SubscriptionPattern("corroboration.*"), new SubscriptionPattern("vote.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class DissentPrimitive implements Primitive {
-  id() { return new PrimitiveId("Dissent"); }
-  layer() { return new Layer(3); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("vote.*"), new SubscriptionPattern("consensus.*"), new SubscriptionPattern("contradiction.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class MajorityPrimitive implements Primitive {
-  id() { return new PrimitiveId("Majority"); }
-  layer() { return new Layer(3); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("vote.*"), new SubscriptionPattern("dissent.*"), new SubscriptionPattern("exclusion.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class ConventionPrimitive implements Primitive {
-  id() { return new PrimitiveId("Convention"); }
-  layer() { return new Layer(3); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("pattern.*"), new SubscriptionPattern("*")]; }
+  subscriptions() { return [new SubscriptionPattern("choice.*"), new SubscriptionPattern("agreement.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1028,7 +967,20 @@ export class NormPrimitive implements Primitive {
   id() { return new PrimitiveId("Norm"); }
   layer() { return new Layer(3); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("convention.*"), new SubscriptionPattern("consensus.*")]; }
+  subscriptions() { return [new SubscriptionPattern("group.*"), new SubscriptionPattern("consent.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class ReputationPrimitive implements Primitive {
+  id() { return new PrimitiveId("Reputation"); }
+  layer() { return new Layer(3); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("trust.*"), new SubscriptionPattern("act.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1050,11 +1002,11 @@ export class SanctionPrimitive implements Primitive {
   }
 }
 
-export class ForgivenessPrimitive implements Primitive {
-  id() { return new PrimitiveId("Forgiveness"); }
+export class AuthorityPrimitive implements Primitive {
+  id() { return new PrimitiveId("Authority"); }
   layer() { return new Layer(3); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("sanction.*"), new SubscriptionPattern("trust.*"), new SubscriptionPattern("obligation.*")]; }
+  subscriptions() { return [new SubscriptionPattern("role.*"), new SubscriptionPattern("consent.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1063,13 +1015,11 @@ export class ForgivenessPrimitive implements Primitive {
   }
 }
 
-// -- Layer 4 (Justice) -- 12 primitives --
-
-export class RulePrimitive implements Primitive {
-  id() { return new PrimitiveId("Rule"); }
-  layer() { return new Layer(4); }
+export class PropertyPrimitive implements Primitive {
+  id() { return new PrimitiveId("Property"); }
+  layer() { return new Layer(3); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("norm.*"), new SubscriptionPattern("consensus.*"), new SubscriptionPattern("vote.*")]; }
+  subscriptions() { return [new SubscriptionPattern("resource.*"), new SubscriptionPattern("actor.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1078,11 +1028,11 @@ export class RulePrimitive implements Primitive {
   }
 }
 
-export class JurisdictionPrimitive implements Primitive {
-  id() { return new PrimitiveId("Jurisdiction"); }
-  layer() { return new Layer(4); }
+export class CommonsPrimitive implements Primitive {
+  id() { return new PrimitiveId("Commons"); }
+  layer() { return new Layer(3); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("rule.*"), new SubscriptionPattern("group.*")]; }
+  subscriptions() { return [new SubscriptionPattern("group.*"), new SubscriptionPattern("resource.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1091,11 +1041,11 @@ export class JurisdictionPrimitive implements Primitive {
   }
 }
 
-export class PrecedentPrimitive implements Primitive {
-  id() { return new PrimitiveId("Precedent"); }
-  layer() { return new Layer(4); }
+export class GovernancePrimitive implements Primitive {
+  id() { return new PrimitiveId("Governance"); }
+  layer() { return new Layer(3); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("dispute.*"), new SubscriptionPattern("decision.*")]; }
+  subscriptions() { return [new SubscriptionPattern("authority.*"), new SubscriptionPattern("norm.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1104,11 +1054,11 @@ export class PrecedentPrimitive implements Primitive {
   }
 }
 
-export class InterpretationPrimitive implements Primitive {
-  id() { return new PrimitiveId("Interpretation"); }
-  layer() { return new Layer(4); }
+export class CollectiveActPrimitive implements Primitive {
+  id() { return new PrimitiveId("CollectiveAct"); }
+  layer() { return new Layer(3); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("rule.*"), new SubscriptionPattern("dispute.*"), new SubscriptionPattern("precedent.*")]; }
+  subscriptions() { return [new SubscriptionPattern("group.*"), new SubscriptionPattern("act.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1117,11 +1067,13 @@ export class InterpretationPrimitive implements Primitive {
   }
 }
 
-export class AdjudicationPrimitive implements Primitive {
-  id() { return new PrimitiveId("Adjudication"); }
+// -- Layer 4 (Legal) -- 12 primitives --
+
+export class LawPrimitive implements Primitive {
+  id() { return new PrimitiveId("Law"); }
   layer() { return new Layer(4); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("dispute.*"), new SubscriptionPattern("rule.*"), new SubscriptionPattern("precedent.*")]; }
+  subscriptions() { return [new SubscriptionPattern("norm.*"), new SubscriptionPattern("governance.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1130,11 +1082,37 @@ export class AdjudicationPrimitive implements Primitive {
   }
 }
 
-export class AppealPrimitive implements Primitive {
-  id() { return new PrimitiveId("Appeal"); }
+export class RightPrimitive implements Primitive {
+  id() { return new PrimitiveId("Right"); }
   layer() { return new Layer(4); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("adjudication.*"), new SubscriptionPattern("exclusion.*"), new SubscriptionPattern("sanction.*")]; }
+  subscriptions() { return [new SubscriptionPattern("law.*"), new SubscriptionPattern("actor.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class ContractPrimitive implements Primitive {
+  id() { return new PrimitiveId("Contract"); }
+  layer() { return new Layer(4); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("agreement.*"), new SubscriptionPattern("obligation.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class LiabilityPrimitive implements Primitive {
+  id() { return new PrimitiveId("Liability"); }
+  layer() { return new Layer(4); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("breach.*"), new SubscriptionPattern("consequence.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1147,7 +1125,7 @@ export class DueProcessPrimitive implements Primitive {
   id() { return new PrimitiveId("DueProcess"); }
   layer() { return new Layer(4); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("adjudication.*"), new SubscriptionPattern("exclusion.*"), new SubscriptionPattern("sanction.*")]; }
+  subscriptions() { return [new SubscriptionPattern("right.*"), new SubscriptionPattern("law.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1156,11 +1134,11 @@ export class DueProcessPrimitive implements Primitive {
   }
 }
 
-export class RightsPrimitive implements Primitive {
-  id() { return new PrimitiveId("Rights"); }
+export class AdjudicationPrimitive implements Primitive {
+  id() { return new PrimitiveId("Adjudication"); }
   layer() { return new Layer(4); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("rule.*"), new SubscriptionPattern("sanction.*"), new SubscriptionPattern("exclusion.*"), new SubscriptionPattern("dueprocess.*")]; }
+  subscriptions() { return [new SubscriptionPattern("dueprocess.*"), new SubscriptionPattern("liability.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1169,11 +1147,11 @@ export class RightsPrimitive implements Primitive {
   }
 }
 
-export class AuditPrimitive implements Primitive {
-  id() { return new PrimitiveId("Audit"); }
+export class RemedyPrimitive implements Primitive {
+  id() { return new PrimitiveId("Remedy"); }
   layer() { return new Layer(4); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("clock.*"), new SubscriptionPattern("rule.*")]; }
+  subscriptions() { return [new SubscriptionPattern("adjudication.*"), new SubscriptionPattern("breach.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1182,11 +1160,11 @@ export class AuditPrimitive implements Primitive {
   }
 }
 
-export class EnforcementPrimitive implements Primitive {
-  id() { return new PrimitiveId("Enforcement"); }
+export class PrecedentPrimitive implements Primitive {
+  id() { return new PrimitiveId("Precedent"); }
   layer() { return new Layer(4); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("audit.*"), new SubscriptionPattern("rule.*"), new SubscriptionPattern("right.*")]; }
+  subscriptions() { return [new SubscriptionPattern("adjudication.*"), new SubscriptionPattern("law.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1195,11 +1173,11 @@ export class EnforcementPrimitive implements Primitive {
   }
 }
 
-export class AmnestyPrimitive implements Primitive {
-  id() { return new PrimitiveId("Amnesty"); }
+export class JurisdictionPrimitive implements Primitive {
+  id() { return new PrimitiveId("Jurisdiction"); }
   layer() { return new Layer(4); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("enforcement.*"), new SubscriptionPattern("vote.*")]; }
+  subscriptions() { return [new SubscriptionPattern("authority.*"), new SubscriptionPattern("law.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1208,11 +1186,37 @@ export class AmnestyPrimitive implements Primitive {
   }
 }
 
-export class ReformPrimitive implements Primitive {
-  id() { return new PrimitiveId("Reform"); }
+export class SovereigntyPrimitive implements Primitive {
+  id() { return new PrimitiveId("Sovereignty"); }
   layer() { return new Layer(4); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("precedent.*"), new SubscriptionPattern("right.*"), new SubscriptionPattern("audit.*"), new SubscriptionPattern("dissent.*")]; }
+  subscriptions() { return [new SubscriptionPattern("jurisdiction.*"), new SubscriptionPattern("authority.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class LegitimacyPrimitive implements Primitive {
+  id() { return new PrimitiveId("Legitimacy"); }
+  layer() { return new Layer(4); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("consent.*"), new SubscriptionPattern("authority.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class TreatyPrimitive implements Primitive {
+  id() { return new PrimitiveId("Treaty"); }
+  layer() { return new Layer(4); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("agreement.*"), new SubscriptionPattern("sovereignty.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1223,11 +1227,50 @@ export class ReformPrimitive implements Primitive {
 
 // -- Layer 5 (Technology) -- 12 primitives --
 
-export class CreatePrimitive implements Primitive {
-  id() { return new PrimitiveId("Create"); }
+export class MethodPrimitive implements Primitive {
+  id() { return new PrimitiveId("Method"); }
   layer() { return new Layer(5); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("plan.*"), new SubscriptionPattern("goal.*")]; }
+  subscriptions() { return [new SubscriptionPattern("knowledge.*"), new SubscriptionPattern("technique.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class MeasurementPrimitive implements Primitive {
+  id() { return new PrimitiveId("Measurement"); }
+  layer() { return new Layer(5); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("method.*"), new SubscriptionPattern("standard.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class KnowledgePrimitive implements Primitive {
+  id() { return new PrimitiveId("Knowledge"); }
+  layer() { return new Layer(5); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("measurement.*"), new SubscriptionPattern("model.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class ModelPrimitive implements Primitive {
+  id() { return new PrimitiveId("Model"); }
+  layer() { return new Layer(5); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("knowledge.*"), new SubscriptionPattern("abstraction.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1240,7 +1283,7 @@ export class ToolPrimitive implements Primitive {
   id() { return new PrimitiveId("Tool"); }
   layer() { return new Layer(5); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("artefact.*"), new SubscriptionPattern("capability.*")]; }
+  subscriptions() { return [new SubscriptionPattern("technique.*"), new SubscriptionPattern("capacity.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1249,11 +1292,11 @@ export class ToolPrimitive implements Primitive {
   }
 }
 
-export class QualityPrimitive implements Primitive {
-  id() { return new PrimitiveId("Quality"); }
+export class TechniquePrimitive implements Primitive {
+  id() { return new PrimitiveId("Technique"); }
   layer() { return new Layer(5); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("artefact.*"), new SubscriptionPattern("tool.*")]; }
+  subscriptions() { return [new SubscriptionPattern("method.*"), new SubscriptionPattern("tool.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1262,11 +1305,11 @@ export class QualityPrimitive implements Primitive {
   }
 }
 
-export class DeprecationPrimitive implements Primitive {
-  id() { return new PrimitiveId("Deprecation"); }
+export class InventionPrimitive implements Primitive {
+  id() { return new PrimitiveId("Invention"); }
   layer() { return new Layer(5); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("quality.*"), new SubscriptionPattern("artefact.*")]; }
+  subscriptions() { return [new SubscriptionPattern("knowledge.*"), new SubscriptionPattern("tool.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1275,11 +1318,50 @@ export class DeprecationPrimitive implements Primitive {
   }
 }
 
-export class WorkflowPrimitive implements Primitive {
-  id() { return new PrimitiveId("Workflow"); }
+export class AbstractionPrimitive implements Primitive {
+  id() { return new PrimitiveId("Abstraction"); }
   layer() { return new Layer(5); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("plan.*"), new SubscriptionPattern("convention.*")]; }
+  subscriptions() { return [new SubscriptionPattern("model.*"), new SubscriptionPattern("knowledge.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class InfrastructurePrimitive implements Primitive {
+  id() { return new PrimitiveId("Infrastructure"); }
+  layer() { return new Layer(5); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("tool.*"), new SubscriptionPattern("standard.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class StandardPrimitive implements Primitive {
+  id() { return new PrimitiveId("Standard"); }
+  layer() { return new Layer(5); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("measurement.*"), new SubscriptionPattern("norm.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class EfficiencyPrimitive implements Primitive {
+  id() { return new PrimitiveId("Efficiency"); }
+  layer() { return new Layer(5); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("measurement.*"), new SubscriptionPattern("resource.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1292,7 +1374,7 @@ export class AutomationPrimitive implements Primitive {
   id() { return new PrimitiveId("Automation"); }
   layer() { return new Layer(5); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("workflow.*"), new SubscriptionPattern("pattern.*")]; }
+  subscriptions() { return [new SubscriptionPattern("tool.*"), new SubscriptionPattern("efficiency.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1301,91 +1383,13 @@ export class AutomationPrimitive implements Primitive {
   }
 }
 
-export class TestingPrimitive implements Primitive {
-  id() { return new PrimitiveId("Testing"); }
-  layer() { return new Layer(5); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("artefact.*"), new SubscriptionPattern("workflow.*"), new SubscriptionPattern("automation.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class ReviewPrimitive implements Primitive {
-  id() { return new PrimitiveId("Review"); }
-  layer() { return new Layer(5); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("artefact.*"), new SubscriptionPattern("decision.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class FeedbackPrimitive implements Primitive {
-  id() { return new PrimitiveId("Feedback"); }
-  layer() { return new Layer(5); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class IterationPrimitive implements Primitive {
-  id() { return new PrimitiveId("Iteration"); }
-  layer() { return new Layer(5); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("feedback.*"), new SubscriptionPattern("test.*"), new SubscriptionPattern("review.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class InnovationPrimitive implements Primitive {
-  id() { return new PrimitiveId("Innovation"); }
-  layer() { return new Layer(5); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("artefact.*"), new SubscriptionPattern("pattern.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class LegacyPrimitive implements Primitive {
-  id() { return new PrimitiveId("Legacy"); }
-  layer() { return new Layer(5); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("deprecation.*"), new SubscriptionPattern("artefact.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-// -- Layer 6 (Knowledge) -- 12 primitives --
+// -- Layer 6 (Information) -- 12 primitives --
 
 export class SymbolPrimitive implements Primitive {
   id() { return new PrimitiveId("Symbol"); }
   layer() { return new Layer(6); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("*")]; }
+  subscriptions() { return [new SubscriptionPattern("signal.*"), new SubscriptionPattern("encoding.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1394,24 +1398,11 @@ export class SymbolPrimitive implements Primitive {
   }
 }
 
-export class AbstractionPrimitive implements Primitive {
-  id() { return new PrimitiveId("Abstraction"); }
+export class LanguagePrimitive implements Primitive {
+  id() { return new PrimitiveId("Language"); }
   layer() { return new Layer(6); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("pattern.*"), new SubscriptionPattern("symbol.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class ClassificationPrimitive implements Primitive {
-  id() { return new PrimitiveId("Classification"); }
-  layer() { return new Layer(6); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("*")]; }
+  subscriptions() { return [new SubscriptionPattern("symbol.*"), new SubscriptionPattern("channel.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1424,7 +1415,7 @@ export class EncodingPrimitive implements Primitive {
   id() { return new PrimitiveId("Encoding"); }
   layer() { return new Layer(6); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("symbol.*"), new SubscriptionPattern("message.*")]; }
+  subscriptions() { return [new SubscriptionPattern("symbol.*"), new SubscriptionPattern("data.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1433,11 +1424,11 @@ export class EncodingPrimitive implements Primitive {
   }
 }
 
-export class FactPrimitive implements Primitive {
-  id() { return new PrimitiveId("Fact"); }
+export class RecordPrimitive implements Primitive {
+  id() { return new PrimitiveId("Record"); }
   layer() { return new Layer(6); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("corroboration.*"), new SubscriptionPattern("evidence.*"), new SubscriptionPattern("confidence.*")]; }
+  subscriptions() { return [new SubscriptionPattern("data.*"), new SubscriptionPattern("encoding.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1446,11 +1437,11 @@ export class FactPrimitive implements Primitive {
   }
 }
 
-export class InferencePrimitive implements Primitive {
-  id() { return new PrimitiveId("Inference"); }
+export class ChannelPrimitive implements Primitive {
+  id() { return new PrimitiveId("Channel"); }
   layer() { return new Layer(6); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("fact.*"), new SubscriptionPattern("evidence.*")]; }
+  subscriptions() { return [new SubscriptionPattern("signal.*"), new SubscriptionPattern("noise.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1459,11 +1450,11 @@ export class InferencePrimitive implements Primitive {
   }
 }
 
-export class MemoryPrimitive implements Primitive {
-  id() { return new PrimitiveId("Memory"); }
+export class CopyPrimitive implements Primitive {
+  id() { return new PrimitiveId("Copy"); }
   layer() { return new Layer(6); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("fact.*"), new SubscriptionPattern("inference.*"), new SubscriptionPattern("abstraction.*")]; }
+  subscriptions() { return [new SubscriptionPattern("record.*"), new SubscriptionPattern("redundancy.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1472,11 +1463,11 @@ export class MemoryPrimitive implements Primitive {
   }
 }
 
-export class LearningPrimitive implements Primitive {
-  id() { return new PrimitiveId("Learning"); }
+export class NoisePrimitive implements Primitive {
+  id() { return new PrimitiveId("Noise"); }
   layer() { return new Layer(6); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("feedback.*"), new SubscriptionPattern("test.*"), new SubscriptionPattern("inference.*")]; }
+  subscriptions() { return [new SubscriptionPattern("channel.*"), new SubscriptionPattern("entropy.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1485,11 +1476,11 @@ export class LearningPrimitive implements Primitive {
   }
 }
 
-export class NarrativePrimitive implements Primitive {
-  id() { return new PrimitiveId("Narrative"); }
+export class RedundancyPrimitive implements Primitive {
+  id() { return new PrimitiveId("Redundancy"); }
   layer() { return new Layer(6); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("fact.*"), new SubscriptionPattern("inference.*"), new SubscriptionPattern("memory.*")]; }
+  subscriptions() { return [new SubscriptionPattern("copy.*"), new SubscriptionPattern("noise.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1498,11 +1489,11 @@ export class NarrativePrimitive implements Primitive {
   }
 }
 
-export class BiasPrimitive implements Primitive {
-  id() { return new PrimitiveId("Bias"); }
+export class DataPrimitive implements Primitive {
+  id() { return new PrimitiveId("Data"); }
   layer() { return new Layer(6); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("narrative.*"), new SubscriptionPattern("classification.*"), new SubscriptionPattern("inference.*")]; }
+  subscriptions() { return [new SubscriptionPattern("record.*"), new SubscriptionPattern("encoding.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1511,11 +1502,11 @@ export class BiasPrimitive implements Primitive {
   }
 }
 
-export class CorrectionPrimitive implements Primitive {
-  id() { return new PrimitiveId("Correction"); }
+export class ComputationPrimitive implements Primitive {
+  id() { return new PrimitiveId("Computation"); }
   layer() { return new Layer(6); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("bias.*"), new SubscriptionPattern("fact.*"), new SubscriptionPattern("contradiction.*")]; }
+  subscriptions() { return [new SubscriptionPattern("data.*"), new SubscriptionPattern("algorithm.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1524,11 +1515,24 @@ export class CorrectionPrimitive implements Primitive {
   }
 }
 
-export class ProvenancePrimitive implements Primitive {
-  id() { return new PrimitiveId("Provenance"); }
+export class AlgorithmPrimitive implements Primitive {
+  id() { return new PrimitiveId("Algorithm"); }
   layer() { return new Layer(6); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("fact.*"), new SubscriptionPattern("memory.*"), new SubscriptionPattern("message.*")]; }
+  subscriptions() { return [new SubscriptionPattern("method.*"), new SubscriptionPattern("computation.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class EntropyPrimitive implements Primitive {
+  id() { return new PrimitiveId("Entropy"); }
+  layer() { return new Layer(6); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("noise.*"), new SubscriptionPattern("data.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1539,11 +1543,63 @@ export class ProvenancePrimitive implements Primitive {
 
 // -- Layer 7 (Ethics) -- 12 primitives --
 
-export class ValuePrimitive implements Primitive {
-  id() { return new PrimitiveId("Value"); }
+export class MoralStatusPrimitive implements Primitive {
+  id() { return new PrimitiveId("MoralStatus"); }
   layer() { return new Layer(7); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("consensus.*"), new SubscriptionPattern("norm.*"), new SubscriptionPattern("right.*")]; }
+  subscriptions() { return [new SubscriptionPattern("actor.*"), new SubscriptionPattern("dignity.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class DignityPrimitive implements Primitive {
+  id() { return new PrimitiveId("Dignity"); }
+  layer() { return new Layer(7); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("moralstatus.*"), new SubscriptionPattern("right.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class AutonomyPrimitive implements Primitive {
+  id() { return new PrimitiveId("Autonomy"); }
+  layer() { return new Layer(7); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("choice.*"), new SubscriptionPattern("dignity.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class FlourishingPrimitive implements Primitive {
+  id() { return new PrimitiveId("Flourishing"); }
+  layer() { return new Layer(7); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("value.*"), new SubscriptionPattern("care.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class DutyPrimitive implements Primitive {
+  id() { return new PrimitiveId("Duty"); }
+  layer() { return new Layer(7); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("obligation.*"), new SubscriptionPattern("moralstatus.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1556,20 +1612,7 @@ export class HarmPrimitive implements Primitive {
   id() { return new PrimitiveId("Harm"); }
   layer() { return new Layer(7); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("violation.*"), new SubscriptionPattern("right.*"), new SubscriptionPattern("exclusion.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class FairnessPrimitive implements Primitive {
-  id() { return new PrimitiveId("Fairness"); }
-  layer() { return new Layer(7); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("decision.*"), new SubscriptionPattern("sanction.*"), new SubscriptionPattern("exclusion.*"), new SubscriptionPattern("bias.*")]; }
+  subscriptions() { return [new SubscriptionPattern("consequence.*"), new SubscriptionPattern("violation.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1582,7 +1625,7 @@ export class CarePrimitive implements Primitive {
   id() { return new PrimitiveId("Care"); }
   layer() { return new Layer(7); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("harm.*"), new SubscriptionPattern("health.*"), new SubscriptionPattern("trust.*")]; }
+  subscriptions() { return [new SubscriptionPattern("bond.*"), new SubscriptionPattern("duty.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1591,11 +1634,11 @@ export class CarePrimitive implements Primitive {
   }
 }
 
-export class DilemmaPrimitive implements Primitive {
-  id() { return new PrimitiveId("Dilemma"); }
+export class JusticePrimitive implements Primitive {
+  id() { return new PrimitiveId("Justice"); }
   layer() { return new Layer(7); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("value.*"), new SubscriptionPattern("decision.*")]; }
+  subscriptions() { return [new SubscriptionPattern("right.*"), new SubscriptionPattern("harm.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1604,11 +1647,11 @@ export class DilemmaPrimitive implements Primitive {
   }
 }
 
-export class ProportionalityPrimitive implements Primitive {
-  id() { return new PrimitiveId("Proportionality"); }
+export class ConsciencePrimitive implements Primitive {
+  id() { return new PrimitiveId("Conscience"); }
   layer() { return new Layer(7); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("enforcement.*"), new SubscriptionPattern("sanction.*"), new SubscriptionPattern("harm.*")]; }
+  subscriptions() { return [new SubscriptionPattern("motive.*"), new SubscriptionPattern("duty.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1617,24 +1660,11 @@ export class ProportionalityPrimitive implements Primitive {
   }
 }
 
-export class IntentionPrimitive implements Primitive {
-  id() { return new PrimitiveId("Intention"); }
+export class VirtuePrimitive implements Primitive {
+  id() { return new PrimitiveId("Virtue"); }
   layer() { return new Layer(7); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("decision.*"), new SubscriptionPattern("goal.*"), new SubscriptionPattern("initiative.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class ConsequencePrimitive implements Primitive {
-  id() { return new PrimitiveId("Consequence"); }
-  layer() { return new Layer(7); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("decision.*"), new SubscriptionPattern("harm.*"), new SubscriptionPattern("goal.*")]; }
+  subscriptions() { return [new SubscriptionPattern("conscience.*"), new SubscriptionPattern("flourishing.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1647,7 +1677,7 @@ export class ResponsibilityPrimitive implements Primitive {
   id() { return new PrimitiveId("Responsibility"); }
   layer() { return new Layer(7); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("intention.*"), new SubscriptionPattern("consequence.*"), new SubscriptionPattern("accountability.*")]; }
+  subscriptions() { return [new SubscriptionPattern("duty.*"), new SubscriptionPattern("consequence.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1656,37 +1686,11 @@ export class ResponsibilityPrimitive implements Primitive {
   }
 }
 
-export class TransparencyPrimitive implements Primitive {
-  id() { return new PrimitiveId("Transparency"); }
+export class MotivePrimitive implements Primitive {
+  id() { return new PrimitiveId("Motive"); }
   layer() { return new Layer(7); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("decision.*"), new SubscriptionPattern("adjudication.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class RedressPrimitive implements Primitive {
-  id() { return new PrimitiveId("Redress"); }
-  layer() { return new Layer(7); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("harm.*"), new SubscriptionPattern("responsibility.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class GrowthPrimitive implements Primitive {
-  id() { return new PrimitiveId("Growth"); }
-  layer() { return new Layer(7); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("redress.*"), new SubscriptionPattern("responsibility.*"), new SubscriptionPattern("learning.*")]; }
+  subscriptions() { return [new SubscriptionPattern("intent.*"), new SubscriptionPattern("value.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1697,11 +1701,11 @@ export class GrowthPrimitive implements Primitive {
 
 // -- Layer 8 (Identity) -- 12 primitives --
 
-export class SelfModelPrimitive implements Primitive {
-  id() { return new PrimitiveId("SelfModel"); }
+export class NarrativePrimitive implements Primitive {
+  id() { return new PrimitiveId("Narrative"); }
   layer() { return new Layer(8); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("commitment.*"), new SubscriptionPattern("learning.*"), new SubscriptionPattern("moral.*"), new SubscriptionPattern("capability.*")]; }
+  subscriptions() { return [new SubscriptionPattern("memory.*"), new SubscriptionPattern("selfconcept.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1710,11 +1714,11 @@ export class SelfModelPrimitive implements Primitive {
   }
 }
 
-export class AuthenticityPrimitive implements Primitive {
-  id() { return new PrimitiveId("Authenticity"); }
+export class SelfConceptPrimitive implements Primitive {
+  id() { return new PrimitiveId("SelfConcept"); }
   layer() { return new Layer(8); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("self.*"), new SubscriptionPattern("decision.*"), new SubscriptionPattern("value.*")]; }
+  subscriptions() { return [new SubscriptionPattern("reflection.*"), new SubscriptionPattern("narrative.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1723,11 +1727,11 @@ export class AuthenticityPrimitive implements Primitive {
   }
 }
 
-export class NarrativeIdentityPrimitive implements Primitive {
-  id() { return new PrimitiveId("NarrativeIdentity"); }
+export class ReflectionPrimitive implements Primitive {
+  id() { return new PrimitiveId("Reflection"); }
   layer() { return new Layer(8); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("self.*"), new SubscriptionPattern("narrative.*"), new SubscriptionPattern("memory.*")]; }
+  subscriptions() { return [new SubscriptionPattern("act.*"), new SubscriptionPattern("consequence.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1736,11 +1740,11 @@ export class NarrativeIdentityPrimitive implements Primitive {
   }
 }
 
-export class BoundaryPrimitive implements Primitive {
-  id() { return new PrimitiveId("Boundary"); }
+export class MemoryPrimitive implements Primitive {
+  id() { return new PrimitiveId("Memory"); }
   layer() { return new Layer(8); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("delegation.*"), new SubscriptionPattern("group.*"), new SubscriptionPattern("consent.*")]; }
+  subscriptions() { return [new SubscriptionPattern("record.*"), new SubscriptionPattern("narrative.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1749,37 +1753,11 @@ export class BoundaryPrimitive implements Primitive {
   }
 }
 
-export class PersistencePrimitive implements Primitive {
-  id() { return new PrimitiveId("Persistence"); }
+export class PurposePrimitive implements Primitive {
+  id() { return new PrimitiveId("Purpose"); }
   layer() { return new Layer(8); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("self.*"), new SubscriptionPattern("learning.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class TransformationPrimitive implements Primitive {
-  id() { return new PrimitiveId("Transformation"); }
-  layer() { return new Layer(8); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("self.*"), new SubscriptionPattern("moral.*"), new SubscriptionPattern("learning.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class HeritagePrimitive implements Primitive {
-  id() { return new PrimitiveId("Heritage"); }
-  layer() { return new Layer(8); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("memory.*"), new SubscriptionPattern("legacy.*"), new SubscriptionPattern("provenance.*")]; }
+  subscriptions() { return [new SubscriptionPattern("value.*"), new SubscriptionPattern("aspiration.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1792,7 +1770,7 @@ export class AspirationPrimitive implements Primitive {
   id() { return new PrimitiveId("Aspiration"); }
   layer() { return new Layer(8); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("self.*"), new SubscriptionPattern("goal.*"), new SubscriptionPattern("value.*")]; }
+  subscriptions() { return [new SubscriptionPattern("purpose.*"), new SubscriptionPattern("growth.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1801,11 +1779,11 @@ export class AspirationPrimitive implements Primitive {
   }
 }
 
-export class DignityPrimitive implements Primitive {
-  id() { return new PrimitiveId("Dignity"); }
+export class AuthenticityPrimitive implements Primitive {
+  id() { return new PrimitiveId("Authenticity"); }
   layer() { return new Layer(8); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("exclusion.*"), new SubscriptionPattern("harm.*"), new SubscriptionPattern("right.*"), new SubscriptionPattern("actor.*")]; }
+  subscriptions() { return [new SubscriptionPattern("selfconcept.*"), new SubscriptionPattern("expression.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1814,11 +1792,11 @@ export class DignityPrimitive implements Primitive {
   }
 }
 
-export class IdentityAcknowledgementPrimitive implements Primitive {
-  id() { return new PrimitiveId("IdentityAcknowledgement"); }
+export class ExpressionPrimitive implements Primitive {
+  id() { return new PrimitiveId("Expression"); }
   layer() { return new Layer(8); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("message.*"), new SubscriptionPattern("gratitude.*"), new SubscriptionPattern("reputation.*")]; }
+  subscriptions() { return [new SubscriptionPattern("authenticity.*"), new SubscriptionPattern("signal.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1827,11 +1805,11 @@ export class IdentityAcknowledgementPrimitive implements Primitive {
   }
 }
 
-export class UniquenessPrimitive implements Primitive {
-  id() { return new PrimitiveId("Uniqueness"); }
+export class GrowthPrimitive implements Primitive {
+  id() { return new PrimitiveId("Growth"); }
   layer() { return new Layer(8); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("self.*"), new SubscriptionPattern("identity.*"), new SubscriptionPattern("pattern.*")]; }
+  subscriptions() { return [new SubscriptionPattern("reflection.*"), new SubscriptionPattern("aspiration.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1840,11 +1818,37 @@ export class UniquenessPrimitive implements Primitive {
   }
 }
 
-export class MemorialPrimitive implements Primitive {
-  id() { return new PrimitiveId("Memorial"); }
+export class ContinuityPrimitive implements Primitive {
+  id() { return new PrimitiveId("Continuity"); }
   layer() { return new Layer(8); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("actor.*")]; }
+  subscriptions() { return [new SubscriptionPattern("memory.*"), new SubscriptionPattern("selfconcept.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class IntegrationPrimitive implements Primitive {
+  id() { return new PrimitiveId("Integration"); }
+  layer() { return new Layer(8); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("narrative.*"), new SubscriptionPattern("continuity.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class CrisisPrimitive implements Primitive {
+  id() { return new PrimitiveId("Crisis"); }
+  layer() { return new Layer(8); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("selfconcept.*"), new SubscriptionPattern("rupture.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1855,11 +1859,24 @@ export class MemorialPrimitive implements Primitive {
 
 // -- Layer 9 (Relationship) -- 12 primitives --
 
+export class BondPrimitive implements Primitive {
+  id() { return new PrimitiveId("Bond"); }
+  layer() { return new Layer(9); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("attachment.*"), new SubscriptionPattern("recognition.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
 export class AttachmentPrimitive implements Primitive {
   id() { return new PrimitiveId("Attachment"); }
   layer() { return new Layer(9); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("trust.*"), new SubscriptionPattern("gratitude.*"), new SubscriptionPattern("message.*"), new SubscriptionPattern("edge.*")]; }
+  subscriptions() { return [new SubscriptionPattern("bond.*"), new SubscriptionPattern("care.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1868,11 +1885,11 @@ export class AttachmentPrimitive implements Primitive {
   }
 }
 
-export class ReciprocityPrimitive implements Primitive {
-  id() { return new PrimitiveId("Reciprocity"); }
+export class RecognitionPrimitive implements Primitive {
+  id() { return new PrimitiveId("Recognition"); }
   layer() { return new Layer(9); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("obligation.*"), new SubscriptionPattern("gratitude.*"), new SubscriptionPattern("offer.*")]; }
+  subscriptions() { return [new SubscriptionPattern("actor.*"), new SubscriptionPattern("dignity.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1881,11 +1898,24 @@ export class ReciprocityPrimitive implements Primitive {
   }
 }
 
-export class RelationalTrustPrimitive implements Primitive {
-  id() { return new PrimitiveId("RelationalTrust"); }
+export class IntimacyPrimitive implements Primitive {
+  id() { return new PrimitiveId("Intimacy"); }
   layer() { return new Layer(9); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("trust.*"), new SubscriptionPattern("attachment.*"), new SubscriptionPattern("reciprocity.*")]; }
+  subscriptions() { return [new SubscriptionPattern("bond.*"), new SubscriptionPattern("trust.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class AttunementPrimitive implements Primitive {
+  id() { return new PrimitiveId("Attunement"); }
+  layer() { return new Layer(9); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("reception.*"), new SubscriptionPattern("care.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1898,7 +1928,7 @@ export class RupturePrimitive implements Primitive {
   id() { return new PrimitiveId("Rupture"); }
   layer() { return new Layer(9); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("contract.*"), new SubscriptionPattern("trust.*"), new SubscriptionPattern("dispute.*"), new SubscriptionPattern("dignity.*")]; }
+  subscriptions() { return [new SubscriptionPattern("bond.*"), new SubscriptionPattern("harm.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1907,11 +1937,11 @@ export class RupturePrimitive implements Primitive {
   }
 }
 
-export class ApologyPrimitive implements Primitive {
-  id() { return new PrimitiveId("Apology"); }
+export class RepairPrimitive implements Primitive {
+  id() { return new PrimitiveId("Repair"); }
   layer() { return new Layer(9); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("rupture.*"), new SubscriptionPattern("harm.*"), new SubscriptionPattern("responsibility.*")]; }
+  subscriptions() { return [new SubscriptionPattern("rupture.*"), new SubscriptionPattern("care.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1920,11 +1950,11 @@ export class ApologyPrimitive implements Primitive {
   }
 }
 
-export class ReconciliationPrimitive implements Primitive {
-  id() { return new PrimitiveId("Reconciliation"); }
+export class LoyaltyPrimitive implements Primitive {
+  id() { return new PrimitiveId("Loyalty"); }
   layer() { return new Layer(9); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("apology.*"), new SubscriptionPattern("forgiveness.*"), new SubscriptionPattern("trust.*")]; }
+  subscriptions() { return [new SubscriptionPattern("bond.*"), new SubscriptionPattern("commitment.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1933,11 +1963,11 @@ export class ReconciliationPrimitive implements Primitive {
   }
 }
 
-export class RelationalGrowthPrimitive implements Primitive {
-  id() { return new PrimitiveId("RelationalGrowth"); }
+export class MutualConstitutionPrimitive implements Primitive {
+  id() { return new PrimitiveId("MutualConstitution"); }
   layer() { return new Layer(9); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("reconciliation.*"), new SubscriptionPattern("attachment.*")]; }
+  subscriptions() { return [new SubscriptionPattern("bond.*"), new SubscriptionPattern("selfconcept.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1946,11 +1976,11 @@ export class RelationalGrowthPrimitive implements Primitive {
   }
 }
 
-export class LossPrimitive implements Primitive {
-  id() { return new PrimitiveId("Loss"); }
+export class RelationalObligationPrimitive implements Primitive {
+  id() { return new PrimitiveId("RelationalObligation"); }
   layer() { return new Layer(9); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("actor.*"), new SubscriptionPattern("rupture.*"), new SubscriptionPattern("exclusion.*")]; }
+  subscriptions() { return [new SubscriptionPattern("bond.*"), new SubscriptionPattern("obligation.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1959,11 +1989,11 @@ export class LossPrimitive implements Primitive {
   }
 }
 
-export class VulnerabilityPrimitive implements Primitive {
-  id() { return new PrimitiveId("Vulnerability"); }
+export class GriefPrimitive implements Primitive {
+  id() { return new PrimitiveId("Grief"); }
   layer() { return new Layer(9); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("relational.*"), new SubscriptionPattern("boundary.*")]; }
+  subscriptions() { return [new SubscriptionPattern("bond.*"), new SubscriptionPattern("finitude.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -1972,37 +2002,11 @@ export class VulnerabilityPrimitive implements Primitive {
   }
 }
 
-export class UnderstandingPrimitive implements Primitive {
-  id() { return new PrimitiveId("Understanding"); }
+export class ForgivenessPrimitive implements Primitive {
+  id() { return new PrimitiveId("Forgiveness"); }
   layer() { return new Layer(9); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("self.*"), new SubscriptionPattern("message.*"), new SubscriptionPattern("vulnerability.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class EmpathyPrimitive implements Primitive {
-  id() { return new PrimitiveId("Empathy"); }
-  layer() { return new Layer(9); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("harm.*"), new SubscriptionPattern("loss.*"), new SubscriptionPattern("understanding.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class PresencePrimitive implements Primitive {
-  id() { return new PrimitiveId("Presence"); }
-  layer() { return new Layer(9); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("message.*"), new SubscriptionPattern("clock.*")]; }
+  subscriptions() { return [new SubscriptionPattern("rupture.*"), new SubscriptionPattern("repair.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2013,11 +2017,11 @@ export class PresencePrimitive implements Primitive {
 
 // -- Layer 10 (Community) -- 12 primitives --
 
-export class HomePrimitive implements Primitive {
-  id() { return new PrimitiveId("Home"); }
+export class CulturePrimitive implements Primitive {
+  id() { return new PrimitiveId("Culture"); }
   layer() { return new Layer(10); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("group.*"), new SubscriptionPattern("attachment.*"), new SubscriptionPattern("presence.*")]; }
+  subscriptions() { return [new SubscriptionPattern("group.*"), new SubscriptionPattern("sharednarrative.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2026,11 +2030,11 @@ export class HomePrimitive implements Primitive {
   }
 }
 
-export class ContributionPrimitive implements Primitive {
-  id() { return new PrimitiveId("Contribution"); }
+export class SharedNarrativePrimitive implements Primitive {
+  id() { return new PrimitiveId("SharedNarrative"); }
   layer() { return new Layer(10); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("artefact.*"), new SubscriptionPattern("review.*"), new SubscriptionPattern("care.*")]; }
+  subscriptions() { return [new SubscriptionPattern("narrative.*"), new SubscriptionPattern("group.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2039,11 +2043,24 @@ export class ContributionPrimitive implements Primitive {
   }
 }
 
-export class InclusionPrimitive implements Primitive {
-  id() { return new PrimitiveId("Inclusion"); }
+export class EthosPrimitive implements Primitive {
+  id() { return new PrimitiveId("Ethos"); }
   layer() { return new Layer(10); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("group.*"), new SubscriptionPattern("exclusion.*"), new SubscriptionPattern("fairness.*")]; }
+  subscriptions() { return [new SubscriptionPattern("culture.*"), new SubscriptionPattern("value.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class SacredPrimitive implements Primitive {
+  id() { return new PrimitiveId("Sacred"); }
+  layer() { return new Layer(10); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("ethos.*"), new SubscriptionPattern("culture.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2056,7 +2073,7 @@ export class TraditionPrimitive implements Primitive {
   id() { return new PrimitiveId("Tradition"); }
   layer() { return new Layer(10); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("convention.*"), new SubscriptionPattern("heritage.*"), new SubscriptionPattern("pattern.*")]; }
+  subscriptions() { return [new SubscriptionPattern("culture.*"), new SubscriptionPattern("memory.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2065,11 +2082,11 @@ export class TraditionPrimitive implements Primitive {
   }
 }
 
-export class CommonsPrimitive implements Primitive {
-  id() { return new PrimitiveId("Commons"); }
+export class RitualPrimitive implements Primitive {
+  id() { return new PrimitiveId("Ritual"); }
   layer() { return new Layer(10); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("artefact.*"), new SubscriptionPattern("group.*")]; }
+  subscriptions() { return [new SubscriptionPattern("tradition.*"), new SubscriptionPattern("sacred.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2078,11 +2095,11 @@ export class CommonsPrimitive implements Primitive {
   }
 }
 
-export class SustainabilityPrimitive implements Primitive {
-  id() { return new PrimitiveId("Sustainability"); }
+export class PracticePrimitive implements Primitive {
+  id() { return new PrimitiveId("Practice"); }
   layer() { return new Layer(10); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("health.*"), new SubscriptionPattern("commons.*"), new SubscriptionPattern("contribution.*")]; }
+  subscriptions() { return [new SubscriptionPattern("norm.*"), new SubscriptionPattern("tradition.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2091,11 +2108,11 @@ export class SustainabilityPrimitive implements Primitive {
   }
 }
 
-export class SuccessionPrimitive implements Primitive {
-  id() { return new PrimitiveId("Succession"); }
+export class PlacePrimitive implements Primitive {
+  id() { return new PrimitiveId("Place"); }
   layer() { return new Layer(10); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("delegation.*"), new SubscriptionPattern("actor.*"), new SubscriptionPattern("role.*")]; }
+  subscriptions() { return [new SubscriptionPattern("group.*"), new SubscriptionPattern("property.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2104,11 +2121,11 @@ export class SuccessionPrimitive implements Primitive {
   }
 }
 
-export class RenewalPrimitive implements Primitive {
-  id() { return new PrimitiveId("Renewal"); }
+export class BelongingPrimitive implements Primitive {
+  id() { return new PrimitiveId("Belonging"); }
   layer() { return new Layer(10); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("sustainability.*"), new SubscriptionPattern("innovation.*"), new SubscriptionPattern("tradition.*")]; }
+  subscriptions() { return [new SubscriptionPattern("membership.*"), new SubscriptionPattern("bond.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2117,11 +2134,11 @@ export class RenewalPrimitive implements Primitive {
   }
 }
 
-export class MilestonePrimitive implements Primitive {
-  id() { return new PrimitiveId("Milestone"); }
+export class SolidarityPrimitive implements Primitive {
+  id() { return new PrimitiveId("Solidarity"); }
   layer() { return new Layer(10); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("goal.*"), new SubscriptionPattern("innovation.*"), new SubscriptionPattern("reconciliation.*")]; }
+  subscriptions() { return [new SubscriptionPattern("belonging.*"), new SubscriptionPattern("collectiveact.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2130,11 +2147,11 @@ export class MilestonePrimitive implements Primitive {
   }
 }
 
-export class CeremonyPrimitive implements Primitive {
-  id() { return new PrimitiveId("Ceremony"); }
+export class VoicePrimitive implements Primitive {
+  id() { return new PrimitiveId("Voice"); }
   layer() { return new Layer(10); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("milestone.*"), new SubscriptionPattern("succession.*"), new SubscriptionPattern("actor.*")]; }
+  subscriptions() { return [new SubscriptionPattern("expression.*"), new SubscriptionPattern("belonging.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2143,24 +2160,11 @@ export class CeremonyPrimitive implements Primitive {
   }
 }
 
-export class StoryPrimitive implements Primitive {
-  id() { return new PrimitiveId("Story"); }
+export class WelcomePrimitive implements Primitive {
+  id() { return new PrimitiveId("Welcome"); }
   layer() { return new Layer(10); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("milestone.*"), new SubscriptionPattern("ceremony.*"), new SubscriptionPattern("tradition.*"), new SubscriptionPattern("memorial.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class GiftPrimitive implements Primitive {
-  id() { return new PrimitiveId("Gift"); }
-  layer() { return new Layer(10); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("contribution.*"), new SubscriptionPattern("gratitude.*")]; }
+  subscriptions() { return [new SubscriptionPattern("membership.*"), new SubscriptionPattern("care.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2171,11 +2175,11 @@ export class GiftPrimitive implements Primitive {
 
 // -- Layer 11 (Culture) -- 12 primitives --
 
-export class SelfAwarenessPrimitive implements Primitive {
-  id() { return new PrimitiveId("SelfAwareness"); }
+export class ReflexivityPrimitive implements Primitive {
+  id() { return new PrimitiveId("Reflexivity"); }
   layer() { return new Layer(11); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("health.*"), new SubscriptionPattern("self.*"), new SubscriptionPattern("bias.*")]; }
+  subscriptions() { return [new SubscriptionPattern("reflection.*"), new SubscriptionPattern("culture.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2184,102 +2188,11 @@ export class SelfAwarenessPrimitive implements Primitive {
   }
 }
 
-export class PerspectivePrimitive implements Primitive {
-  id() { return new PrimitiveId("Perspective"); }
+export class EncounterPrimitive implements Primitive {
+  id() { return new PrimitiveId("Encounter"); }
   layer() { return new Layer(11); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("narrative.*"), new SubscriptionPattern("dissent.*"), new SubscriptionPattern("value.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class CritiquePrimitive implements Primitive {
-  id() { return new PrimitiveId("Critique"); }
-  layer() { return new Layer(11); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("convention.*"), new SubscriptionPattern("norm.*"), new SubscriptionPattern("tradition.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class WisdomPrimitive implements Primitive {
-  id() { return new PrimitiveId("Wisdom"); }
-  layer() { return new Layer(11); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("learning.*"), new SubscriptionPattern("moral.*"), new SubscriptionPattern("consequence.*"), new SubscriptionPattern("memory.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class AestheticPrimitive implements Primitive {
-  id() { return new PrimitiveId("Aesthetic"); }
-  layer() { return new Layer(11); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("artefact.*"), new SubscriptionPattern("quality.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class MetaphorPrimitive implements Primitive {
-  id() { return new PrimitiveId("Metaphor"); }
-  layer() { return new Layer(11); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("abstraction.*"), new SubscriptionPattern("symbol.*"), new SubscriptionPattern("narrative.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class HumourPrimitive implements Primitive {
-  id() { return new PrimitiveId("Humour"); }
-  layer() { return new Layer(11); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("contradiction.*"), new SubscriptionPattern("perspective.*"), new SubscriptionPattern("*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class SilencePrimitive implements Primitive {
-  id() { return new PrimitiveId("Silence"); }
-  layer() { return new Layer(11); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("clock.*"), new SubscriptionPattern("presence.*"), new SubscriptionPattern("acknowledgement.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class TeachingPrimitive implements Primitive {
-  id() { return new PrimitiveId("Teaching"); }
-  layer() { return new Layer(11); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("learning.*"), new SubscriptionPattern("wisdom.*"), new SubscriptionPattern("memory.*")]; }
+  subscriptions() { return [new SubscriptionPattern("recognition.*"), new SubscriptionPattern("culture.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2292,7 +2205,7 @@ export class TranslationPrimitive implements Primitive {
   id() { return new PrimitiveId("Translation"); }
   layer() { return new Layer(11); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("encoding.*"), new SubscriptionPattern("message.*")]; }
+  subscriptions() { return [new SubscriptionPattern("language.*"), new SubscriptionPattern("encounter.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2301,11 +2214,11 @@ export class TranslationPrimitive implements Primitive {
   }
 }
 
-export class ArchivePrimitive implements Primitive {
-  id() { return new PrimitiveId("Archive"); }
+export class PluralismPrimitive implements Primitive {
+  id() { return new PrimitiveId("Pluralism"); }
   layer() { return new Layer(11); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("memory.*"), new SubscriptionPattern("legacy.*"), new SubscriptionPattern("community.*")]; }
+  subscriptions() { return [new SubscriptionPattern("culture.*"), new SubscriptionPattern("encounter.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2314,11 +2227,11 @@ export class ArchivePrimitive implements Primitive {
   }
 }
 
-export class ProphecyPrimitive implements Primitive {
-  id() { return new PrimitiveId("Prophecy"); }
+export class CreativityPrimitive implements Primitive {
+  id() { return new PrimitiveId("Creativity"); }
   layer() { return new Layer(11); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("pattern.*"), new SubscriptionPattern("sustainability.*"), new SubscriptionPattern("wisdom.*")]; }
+  subscriptions() { return [new SubscriptionPattern("expression.*"), new SubscriptionPattern("aesthetic.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2327,13 +2240,11 @@ export class ProphecyPrimitive implements Primitive {
   }
 }
 
-// -- Layer 12 (System Dynamics) -- 12 primitives --
-
-export class MetaPatternPrimitive implements Primitive {
-  id() { return new PrimitiveId("MetaPattern"); }
-  layer() { return new Layer(12); }
+export class AestheticPrimitive implements Primitive {
+  id() { return new PrimitiveId("Aesthetic"); }
+  layer() { return new Layer(11); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("pattern.*"), new SubscriptionPattern("convention.*"), new SubscriptionPattern("abstraction.*")]; }
+  subscriptions() { return [new SubscriptionPattern("value.*"), new SubscriptionPattern("expression.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2342,11 +2253,11 @@ export class MetaPatternPrimitive implements Primitive {
   }
 }
 
-export class SystemDynamicPrimitive implements Primitive {
-  id() { return new PrimitiveId("SystemDynamic"); }
-  layer() { return new Layer(12); }
+export class InterpretationPrimitive implements Primitive {
+  id() { return new PrimitiveId("Interpretation"); }
+  layer() { return new Layer(11); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("health.*"), new SubscriptionPattern("meta.*"), new SubscriptionPattern("sustainability.*")]; }
+  subscriptions() { return [new SubscriptionPattern("symbol.*"), new SubscriptionPattern("narrative.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2355,11 +2266,11 @@ export class SystemDynamicPrimitive implements Primitive {
   }
 }
 
-export class FeedbackLoopPrimitive implements Primitive {
-  id() { return new PrimitiveId("FeedbackLoop"); }
-  layer() { return new Layer(12); }
+export class DialoguePrimitive implements Primitive {
+  id() { return new PrimitiveId("Dialogue"); }
+  layer() { return new Layer(11); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("system.*"), new SubscriptionPattern("pattern.*")]; }
+  subscriptions() { return [new SubscriptionPattern("signal.*"), new SubscriptionPattern("encounter.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2368,11 +2279,11 @@ export class FeedbackLoopPrimitive implements Primitive {
   }
 }
 
-export class ThresholdPrimitive implements Primitive {
-  id() { return new PrimitiveId("Threshold"); }
-  layer() { return new Layer(12); }
+export class SyncretismPrimitive implements Primitive {
+  id() { return new PrimitiveId("Syncretism"); }
+  layer() { return new Layer(11); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("system.*"), new SubscriptionPattern("feedback.*"), new SubscriptionPattern("meta.*")]; }
+  subscriptions() { return [new SubscriptionPattern("pluralism.*"), new SubscriptionPattern("translation.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2381,11 +2292,11 @@ export class ThresholdPrimitive implements Primitive {
   }
 }
 
-export class AdaptationPrimitive implements Primitive {
-  id() { return new PrimitiveId("Adaptation"); }
-  layer() { return new Layer(12); }
+export class CritiquePrimitive implements Primitive {
+  id() { return new PrimitiveId("Critique"); }
+  layer() { return new Layer(11); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("feedback.*"), new SubscriptionPattern("system.*"), new SubscriptionPattern("sustainability.*")]; }
+  subscriptions() { return [new SubscriptionPattern("reflexivity.*"), new SubscriptionPattern("interpretation.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2394,11 +2305,11 @@ export class AdaptationPrimitive implements Primitive {
   }
 }
 
-export class SelectionPrimitive implements Primitive {
-  id() { return new PrimitiveId("Selection"); }
-  layer() { return new Layer(12); }
+export class HegemonyPrimitive implements Primitive {
+  id() { return new PrimitiveId("Hegemony"); }
+  layer() { return new Layer(11); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("adaptation.*"), new SubscriptionPattern("test.*"), new SubscriptionPattern("quality.*")]; }
+  subscriptions() { return [new SubscriptionPattern("authority.*"), new SubscriptionPattern("culture.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2407,11 +2318,11 @@ export class SelectionPrimitive implements Primitive {
   }
 }
 
-export class ComplexificationPrimitive implements Primitive {
-  id() { return new PrimitiveId("Complexification"); }
-  layer() { return new Layer(12); }
+export class CulturalEvolutionPrimitive implements Primitive {
+  id() { return new PrimitiveId("CulturalEvolution"); }
+  layer() { return new Layer(11); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("system.*"), new SubscriptionPattern("innovation.*"), new SubscriptionPattern("meta.*")]; }
+  subscriptions() { return [new SubscriptionPattern("culture.*"), new SubscriptionPattern("creativity.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2420,11 +2331,13 @@ export class ComplexificationPrimitive implements Primitive {
   }
 }
 
-export class SimplificationPrimitive implements Primitive {
-  id() { return new PrimitiveId("Simplification"); }
+// -- Layer 12 (Emergence) -- 12 primitives --
+
+export class EmergencePrimitive implements Primitive {
+  id() { return new PrimitiveId("Emergence"); }
   layer() { return new Layer(12); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("complexity.*"), new SubscriptionPattern("automation.*")]; }
+  subscriptions() { return [new SubscriptionPattern("complexity.*"), new SubscriptionPattern("selforganization.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2433,11 +2346,11 @@ export class SimplificationPrimitive implements Primitive {
   }
 }
 
-export class SystemicIntegrityPrimitive implements Primitive {
-  id() { return new PrimitiveId("SystemicIntegrity"); }
+export class SelfOrganizationPrimitive implements Primitive {
+  id() { return new PrimitiveId("SelfOrganization"); }
   layer() { return new Layer(12); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("health.*"), new SubscriptionPattern("invariant.*"), new SubscriptionPattern("system.*")]; }
+  subscriptions() { return [new SubscriptionPattern("feedback.*"), new SubscriptionPattern("autopoiesis.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2446,11 +2359,11 @@ export class SystemicIntegrityPrimitive implements Primitive {
   }
 }
 
-export class HarmonyPrimitive implements Primitive {
-  id() { return new PrimitiveId("Harmony"); }
+export class FeedbackPrimitive implements Primitive {
+  id() { return new PrimitiveId("Feedback"); }
   layer() { return new Layer(12); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("system.*"), new SubscriptionPattern("feedback.*"), new SubscriptionPattern("dispute.*")]; }
+  subscriptions() { return [new SubscriptionPattern("consequence.*"), new SubscriptionPattern("recursion.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2459,11 +2372,11 @@ export class HarmonyPrimitive implements Primitive {
   }
 }
 
-export class ResiliencePrimitive implements Primitive {
-  id() { return new PrimitiveId("Resilience"); }
+export class ComplexityPrimitive implements Primitive {
+  id() { return new PrimitiveId("Complexity"); }
   layer() { return new Layer(12); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("threshold.*"), new SubscriptionPattern("rupture.*"), new SubscriptionPattern("sustainability.*")]; }
+  subscriptions() { return [new SubscriptionPattern("emergence.*"), new SubscriptionPattern("feedback.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2472,11 +2385,102 @@ export class ResiliencePrimitive implements Primitive {
   }
 }
 
-export class PurposePrimitive implements Primitive {
-  id() { return new PrimitiveId("Purpose"); }
+export class ConsciousnessPrimitive implements Primitive {
+  id() { return new PrimitiveId("Consciousness"); }
   layer() { return new Layer(12); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("value.*"), new SubscriptionPattern("goal.*"), new SubscriptionPattern("wisdom.*")]; }
+  subscriptions() { return [new SubscriptionPattern("selforganization.*"), new SubscriptionPattern("recursion.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class RecursionPrimitive implements Primitive {
+  id() { return new PrimitiveId("Recursion"); }
+  layer() { return new Layer(12); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("feedback.*"), new SubscriptionPattern("selforganization.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class ParadoxPrimitive implements Primitive {
+  id() { return new PrimitiveId("Paradox"); }
+  layer() { return new Layer(12); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("recursion.*"), new SubscriptionPattern("incompleteness.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class IncompletenessPrimitive implements Primitive {
+  id() { return new PrimitiveId("Incompleteness"); }
+  layer() { return new Layer(12); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("paradox.*"), new SubscriptionPattern("complexity.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class PhaseTransitionPrimitive implements Primitive {
+  id() { return new PrimitiveId("PhaseTransition"); }
+  layer() { return new Layer(12); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("complexity.*"), new SubscriptionPattern("emergence.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class DownwardCausationPrimitive implements Primitive {
+  id() { return new PrimitiveId("DownwardCausation"); }
+  layer() { return new Layer(12); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("emergence.*"), new SubscriptionPattern("feedback.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class AutopoiesisPrimitive implements Primitive {
+  id() { return new PrimitiveId("Autopoiesis"); }
+  layer() { return new Layer(12); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("selforganization.*"), new SubscriptionPattern("emergence.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class CoEvolutionPrimitive implements Primitive {
+  id() { return new PrimitiveId("CoEvolution"); }
+  layer() { return new Layer(12); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("feedback.*"), new SubscriptionPattern("culturalevolution.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2491,7 +2495,20 @@ export class BeingPrimitive implements Primitive {
   id() { return new PrimitiveId("Being"); }
   layer() { return new Layer(13); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("clock.*")]; }
+  subscriptions() { return [new SubscriptionPattern("presence.*"), new SubscriptionPattern("finitude.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class NothingnessPrimitive implements Primitive {
+  id() { return new PrimitiveId("Nothingness"); }
+  layer() { return new Layer(13); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("being.*"), new SubscriptionPattern("groundlessness.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2504,7 +2521,7 @@ export class FinitudePrimitive implements Primitive {
   id() { return new PrimitiveId("Finitude"); }
   layer() { return new Layer(13); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("actor.*"), new SubscriptionPattern("sustainability.*"), new SubscriptionPattern("threshold.*")]; }
+  subscriptions() { return [new SubscriptionPattern("being.*"), new SubscriptionPattern("contingency.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2513,115 +2530,11 @@ export class FinitudePrimitive implements Primitive {
   }
 }
 
-export class ChangePrimitive implements Primitive {
-  id() { return new PrimitiveId("Change"); }
+export class ContingencyPrimitive implements Primitive {
+  id() { return new PrimitiveId("Contingency"); }
   layer() { return new Layer(13); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class InterdependencePrimitive implements Primitive {
-  id() { return new PrimitiveId("Interdependence"); }
-  layer() { return new Layer(13); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("system.*"), new SubscriptionPattern("attachment.*"), new SubscriptionPattern("relational.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class MysteryPrimitive implements Primitive {
-  id() { return new PrimitiveId("Mystery"); }
-  layer() { return new Layer(13); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("uncertainty.*"), new SubscriptionPattern("wisdom.*"), new SubscriptionPattern("self.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class ParadoxPrimitive implements Primitive {
-  id() { return new PrimitiveId("Paradox"); }
-  layer() { return new Layer(13); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("contradiction.*"), new SubscriptionPattern("dilemma.*"), new SubscriptionPattern("meta.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class InfinityPrimitive implements Primitive {
-  id() { return new PrimitiveId("Infinity"); }
-  layer() { return new Layer(13); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("complexity.*"), new SubscriptionPattern("threshold.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class VoidPrimitive implements Primitive {
-  id() { return new PrimitiveId("Void"); }
-  layer() { return new Layer(13); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("silence.*"), new SubscriptionPattern("loss.*"), new SubscriptionPattern("instrumentation.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class AwePrimitive implements Primitive {
-  id() { return new PrimitiveId("Awe"); }
-  layer() { return new Layer(13); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("mystery.*"), new SubscriptionPattern("infinity.*"), new SubscriptionPattern("complexity.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class ExistentialGratitudePrimitive implements Primitive {
-  id() { return new PrimitiveId("ExistentialGratitude"); }
-  layer() { return new Layer(13); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("being.*"), new SubscriptionPattern("milestone.*")]; }
-  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
-    return [
-      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
-      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
-    ];
-  }
-}
-
-export class PlayPrimitive implements Primitive {
-  id() { return new PrimitiveId("Play"); }
-  layer() { return new Layer(13); }
-  cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("humour.*"), new SubscriptionPattern("innovation.*"), new SubscriptionPattern("*")]; }
+  subscriptions() { return [new SubscriptionPattern("finitude.*"), new SubscriptionPattern("groundlessness.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2634,7 +2547,7 @@ export class WonderPrimitive implements Primitive {
   id() { return new PrimitiveId("Wonder"); }
   layer() { return new Layer(13); }
   cadence() { return new Cadence(1); }
-  subscriptions() { return [new SubscriptionPattern("*")]; }
+  subscriptions() { return [new SubscriptionPattern("mystery.*"), new SubscriptionPattern("being.*")]; }
   process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
     return [
       { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
@@ -2643,10 +2556,100 @@ export class WonderPrimitive implements Primitive {
   }
 }
 
-// -- Factory --
+export class ExistentialAcceptancePrimitive implements Primitive {
+  id() { return new PrimitiveId("ExistentialAcceptance"); }
+  layer() { return new Layer(13); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("finitude.*"), new SubscriptionPattern("contingency.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class PresencePrimitive implements Primitive {
+  id() { return new PrimitiveId("Presence"); }
+  layer() { return new Layer(13); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("being.*"), new SubscriptionPattern("acceptance.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class GratitudePrimitive implements Primitive {
+  id() { return new PrimitiveId("Gratitude"); }
+  layer() { return new Layer(13); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("presence.*"), new SubscriptionPattern("wonder.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class MysteryPrimitive implements Primitive {
+  id() { return new PrimitiveId("Mystery"); }
+  layer() { return new Layer(13); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("wonder.*"), new SubscriptionPattern("incompleteness.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class TranscendencePrimitive implements Primitive {
+  id() { return new PrimitiveId("Transcendence"); }
+  layer() { return new Layer(13); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("being.*"), new SubscriptionPattern("mystery.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class GroundlessnessPrimitive implements Primitive {
+  id() { return new PrimitiveId("Groundlessness"); }
+  layer() { return new Layer(13); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("contingency.*"), new SubscriptionPattern("nothingness.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
+
+export class ReturnPrimitive implements Primitive {
+  id() { return new PrimitiveId("Return"); }
+  layer() { return new Layer(13); }
+  cadence() { return new Cadence(1); }
+  subscriptions() { return [new SubscriptionPattern("acceptance.*"), new SubscriptionPattern("being.*")]; }
+  process(tick: number, events: Event[], _snapshot: Snapshot): Mutation[] {
+    return [
+      { kind: "updateState", primitiveId: this.id(), key: "eventsProcessed", value: events.length },
+      { kind: "updateState", primitiveId: this.id(), key: "lastTick", value: tick },
+    ];
+  }
+}
 
 export function createAllPrimitives(): Primitive[] {
   return [
+    // Layer 0 — Foundation (45)
     new EventPrimitive(),
     new EventStorePrimitive(),
     new ClockPrimitive(),
@@ -2692,161 +2695,174 @@ export function createAllPrimitives(): Primitive[] {
     new InvariantPrimitive(),
     new InvariantCheckPrimitive(),
     new BootstrapPrimitive(),
-    new GoalPrimitive(),
-    new PlanPrimitive(),
-    new InitiativePrimitive(),
+    // Layer 1 — Agency (12)
+    new ValuePrimitive(),
+    new IntentPrimitive(),
+    new ChoicePrimitive(),
+    new RiskPrimitive(),
+    new ActPrimitive(),
+    new ConsequencePrimitive(),
+    new CapacityPrimitive(),
+    new ResourcePrimitive(),
+    new SignalPrimitive(),
+    new ReceptionPrimitive(),
+    new AcknowledgmentPrimitive(),
     new CommitmentPrimitive(),
-    new FocusPrimitive(),
-    new FilterPrimitive(),
-    new SaliencePrimitive(),
-    new DistractionPrimitive(),
-    new PermissionPrimitive(),
-    new CapabilityPrimitive(),
-    new DelegationPrimitive(),
-    new AccountabilityPrimitive(),
-    new MessagePrimitive(),
-    new AcknowledgementPrimitive(),
-    new ClarificationPrimitive(),
-    new ContextPrimitive(),
+    // Layer 2 — Exchange (12)
+    new TermPrimitive(),
+    new ProtocolPrimitive(),
     new OfferPrimitive(),
     new AcceptancePrimitive(),
+    new AgreementPrimitive(),
     new ObligationPrimitive(),
-    new GratitudePrimitive(),
-    new NegotiationPrimitive(),
-    new ConsentPrimitive(),
-    new ContractPrimitive(),
-    new DisputePrimitive(),
-    new GroupPrimitive(),
-    new RolePrimitive(),
-    new ReputationPrimitive(),
-    new ExclusionPrimitive(),
-    new VotePrimitive(),
-    new ConsensusPrimitive(),
-    new DissentPrimitive(),
-    new MajorityPrimitive(),
-    new ConventionPrimitive(),
-    new NormPrimitive(),
-    new SanctionPrimitive(),
-    new ForgivenessPrimitive(),
-    new RulePrimitive(),
-    new JurisdictionPrimitive(),
-    new PrecedentPrimitive(),
-    new InterpretationPrimitive(),
-    new AdjudicationPrimitive(),
-    new AppealPrimitive(),
-    new DueProcessPrimitive(),
-    new RightsPrimitive(),
-    new AuditPrimitive(),
-    new EnforcementPrimitive(),
-    new AmnestyPrimitive(),
-    new ReformPrimitive(),
-    new CreatePrimitive(),
-    new ToolPrimitive(),
-    new QualityPrimitive(),
-    new DeprecationPrimitive(),
-    new WorkflowPrimitive(),
-    new AutomationPrimitive(),
-    new TestingPrimitive(),
-    new ReviewPrimitive(),
-    new FeedbackPrimitive(),
-    new IterationPrimitive(),
-    new InnovationPrimitive(),
-    new LegacyPrimitive(),
-    new SymbolPrimitive(),
-    new AbstractionPrimitive(),
-    new ClassificationPrimitive(),
-    new EncodingPrimitive(),
-    new FactPrimitive(),
-    new InferencePrimitive(),
-    new MemoryPrimitive(),
-    new LearningPrimitive(),
-    new NarrativePrimitive(),
-    new BiasPrimitive(),
-    new CorrectionPrimitive(),
-    new ProvenancePrimitive(),
-    new ValuePrimitive(),
-    new HarmPrimitive(),
-    new FairnessPrimitive(),
-    new CarePrimitive(),
-    new DilemmaPrimitive(),
-    new ProportionalityPrimitive(),
-    new IntentionPrimitive(),
-    new ConsequencePrimitive(),
-    new ResponsibilityPrimitive(),
-    new TransparencyPrimitive(),
-    new RedressPrimitive(),
-    new GrowthPrimitive(),
-    new SelfModelPrimitive(),
-    new AuthenticityPrimitive(),
-    new NarrativeIdentityPrimitive(),
-    new BoundaryPrimitive(),
-    new PersistencePrimitive(),
-    new TransformationPrimitive(),
-    new HeritagePrimitive(),
-    new AspirationPrimitive(),
-    new DignityPrimitive(),
-    new IdentityAcknowledgementPrimitive(),
-    new UniquenessPrimitive(),
-    new MemorialPrimitive(),
-    new AttachmentPrimitive(),
+    new FulfillmentPrimitive(),
+    new BreachPrimitive(),
+    new ExchangePrimitive(),
+    new AccountabilityPrimitive(),
+    new DebtPrimitive(),
     new ReciprocityPrimitive(),
-    new RelationalTrustPrimitive(),
-    new RupturePrimitive(),
-    new ApologyPrimitive(),
-    new ReconciliationPrimitive(),
-    new RelationalGrowthPrimitive(),
-    new LossPrimitive(),
-    new VulnerabilityPrimitive(),
-    new UnderstandingPrimitive(),
-    new EmpathyPrimitive(),
-    new PresencePrimitive(),
-    new HomePrimitive(),
-    new ContributionPrimitive(),
-    new InclusionPrimitive(),
-    new TraditionPrimitive(),
+    // Layer 3 — Society (12)
+    new GroupPrimitive(),
+    new MembershipPrimitive(),
+    new RolePrimitive(),
+    new ConsentPrimitive(),
+    new NormPrimitive(),
+    new ReputationPrimitive(),
+    new SanctionPrimitive(),
+    new AuthorityPrimitive(),
+    new PropertyPrimitive(),
     new CommonsPrimitive(),
-    new SustainabilityPrimitive(),
-    new SuccessionPrimitive(),
-    new RenewalPrimitive(),
-    new MilestonePrimitive(),
-    new CeremonyPrimitive(),
-    new StoryPrimitive(),
-    new GiftPrimitive(),
-    new SelfAwarenessPrimitive(),
-    new PerspectivePrimitive(),
-    new CritiquePrimitive(),
-    new WisdomPrimitive(),
-    new AestheticPrimitive(),
-    new MetaphorPrimitive(),
-    new HumourPrimitive(),
-    new SilencePrimitive(),
-    new TeachingPrimitive(),
-    new TranslationPrimitive(),
-    new ArchivePrimitive(),
-    new ProphecyPrimitive(),
-    new MetaPatternPrimitive(),
-    new SystemDynamicPrimitive(),
-    new FeedbackLoopPrimitive(),
-    new ThresholdPrimitive(),
-    new AdaptationPrimitive(),
-    new SelectionPrimitive(),
-    new ComplexificationPrimitive(),
-    new SimplificationPrimitive(),
-    new SystemicIntegrityPrimitive(),
-    new HarmonyPrimitive(),
-    new ResiliencePrimitive(),
+    new GovernancePrimitive(),
+    new CollectiveActPrimitive(),
+    // Layer 4 — Legal (12)
+    new LawPrimitive(),
+    new RightPrimitive(),
+    new ContractPrimitive(),
+    new LiabilityPrimitive(),
+    new DueProcessPrimitive(),
+    new AdjudicationPrimitive(),
+    new RemedyPrimitive(),
+    new PrecedentPrimitive(),
+    new JurisdictionPrimitive(),
+    new SovereigntyPrimitive(),
+    new LegitimacyPrimitive(),
+    new TreatyPrimitive(),
+    // Layer 5 — Technology (12)
+    new MethodPrimitive(),
+    new MeasurementPrimitive(),
+    new KnowledgePrimitive(),
+    new ModelPrimitive(),
+    new ToolPrimitive(),
+    new TechniquePrimitive(),
+    new InventionPrimitive(),
+    new AbstractionPrimitive(),
+    new InfrastructurePrimitive(),
+    new StandardPrimitive(),
+    new EfficiencyPrimitive(),
+    new AutomationPrimitive(),
+    // Layer 6 — Information (12)
+    new SymbolPrimitive(),
+    new LanguagePrimitive(),
+    new EncodingPrimitive(),
+    new RecordPrimitive(),
+    new ChannelPrimitive(),
+    new CopyPrimitive(),
+    new NoisePrimitive(),
+    new RedundancyPrimitive(),
+    new DataPrimitive(),
+    new ComputationPrimitive(),
+    new AlgorithmPrimitive(),
+    new EntropyPrimitive(),
+    // Layer 7 — Ethics (12)
+    new MoralStatusPrimitive(),
+    new DignityPrimitive(),
+    new AutonomyPrimitive(),
+    new FlourishingPrimitive(),
+    new DutyPrimitive(),
+    new HarmPrimitive(),
+    new CarePrimitive(),
+    new JusticePrimitive(),
+    new ConsciencePrimitive(),
+    new VirtuePrimitive(),
+    new ResponsibilityPrimitive(),
+    new MotivePrimitive(),
+    // Layer 8 — Identity (12)
+    new NarrativePrimitive(),
+    new SelfConceptPrimitive(),
+    new ReflectionPrimitive(),
+    new MemoryPrimitive(),
     new PurposePrimitive(),
-    new BeingPrimitive(),
-    new FinitudePrimitive(),
-    new ChangePrimitive(),
-    new InterdependencePrimitive(),
-    new MysteryPrimitive(),
+    new AspirationPrimitive(),
+    new AuthenticityPrimitive(),
+    new ExpressionPrimitive(),
+    new GrowthPrimitive(),
+    new ContinuityPrimitive(),
+    new IntegrationPrimitive(),
+    new CrisisPrimitive(),
+    // Layer 9 — Relationship (12)
+    new BondPrimitive(),
+    new AttachmentPrimitive(),
+    new RecognitionPrimitive(),
+    new IntimacyPrimitive(),
+    new AttunementPrimitive(),
+    new RupturePrimitive(),
+    new RepairPrimitive(),
+    new LoyaltyPrimitive(),
+    new MutualConstitutionPrimitive(),
+    new RelationalObligationPrimitive(),
+    new GriefPrimitive(),
+    new ForgivenessPrimitive(),
+    // Layer 10 — Community (12)
+    new CulturePrimitive(),
+    new SharedNarrativePrimitive(),
+    new EthosPrimitive(),
+    new SacredPrimitive(),
+    new TraditionPrimitive(),
+    new RitualPrimitive(),
+    new PracticePrimitive(),
+    new PlacePrimitive(),
+    new BelongingPrimitive(),
+    new SolidarityPrimitive(),
+    new VoicePrimitive(),
+    new WelcomePrimitive(),
+    // Layer 11 — Culture (12)
+    new ReflexivityPrimitive(),
+    new EncounterPrimitive(),
+    new TranslationPrimitive(),
+    new PluralismPrimitive(),
+    new CreativityPrimitive(),
+    new AestheticPrimitive(),
+    new InterpretationPrimitive(),
+    new DialoguePrimitive(),
+    new SyncretismPrimitive(),
+    new CritiquePrimitive(),
+    new HegemonyPrimitive(),
+    new CulturalEvolutionPrimitive(),
+    // Layer 12 — Emergence (12)
+    new EmergencePrimitive(),
+    new SelfOrganizationPrimitive(),
+    new FeedbackPrimitive(),
+    new ComplexityPrimitive(),
+    new ConsciousnessPrimitive(),
+    new RecursionPrimitive(),
     new ParadoxPrimitive(),
-    new InfinityPrimitive(),
-    new VoidPrimitive(),
-    new AwePrimitive(),
-    new ExistentialGratitudePrimitive(),
-    new PlayPrimitive(),
+    new IncompletenessPrimitive(),
+    new PhaseTransitionPrimitive(),
+    new DownwardCausationPrimitive(),
+    new AutopoiesisPrimitive(),
+    new CoEvolutionPrimitive(),
+    // Layer 13 — Existence (12)
+    new BeingPrimitive(),
+    new NothingnessPrimitive(),
+    new FinitudePrimitive(),
+    new ContingencyPrimitive(),
     new WonderPrimitive(),
+    new ExistentialAcceptancePrimitive(),
+    new PresencePrimitive(),
+    new GratitudePrimitive(),
+    new MysteryPrimitive(),
+    new TranscendencePrimitive(),
+    new GroundlessnessPrimitive(),
+    new ReturnPrimitive(),
   ];
 }
