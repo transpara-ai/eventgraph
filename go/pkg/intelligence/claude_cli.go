@@ -23,7 +23,8 @@ const (
 
 	// defaultOperateTimeout is the maximum time a single Operate() call can run.
 	// Operate tasks (code generation) are heavier than Reason tasks.
-	defaultOperateTimeout = 10 * time.Minute
+	// 15 minutes accommodates entity pipeline + multi-file feature additions.
+	defaultOperateTimeout = 15 * time.Minute
 )
 
 // claudeCliResult is the JSON output from `claude -p --output-format json`.
