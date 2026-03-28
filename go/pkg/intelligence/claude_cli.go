@@ -130,7 +130,7 @@ func (p *claudeCliProvider) Reason(ctx context.Context, prompt string, history [
 		"--max-budget-usd", fmt.Sprintf("%.2f", p.maxBudget),
 	}
 	if p.sessionID != "" {
-		args = append(args, "--resume", p.sessionID)
+		args = append(args, "--session-id", p.sessionID)
 	} else {
 		args = append(args, "--no-session-persistence")
 	}
@@ -218,7 +218,7 @@ func (p *claudeCliProvider) Operate(ctx context.Context, task decision.OperateTa
 		"--dangerously-skip-permissions",
 	}
 	if p.sessionID != "" {
-		args = append(args, "--resume", p.sessionID)
+		args = append(args, "--session-id", p.sessionID)
 	} else {
 		args = append(args, "--no-session-persistence")
 	}
