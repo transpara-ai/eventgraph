@@ -10,8 +10,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/lovyou-ai/eventgraph/go/pkg/decision"
 	"github.com/lovyou-ai/eventgraph/go/pkg/event"
@@ -216,6 +218,18 @@ func (p *claudeSDKProvider) run(ctx context.Context, prompt string, args []strin
 		return nil, fmt.Errorf("start claude: %w", err)
 	}
 
+	// Watchdog: if context is cancelled (timeout), force-kill the process tree
+	// after a 10-second grace period. On Windows, CommandContext's kill doesn't
+	// always propagate to Node.js child processes.
+	go func() {
+		<-ctx.Done()
+		time.Sleep(10 * time.Second)
+		if cmd.Process != nil {
+			log.Printf("[claude-sdk] watchdog: force-killing PID %d after context timeout", cmd.Process.Pid)
+			killProcessTree(cmd.Process.Pid)
+		}
+	}()
+
 	// Parse NDJSON inline — one goroutine, one channel, no races.
 	var result streamResult
 	scanner := bufio.NewScanner(stdout)
@@ -359,6 +373,19 @@ func scrubEnv(env []string, keys ...string) []string {
 		}
 	}
 	return out
+}
+
+// killProcessTree kills a process and all its children. On Windows, uses
+// taskkill /T (tree kill). On Unix, kills the process group.
+func killProcessTree(pid int) {
+	if runtime.GOOS == "windows" {
+		cmd := exec.Command("taskkill", "/F", "/T", "/PID", fmt.Sprintf("%d", pid))
+		_ = cmd.Run()
+	} else {
+		// Kill process group (negative PID).
+		cmd := exec.Command("kill", "-9", fmt.Sprintf("-%d", pid))
+		_ = cmd.Run()
+	}
 }
 
 var (
