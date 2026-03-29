@@ -1,39 +1,37 @@
 package intelligence
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
-
-	claudecode "github.com/severity1/claude-agent-sdk-go"
 
 	"github.com/lovyou-ai/eventgraph/go/pkg/decision"
 	"github.com/lovyou-ai/eventgraph/go/pkg/event"
 )
 
-// errStaleSession is returned by consumeIterator when the CLI reports that a
-// resumed session no longer exists. Callers retry without --resume.
+// errStaleSession is returned when the CLI reports that a resumed session
+// no longer exists. Callers retry without --resume.
 var errStaleSession = errors.New("stale session")
 
-// claudeSDKProvider implements Provider by using the community Go wrapper
-// for the Claude Agent SDK. Unlike the raw claude-cli provider, this gives:
-//   - Typed NDJSON streaming (AssistantMessage, ResultMessage, etc.)
-//   - Session management via WithResume for warm context across calls
-//   - Structured message parsing (thinking blocks, tool use, etc.)
-//   - Better error typing (CLINotFoundError, ProcessError, etc.)
+// claudeSDKProvider implements Provider using Claude CLI with session management.
+// Uses --output-format json (single result) for reliable output parsing.
+// Uses --resume for warm session context across calls.
+// Captures session_id from results for persistence.
 type claudeSDKProvider struct {
 	model         string
 	maxBudget     float64
 	systemPrompt  string
-	cliPath       string // path to claude binary, default "" (auto-detect)
-	mcpConfigPath string // optional MCP server config file
-	sessionID     string // if set, uses WithResume for warm sessions
+	cliPath       string
+	mcpConfigPath string
+	sessionID     string
 	mu            sync.Mutex
 }
 
@@ -43,9 +41,12 @@ func newClaudeSDKProvider(cfg Config) (*claudeSDKProvider, error) {
 		model = "sonnet"
 	}
 
-	cliPath := ""
+	cliPath := "claude"
 	if cfg.BaseURL != "" {
 		cliPath = cfg.BaseURL
+	}
+	if _, err := exec.LookPath(cliPath); err != nil {
+		return nil, fmt.Errorf("claude CLI not found in PATH: %w", err)
 	}
 
 	maxBudget := 1.0
@@ -80,7 +81,6 @@ func newClaudeSDKProvider(cfg Config) (*claudeSDKProvider, error) {
 func (p *claudeSDKProvider) Name() string  { return "claude-sdk" }
 func (p *claudeSDKProvider) Model() string { return p.model }
 
-// SessionID returns the current session ID.
 func (p *claudeSDKProvider) SessionID() string {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -88,8 +88,7 @@ func (p *claudeSDKProvider) SessionID() string {
 }
 
 func (p *claudeSDKProvider) Reason(ctx context.Context, prompt string, history []event.Event) (decision.Response, error) {
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(ctx, defaultReasonTimeout)
+	ctx, cancel := context.WithTimeout(ctx, defaultReasonTimeout)
 	defer cancel()
 
 	var fullPrompt strings.Builder
@@ -99,27 +98,30 @@ func (p *claudeSDKProvider) Reason(ctx context.Context, prompt string, history [
 		fullPrompt.WriteString("\n---\n\n")
 	}
 	fullPrompt.WriteString(prompt)
-	text := fullPrompt.String()
 
-	result, usage, err := p.query(ctx, text, p.baseOptions())
+	args := p.baseArgs()
+	result, err := p.run(ctx, fullPrompt.String(), args)
 	if err != nil && p.shouldRetryCold(err) {
 		log.Printf("[claude-sdk] stale session for reason, retrying cold")
 		p.clearSession()
-		result, usage, err = p.query(ctx, text, p.baseOptions())
+		result, err = p.run(ctx, fullPrompt.String(), p.baseArgs())
 	}
 	if err != nil {
 		return decision.Response{}, fmt.Errorf("claude-sdk reason: %w", err)
 	}
-	if result == "" {
-		return decision.Response{}, fmt.Errorf("claude-sdk returned empty result")
-	}
 
-	return decision.NewResponse(result, defaultConfidence(), usage), nil
+	usage := decision.TokenUsage{
+		InputTokens:      result.Usage.InputTokens,
+		OutputTokens:     result.Usage.OutputTokens,
+		CacheReadTokens:  result.Usage.CacheReadInputTokens,
+		CacheWriteTokens: result.Usage.CacheCreationInputTokens,
+		CostUSD:          result.TotalCostUSD,
+	}
+	return decision.NewResponse(result.Result, defaultConfidence(), usage), nil
 }
 
 func (p *claudeSDKProvider) Operate(ctx context.Context, task decision.OperateTask) (decision.OperateResult, error) {
-	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(ctx, defaultOperateTimeout)
+	ctx, cancel := context.WithTimeout(ctx, defaultOperateTimeout)
 	defer cancel()
 
 	if task.WorkDir == "" {
@@ -129,52 +131,151 @@ func (p *claudeSDKProvider) Operate(ctx context.Context, task decision.OperateTa
 		return decision.OperateResult{}, fmt.Errorf("Operate requires Instruction")
 	}
 
-	buildOpts := func() []claudecode.Option {
-		opts := p.baseOptions()
-		opts = append(opts,
-			claudecode.WithCwd(task.WorkDir),
-			claudecode.WithPermissionMode(claudecode.PermissionModeBypassPermissions),
-		)
-		if len(task.AllowedTools) > 0 {
-			opts = append(opts, claudecode.WithAllowedTools(task.AllowedTools...))
-		} else {
-			opts = append(opts, claudecode.WithAllowedTools("Read", "Edit", "Write", "Bash", "Glob", "Grep"))
-		}
-		return opts
+	args := p.baseArgs()
+	args = append(args, "--permission-mode", "bypassPermissions")
+	if len(task.AllowedTools) > 0 {
+		args = append(args, "--allowed-tools", strings.Join(task.AllowedTools, ","))
+	} else {
+		args = append(args, "--allowed-tools", "Read,Edit,Write,Bash,Glob,Grep")
 	}
 
-	result, usage, err := p.query(ctx, task.Instruction, buildOpts())
+	buildArgs := func() []string {
+		a := p.baseArgs()
+		a = append(a, "--permission-mode", "bypassPermissions")
+		if len(task.AllowedTools) > 0 {
+			a = append(a, "--allowed-tools", strings.Join(task.AllowedTools, ","))
+		} else {
+			a = append(a, "--allowed-tools", "Read,Edit,Write,Bash,Glob,Grep")
+		}
+		return a
+	}
+
+	result, err := p.runInDir(ctx, task.Instruction, buildArgs(), task.WorkDir)
 	if err != nil && p.shouldRetryCold(err) {
 		log.Printf("[claude-sdk] stale session for operate, retrying cold")
 		p.clearSession()
-		result, usage, err = p.query(ctx, task.Instruction, buildOpts())
+		result, err = p.runInDir(ctx, task.Instruction, buildArgs(), task.WorkDir)
 	}
 	if err != nil {
 		return decision.OperateResult{}, fmt.Errorf("claude-sdk operate: %w", err)
 	}
 
-	return decision.OperateResult{Summary: result, Usage: usage}, nil
-}
-
-// query runs a single Query call and consumes the iterator.
-func (p *claudeSDKProvider) query(ctx context.Context, prompt string, opts []claudecode.Option) (string, decision.TokenUsage, error) {
-	iter, err := claudecode.Query(ctx, prompt, opts...)
-	if err != nil {
-		return "", decision.TokenUsage{}, err
+	usage := decision.TokenUsage{
+		InputTokens:      result.Usage.InputTokens,
+		OutputTokens:     result.Usage.OutputTokens,
+		CacheReadTokens:  result.Usage.CacheReadInputTokens,
+		CacheWriteTokens: result.Usage.CacheCreationInputTokens,
+		CostUSD:          result.TotalCostUSD,
 	}
-	defer iter.Close()
-	return p.consumeIterator(ctx, iter)
+	return decision.OperateResult{Summary: result.Result, Usage: usage}, nil
 }
 
-// shouldRetryCold returns true when the error is a stale/unavailable session.
+// cliResult is the JSON output from `claude -p --output-format json`.
+type cliResult struct {
+	Type    string `json:"type"`
+	Subtype string `json:"subtype"`
+	IsError bool   `json:"is_error"`
+	Result  string `json:"result"`
+	Usage   struct {
+		InputTokens              int `json:"input_tokens"`
+		OutputTokens             int `json:"output_tokens"`
+		CacheReadInputTokens     int `json:"cache_read_input_tokens"`
+		CacheCreationInputTokens int `json:"cache_creation_input_tokens"`
+	} `json:"usage"`
+	TotalCostUSD float64 `json:"total_cost_usd"`
+	SessionID    string  `json:"session_id"`
+	NumTurns     int     `json:"num_turns"`
+	DurationMs   int     `json:"duration_ms"`
+}
+
+func (p *claudeSDKProvider) baseArgs() []string {
+	args := []string{
+		"-p",
+		"--output-format", "json",
+		"--model", p.model,
+		"--max-budget-usd", fmt.Sprintf("%.2f", p.maxBudget),
+	}
+	p.mu.Lock()
+	sid := p.sessionID
+	p.mu.Unlock()
+	if sid != "" {
+		args = append(args, "--resume", sid)
+	}
+	if p.systemPrompt != "" {
+		args = append(args, "--system-prompt", p.systemPrompt)
+	}
+	if p.mcpConfigPath != "" {
+		args = append(args, "--mcp-config", p.mcpConfigPath)
+	}
+	return args
+}
+
+func (p *claudeSDKProvider) run(ctx context.Context, prompt string, args []string) (*cliResult, error) {
+	return p.runInDir(ctx, prompt, args, "")
+}
+
+func (p *claudeSDKProvider) runInDir(ctx context.Context, prompt string, args []string, workDir string) (*cliResult, error) {
+	cmd := exec.CommandContext(ctx, p.cliPath, args...)
+	cmd.Stdin = strings.NewReader(prompt)
+	if workDir != "" {
+		cmd.Dir = workDir
+	}
+
+	// Scrub sensitive env vars.
+	env := scrubEnv(cmd.Environ(), "CLAUDECODE", "DATABASE_URL", "HIVE_AGENT_ID", "HIVE_HUMAN_ID")
+	cmd.Env = env
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := runWithProgress(cmd, "  ⏳ thinking"); err != nil {
+		// Check if we got JSON despite non-zero exit.
+		if stdout.Len() > 0 {
+			var result cliResult
+			if jsonErr := json.Unmarshal(stdout.Bytes(), &result); jsonErr == nil {
+				if result.IsError && result.NumTurns == 0 && result.DurationMs == 0 {
+					return nil, errStaleSession
+				}
+				if result.Result != "" {
+					p.captureSession(result.SessionID)
+					return &result, nil
+				}
+			}
+		}
+		return nil, fmt.Errorf("claude CLI error: %w\nstderr: %s", err, stderr.String())
+	}
+
+	var result cliResult
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		return nil, fmt.Errorf("failed to parse claude CLI JSON output: %w\nraw: %s", err, stdout.String())
+	}
+
+	if result.IsError {
+		if result.NumTurns == 0 && result.DurationMs == 0 {
+			return nil, errStaleSession
+		}
+		return nil, fmt.Errorf("claude error (subtype=%s, turns=%d): %s", result.Subtype, result.NumTurns, result.Result)
+	}
+
+	p.captureSession(result.SessionID)
+	return &result, nil
+}
+
+func (p *claudeSDKProvider) captureSession(sid string) {
+	if sid == "" {
+		return
+	}
+	p.mu.Lock()
+	p.sessionID = sid
+	p.mu.Unlock()
+}
+
 func (p *claudeSDKProvider) shouldRetryCold(err error) bool {
 	p.mu.Lock()
-	hasSess := p.sessionID != ""
+	has := p.sessionID != ""
 	p.mu.Unlock()
-	if !hasSess {
-		return false
-	}
-	return errors.Is(err, errStaleSession) || isSessionError(err)
+	return has && errors.Is(err, errStaleSession)
 }
 
 func (p *claudeSDKProvider) clearSession() {
@@ -183,177 +284,21 @@ func (p *claudeSDKProvider) clearSession() {
 	p.mu.Unlock()
 }
 
-// baseOptions builds the common option set for all SDK calls.
-func (p *claudeSDKProvider) baseOptions() []claudecode.Option {
-	opts := []claudecode.Option{
-		claudecode.WithModel(p.model),
-		claudecode.WithMaxBudgetUSD(p.maxBudget),
-		claudecode.WithStderrCallback(func(line string) {
-			if line != "" {
-				log.Printf("[claude-sdk:stderr] %s", line)
-			}
-		}),
-	}
-
-	p.mu.Lock()
-	sid := p.sessionID
-	p.mu.Unlock()
-	if sid != "" {
-		opts = append(opts, claudecode.WithResume(sid))
-	}
-
-	if p.systemPrompt != "" {
-		opts = append(opts, claudecode.WithSystemPrompt(p.systemPrompt))
-	}
-	if p.mcpConfigPath != "" {
-		opts = append(opts, claudecode.WithExtraArgs(map[string]*string{
-			"mcp-config": &p.mcpConfigPath,
-		}))
-	}
-	if p.cliPath != "" {
-		opts = append(opts, claudecode.WithCLIPath(p.cliPath))
-	}
-	opts = append(opts,
-		claudecode.WithEnvVar("DATABASE_URL", ""),
-		claudecode.WithEnvVar("HIVE_AGENT_ID", ""),
-		claudecode.WithEnvVar("HIVE_HUMAN_ID", ""),
-	)
-
-	return opts
-}
-
-// consumeIterator reads all messages from a Query iterator, printing progress
-// heartbeats, and returns the final result text, token usage, and any error.
-// Returns errStaleSession when the CLI reports a missing session.
-func (p *claudeSDKProvider) consumeIterator(ctx context.Context, iter claudecode.MessageIterator) (string, decision.TokenUsage, error) {
-	start := time.Now()
-	ticker := time.NewTicker(progressInterval)
-	defer ticker.Stop()
-	go func() {
-		for range ticker.C {
-			elapsed := time.Since(start).Round(time.Second)
-			fmt.Printf("  ⏳ thinking %s...\n", elapsed)
-		}
-	}()
-
-	var resultText string
-	var assistantText strings.Builder // fallback: accumulate from assistant messages
-	var usage decision.TokenUsage
-	var lastSessionID string
-
-	for {
-		msg, err := iter.Next(ctx)
-		if errors.Is(err, claudecode.ErrNoMoreMessages) {
-			break
-		}
-		if err != nil {
-			// The SDK closes the iterator on ANY errChan receipt, including
-			// recoverable parse errors (e.g. unknown message type: rate_limit_event).
-			// After this, the next Next() returns ErrNoMoreMessages.
-			// Log and break — we may still have text from assistant messages.
-			if strings.Contains(err.Error(), "unknown message type") {
-				log.Printf("[claude-sdk] iterator closed by parse error (expected): %v", err)
+func scrubEnv(env []string, keys ...string) []string {
+	out := make([]string, 0, len(env))
+	for _, e := range env {
+		skip := false
+		for _, k := range keys {
+			if strings.HasPrefix(e, k+"=") {
+				skip = true
 				break
 			}
-			return "", decision.TokenUsage{}, err
 		}
-
-		switch m := msg.(type) {
-		case *claudecode.AssistantMessage:
-			// Accumulate text from assistant responses. If the ResultMessage
-			// is lost (SDK closes iterator on rate_limit_event), this is our
-			// fallback for the response text.
-			for _, block := range m.Content {
-				if tb, ok := block.(*claudecode.TextBlock); ok {
-					assistantText.WriteString(tb.Text)
-				}
-			}
-		case *claudecode.SystemMessage:
-			// Capture session ID from init message (stored in Data map).
-			if sid, ok := m.Data["session_id"].(string); ok && sid != "" {
-				lastSessionID = sid
-			}
-		case *claudecode.ResultMessage:
-			if m.Result != nil {
-				resultText = *m.Result
-			}
-			if m.IsError {
-				if m.NumTurns == 0 && m.DurationMs == 0 && m.Subtype == "error_during_execution" {
-					return "", decision.TokenUsage{}, errStaleSession
-				}
-				errText := "(no result text)"
-				if m.Result != nil {
-					errText = *m.Result
-				}
-				return "", decision.TokenUsage{}, fmt.Errorf("claude error (subtype=%s, turns=%d, duration=%dms): %s",
-					m.Subtype, m.NumTurns, m.DurationMs, errText)
-			}
-
-			if m.Usage != nil {
-				usage = parseSDKUsage(*m.Usage)
-			}
-			if m.TotalCostUSD != nil {
-				usage.CostUSD = *m.TotalCostUSD
-			}
-			if m.SessionID != "" {
-				lastSessionID = m.SessionID
-			}
+		if !skip {
+			out = append(out, e)
 		}
 	}
-
-	// Persist the session ID for warm resumption.
-	if lastSessionID != "" {
-		p.mu.Lock()
-		p.sessionID = lastSessionID
-		p.mu.Unlock()
-	}
-
-	// Prefer ResultMessage.Result; fall back to accumulated assistant text.
-	if resultText == "" {
-		resultText = assistantText.String()
-	}
-
-	elapsed := time.Since(start).Round(time.Second)
-	fmt.Printf("  ⏳ thinking done (%s)\n", elapsed)
-
-	return resultText, usage, nil
-}
-
-func parseSDKUsage(m map[string]any) decision.TokenUsage {
-	return decision.TokenUsage{
-		InputTokens:      intFromMap(m, "input_tokens"),
-		OutputTokens:     intFromMap(m, "output_tokens"),
-		CacheReadTokens:  intFromMap(m, "cache_read_input_tokens"),
-		CacheWriteTokens: intFromMap(m, "cache_creation_input_tokens"),
-	}
-}
-
-func intFromMap(m map[string]any, key string) int {
-	v, ok := m[key]
-	if !ok {
-		return 0
-	}
-	switch n := v.(type) {
-	case float64:
-		return int(n)
-	case int:
-		return n
-	case int64:
-		return int(n)
-	default:
-		return 0
-	}
-}
-
-func isSessionError(err error) bool {
-	if err == nil {
-		return false
-	}
-	msg := err.Error()
-	return strings.Contains(msg, "session") ||
-		strings.Contains(msg, "already in use") ||
-		strings.Contains(msg, "not found") ||
-		claudecode.IsProcessError(err)
+	return out
 }
 
 var (
