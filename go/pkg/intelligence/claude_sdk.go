@@ -237,7 +237,9 @@ func (p *claudeSDKProvider) consumeIterator(ctx context.Context, iter claudecode
 	}()
 
 	var resultText string
+	var assistantText strings.Builder // fallback: accumulate from assistant messages
 	var usage decision.TokenUsage
+	var lastSessionID string
 
 	for {
 		msg, err := iter.Next(ctx)
@@ -245,20 +247,37 @@ func (p *claudeSDKProvider) consumeIterator(ctx context.Context, iter claudecode
 			break
 		}
 		if err != nil {
+			// The SDK closes the iterator on ANY errChan receipt, including
+			// recoverable parse errors (e.g. unknown message type: rate_limit_event).
+			// After this, the next Next() returns ErrNoMoreMessages.
+			// Log and break — we may still have text from assistant messages.
 			if strings.Contains(err.Error(), "unknown message type") {
-				log.Printf("[claude-sdk] skipping: %v", err)
-				continue
+				log.Printf("[claude-sdk] iterator closed by parse error (expected): %v", err)
+				break
 			}
 			return "", decision.TokenUsage{}, err
 		}
 
 		switch m := msg.(type) {
+		case *claudecode.AssistantMessage:
+			// Accumulate text from assistant responses. If the ResultMessage
+			// is lost (SDK closes iterator on rate_limit_event), this is our
+			// fallback for the response text.
+			for _, block := range m.Content {
+				if tb, ok := block.(*claudecode.TextBlock); ok {
+					assistantText.WriteString(tb.Text)
+				}
+			}
+		case *claudecode.SystemMessage:
+			// Capture session ID from init message (stored in Data map).
+			if sid, ok := m.Data["session_id"].(string); ok && sid != "" {
+				lastSessionID = sid
+			}
 		case *claudecode.ResultMessage:
 			if m.Result != nil {
 				resultText = *m.Result
 			}
 			if m.IsError {
-				// Stale session: CLI can't find the conversation to resume.
 				if m.NumTurns == 0 && m.DurationMs == 0 && m.Subtype == "error_during_execution" {
 					return "", decision.TokenUsage{}, errStaleSession
 				}
@@ -277,11 +296,21 @@ func (p *claudeSDKProvider) consumeIterator(ctx context.Context, iter claudecode
 				usage.CostUSD = *m.TotalCostUSD
 			}
 			if m.SessionID != "" {
-				p.mu.Lock()
-				p.sessionID = m.SessionID
-				p.mu.Unlock()
+				lastSessionID = m.SessionID
 			}
 		}
+	}
+
+	// Persist the session ID for warm resumption.
+	if lastSessionID != "" {
+		p.mu.Lock()
+		p.sessionID = lastSessionID
+		p.mu.Unlock()
+	}
+
+	// Prefer ResultMessage.Result; fall back to accumulated assistant text.
+	if resultText == "" {
+		resultText = assistantText.String()
 	}
 
 	elapsed := time.Since(start).Round(time.Second)
