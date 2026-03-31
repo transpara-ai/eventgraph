@@ -174,11 +174,43 @@ func unmarshal[T EventContent](data []byte) (EventContent, error) {
 	return c, nil
 }
 
+// RawContent is a fallback for event types without a registered unmarshaler.
+// It preserves the raw JSON payload and the event type name so the event can
+// be stored, forwarded, and queried without losing data.
+type RawContent struct {
+	TypeName string          `json:"Type"`
+	Data     json.RawMessage `json:"Data"`
+}
+
+func (c RawContent) EventTypeName() string       { return c.TypeName }
+func (c RawContent) Accept(EventContentVisitor)   {}
+
+// fallbackUnmarshaler is used when no registered unmarshaler matches.
+// When nil (default), unknown event types return an error.
+var fallbackUnmarshaler func(eventType string, data []byte) (EventContent, error)
+
+// SetFallbackUnmarshaler registers a function called for unknown event types.
+// Pass nil to restore the default error behavior. Call during startup before
+// concurrent access.
+func SetFallbackUnmarshaler(fn func(eventType string, data []byte) (EventContent, error)) {
+	fallbackUnmarshaler = fn
+}
+
+// RawFallback is a fallback unmarshaler that preserves unknown events as RawContent.
+// Use with SetFallbackUnmarshaler to allow stores shared across multiple subsystems.
+func RawFallback(eventType string, data []byte) (EventContent, error) {
+	return RawContent{TypeName: eventType, Data: json.RawMessage(data)}, nil
+}
+
 // UnmarshalContent deserializes JSON into the correct EventContent type
-// based on the event type name. Returns an error for unknown event types.
+// based on the event type name. Falls back to the registered fallback
+// unmarshaler if set, otherwise returns an error for unknown event types.
 func UnmarshalContent(eventType string, data []byte) (EventContent, error) {
 	fn, ok := contentUnmarshalers[eventType]
 	if !ok {
+		if fallbackUnmarshaler != nil {
+			return fallbackUnmarshaler(eventType, data)
+		}
 		return nil, fmt.Errorf("unknown event type: %s", eventType)
 	}
 	return fn(data)
