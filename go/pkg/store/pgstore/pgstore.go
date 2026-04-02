@@ -688,10 +688,33 @@ func (s *PostgresStore) VerifyChain() (event.ChainVerifiedContent, error) {
 	}
 	defer rows.Close()
 
-	var prevHash string
-	i := 0
+	// Phase 1: Scan raw rows.
+	var raws []scannedEvent
 	for rows.Next() {
-		ev, err := scanEventFromRows(ctx, s.pool, rows)
+		raw, err := scanRawEvent(rows)
+		if err != nil {
+			return event.ChainVerifiedContent{Valid: false, Length: len(raws)}, nil
+		}
+		raws = append(raws, raw)
+	}
+	if rows.Err() != nil {
+		return event.ChainVerifiedContent{Valid: false, Length: len(raws)}, nil
+	}
+
+	// Phase 2: Batch load causes.
+	ids := make([]string, len(raws))
+	for i, r := range raws {
+		ids[i] = r.id
+	}
+	causesMap, err := batchLoadCauses(ctx, s.pool, ids)
+	if err != nil {
+		return event.ChainVerifiedContent{Valid: false, Length: len(raws)}, nil
+	}
+
+	// Phase 3: Reconstruct and verify chain.
+	var prevHash string
+	for i, r := range raws {
+		ev, err := reconstructEvent(r, causesMap[r.id])
 		if err != nil {
 			return event.ChainVerifiedContent{Valid: false, Length: i}, nil
 		}
@@ -719,7 +742,6 @@ func (s *PostgresStore) VerifyChain() (event.ChainVerifiedContent, error) {
 		}
 
 		prevHash = ev.Hash().Value()
-		i++
 	}
 
 	ns := time.Since(start).Nanoseconds()
@@ -729,7 +751,7 @@ func (s *PostgresStore) VerifyChain() (event.ChainVerifiedContent, error) {
 	dur := types.MustDuration(ns)
 	return event.ChainVerifiedContent{
 		Valid:    true,
-		Length:   i,
+		Length:   len(raws),
 		Duration: dur,
 	}, nil
 }
@@ -905,19 +927,7 @@ func scanEvent(ctx context.Context, pool *pgxpool.Pool, row pgx.Row) (event.Even
 	return reconstructEvent(raw, causesMap[raw.id])
 }
 
-// scanEventFromRows scans the current row from pgx.Rows into an Event.
-// Deprecated: will be removed once all call sites use two-phase pattern.
-func scanEventFromRows(ctx context.Context, pool *pgxpool.Pool, rows pgx.Rows) (event.Event, error) {
-	raw, err := scanRawEvent(rows)
-	if err != nil {
-		return event.Event{}, err
-	}
-	causesMap, err := batchLoadCauses(ctx, pool, []string{raw.id})
-	if err != nil {
-		return event.Event{}, err
-	}
-	return reconstructEvent(raw, causesMap[raw.id])
-}
+
 
 // unmarshalContent deserializes JSON into the correct EventContent type.
 // Delegates to the event package's data-driven registry.
