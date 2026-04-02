@@ -927,8 +927,6 @@ func scanEvent(ctx context.Context, pool *pgxpool.Pool, row pgx.Row) (event.Even
 	return reconstructEvent(raw, causesMap[raw.id])
 }
 
-
-
 // unmarshalContent deserializes JSON into the correct EventContent type.
 // Delegates to the event package's data-driven registry.
 func unmarshalContent(eventType string, data []byte) (event.EventContent, error) {
