@@ -758,9 +758,33 @@ func (s *PostgresStore) paginateReverse(ctx context.Context, filterClause string
 	}
 	defer rows.Close()
 
-	var items []event.Event
+	// Phase 1: Scan raw rows.
+	var raws []scannedEvent
 	for rows.Next() {
-		ev, err := scanEventFromRows(ctx, s.pool, rows)
+		raw, err := scanRawEvent(rows)
+		if err != nil {
+			return types.Page[event.Event]{}, err
+		}
+		raws = append(raws, raw)
+	}
+	if err := rows.Err(); err != nil {
+		return types.Page[event.Event]{}, &store.StoreUnavailableError{Reason: fmt.Sprintf("paginate rows: %v", err)}
+	}
+
+	// Phase 2: Batch load causes.
+	ids := make([]string, len(raws))
+	for i, r := range raws {
+		ids[i] = r.id
+	}
+	causesMap, err := batchLoadCauses(ctx, s.pool, ids)
+	if err != nil {
+		return types.Page[event.Event]{}, err
+	}
+
+	// Phase 3: Reconstruct events.
+	items := make([]event.Event, 0, len(raws))
+	for _, r := range raws {
+		ev, err := reconstructEvent(r, causesMap[r.id])
 		if err != nil {
 			return types.Page[event.Event]{}, err
 		}
