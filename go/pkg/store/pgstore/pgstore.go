@@ -520,16 +520,34 @@ func (s *PostgresStore) Ancestors(id types.EventID, maxDepth int) ([]event.Event
 	}
 	defer rows.Close()
 
-	var result []event.Event
+	var raws []scannedEvent
 	for rows.Next() {
-		ev, err := scanEventFromRows(ctx, s.pool, rows)
+		raw, err := scanRawEvent(rows)
+		if err != nil {
+			return nil, err
+		}
+		raws = append(raws, raw)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, &store.StoreUnavailableError{Reason: fmt.Sprintf("ancestors rows: %v", err)}
+	}
+
+	ids := make([]string, len(raws))
+	for i, r := range raws {
+		ids[i] = r.id
+	}
+	causesMap, err := batchLoadCauses(ctx, s.pool, ids)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]event.Event, 0, len(raws))
+	for _, r := range raws {
+		ev, err := reconstructEvent(r, causesMap[r.id])
 		if err != nil {
 			return nil, err
 		}
 		result = append(result, ev)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, &store.StoreUnavailableError{Reason: fmt.Sprintf("ancestors rows: %v", err)}
 	}
 	return result, nil
 }
@@ -567,16 +585,34 @@ func (s *PostgresStore) Descendants(id types.EventID, maxDepth int) ([]event.Eve
 	}
 	defer rows.Close()
 
-	var result []event.Event
+	var raws []scannedEvent
 	for rows.Next() {
-		ev, err := scanEventFromRows(ctx, s.pool, rows)
+		raw, err := scanRawEvent(rows)
+		if err != nil {
+			return nil, err
+		}
+		raws = append(raws, raw)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, &store.StoreUnavailableError{Reason: fmt.Sprintf("descendants rows: %v", err)}
+	}
+
+	ids := make([]string, len(raws))
+	for i, r := range raws {
+		ids[i] = r.id
+	}
+	causesMap, err := batchLoadCauses(ctx, s.pool, ids)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]event.Event, 0, len(raws))
+	for _, r := range raws {
+		ev, err := reconstructEvent(r, causesMap[r.id])
 		if err != nil {
 			return nil, err
 		}
 		result = append(result, ev)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, &store.StoreUnavailableError{Reason: fmt.Sprintf("descendants rows: %v", err)}
 	}
 	return result, nil
 }
