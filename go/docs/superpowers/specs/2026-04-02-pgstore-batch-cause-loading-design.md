@@ -1,6 +1,6 @@
 # pgstore: Batch Cause Loading
 
-**Version:** 0.1.0
+**Version:** 0.2.0
 **Last Updated:** 2026-04-02
 **Author:** Michael Saucier, Claude (Anthropic)
 **Status:** Approved
@@ -10,6 +10,7 @@
 
 | Version | Date | Changes |
 |---------|------|---------|
+| v0.2.0 | 2026-04-02 | Address spec review: VerifyChain error semantics, rows.Err() check, Append idempotency path, multi-cause test |
 | v0.1.0 | 2026-04-02 | Initial design spec |
 
 ---
@@ -110,7 +111,7 @@ func reconstructEvent(
 
 No `ctx` or `pool` parameters needed — this becomes a pure transformation function.
 
-**`scanEvent`** (single-row, used by `getEvent` and `Head`) — scans raw columns, loads causes for 1 event ID via `batchLoadCauses`, then calls `reconstructEvent`:
+**`scanEvent`** (single-row, used by `getEvent`, `Head`, and the idempotent `Append` re-fetch path) — scans raw columns, loads causes for 1 event ID via `batchLoadCauses`, then calls `reconstructEvent`:
 
 ```go
 func scanEvent(ctx context.Context, pool *pgxpool.Pool, row pgx.Row) (event.Event, error) {
@@ -141,6 +142,9 @@ for rows.Next() {
         return ..., err
     }
     raws = append(raws, raw)
+}
+if err := rows.Err(); err != nil {
+    return ..., err
 }
 
 // Phase 2: Batch load causes.
@@ -173,7 +177,13 @@ Affected functions:
 
 ### `VerifyChain` Special Consideration
 
-`VerifyChain` currently processes events one at a time in chain order, checking each event's hash against the previous. The two-phase pattern still works — scan all rows first, batch load causes, then iterate through the reconstructed events sequentially for verification. The verification logic itself does not change.
+`VerifyChain` currently processes events one at a time in chain order, checking each event's hash against the previous. The two-phase pattern still works — scan all rows first, batch load causes, then iterate through the reconstructed events sequentially for verification.
+
+**Error semantics must be preserved:** The current `VerifyChain` deliberately returns `ChainVerifiedContent{Valid: false, Length: i}` with a `nil` error when a scan or reconstruction fails — a corrupt event is a chain break, not a store failure. The Phase 3 reconstruct loop in `VerifyChain` must mirror this: on any `reconstructEvent` error, return `(invalid, nil)` instead of bubbling up the error. Similarly, if `batchLoadCauses` fails, treat it as `(invalid, nil)`.
+
+### Bootstrap Events
+
+Bootstrap events have no causes (the `event_causes` table has no rows for them). After batch loading, `causesMap[raw.id]` will be `nil` for bootstrap events. This is correct — `reconstructEvent` already branches on `EventTypeSystemBootstrapped` and passes causes only to `event.NewEvent`, not `event.NewBootstrapEvent`.
 
 ### Empty Result Optimization
 
@@ -183,7 +193,7 @@ If `len(raws) == 0` after scanning, skip the `batchLoadCauses` call entirely. No
 
 - The `storetest` conformance suite (`pkg/store/storetest/suite.go`) validates all Store interface methods and runs against pgstore
 - `pgstore_test.go` runs the conformance suite against a real Postgres instance
-- No new tests needed — behavior is unchanged; only the number of queries changes
+- **New test needed:** Add a multi-cause test case (either to `storetest/suite.go` or `pgstore_test.go`) that creates an event with 2+ causes and verifies all cause IDs are correctly round-tripped through `Get` and `ByType`. The current conformance suite only uses single-cause events, which would not catch deduplication or map-key bugs in `batchLoadCauses`
 - Verification: `go test ./pkg/store/pgstore/...` for correctness
 
 ## What Doesn't Change
