@@ -162,6 +162,10 @@ func init() {
 		// CodeGraph social
 		"codegraph.social.presence.updated":   unmarshal[CodeGraphPresenceUpdatedContent],
 		"codegraph.social.salience.triggered": unmarshal[CodeGraphSalienceTriggeredContent],
+
+		// Hive
+		"hive.gap.detected":     unmarshal[GapDetectedContent],
+		"hive.directive.issued": unmarshal[DirectiveIssuedContent],
 	}
 }
 
