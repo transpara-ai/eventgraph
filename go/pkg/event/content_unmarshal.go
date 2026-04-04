@@ -68,6 +68,7 @@ func init() {
 		"agent.authority.revoked": unmarshal[AgentAuthorityRevokedContent],
 		"agent.trust.assessed":    unmarshal[AgentTrustAssessedContent],
 		"agent.budget.allocated":  unmarshal[AgentBudgetAllocatedContent],
+		"agent.budget.adjusted":   unmarshal[AgentBudgetAdjustedContent],
 		"agent.budget.exhausted":  unmarshal[AgentBudgetExhaustedContent],
 		"agent.role.assigned":     unmarshal[AgentRoleAssignedContent],
 		"agent.lifespan.started":  unmarshal[AgentLifespanStartedContent],

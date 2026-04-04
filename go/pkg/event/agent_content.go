@@ -133,6 +133,21 @@ type AgentBudgetExhaustedContent struct {
 
 func (c AgentBudgetExhaustedContent) EventTypeName() string { return "agent.budget.exhausted" }
 
+// AgentBudgetAdjustedContent records budget reallocation by the Allocator.
+type AgentBudgetAdjustedContent struct {
+	agentContent
+	AgentID        types.ActorID `json:"AgentID"`
+	AgentName      string        `json:"AgentName"`
+	Action         string        `json:"Action"` // "increase", "decrease", "set"
+	PreviousBudget int           `json:"PreviousBudget"`
+	NewBudget      int           `json:"NewBudget"`
+	Delta          int           `json:"Delta"`
+	Reason         string        `json:"Reason"`
+	PoolRemaining  int           `json:"PoolRemaining"`
+}
+
+func (c AgentBudgetAdjustedContent) EventTypeName() string { return "agent.budget.adjusted" }
+
 // AgentRoleAssignedContent records role set or changed.
 type AgentRoleAssignedContent struct {
 	agentContent
