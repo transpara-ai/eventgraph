@@ -16,6 +16,7 @@ var (
 	EventTypeAgentAuthorityRevoked = types.MustEventType("agent.authority.revoked")
 	EventTypeAgentTrustAssessed    = types.MustEventType("agent.trust.assessed")
 	EventTypeAgentBudgetAllocated  = types.MustEventType("agent.budget.allocated")
+	EventTypeAgentBudgetAdjusted   = types.MustEventType("agent.budget.adjusted")
 	EventTypeAgentBudgetExhausted  = types.MustEventType("agent.budget.exhausted")
 	EventTypeAgentRoleAssigned     = types.MustEventType("agent.role.assigned")
 	EventTypeAgentLifespanStarted  = types.MustEventType("agent.lifespan.started")
@@ -69,7 +70,7 @@ func AllAgentEventTypes() []types.EventType {
 		EventTypeAgentStateChanged,
 		EventTypeAgentAuthorityGranted, EventTypeAgentAuthorityRevoked,
 		EventTypeAgentTrustAssessed,
-		EventTypeAgentBudgetAllocated, EventTypeAgentBudgetExhausted,
+		EventTypeAgentBudgetAllocated, EventTypeAgentBudgetAdjusted, EventTypeAgentBudgetExhausted,
 		EventTypeAgentRoleAssigned,
 		EventTypeAgentLifespanStarted, EventTypeAgentLifespanExtended, EventTypeAgentLifespanEnded,
 		EventTypeAgentGoalSet, EventTypeAgentGoalCompleted, EventTypeAgentGoalAbandoned,
