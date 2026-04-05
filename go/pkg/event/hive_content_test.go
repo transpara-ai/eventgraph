@@ -2,10 +2,45 @@ package event
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/lovyou-ai/eventgraph/go/pkg/types"
 )
+
+// --- GapCategory ---
+
+func TestGapCategoryIsValid(t *testing.T) {
+	valid := []GapCategory{
+		GapCategoryLeadership, GapCategoryTechnical, GapCategoryProcess,
+		GapCategoryStaffing, GapCategoryCapability,
+	}
+	for _, c := range valid {
+		if !c.IsValid() {
+			t.Errorf("expected %q to be valid", c)
+		}
+	}
+	if GapCategory("bogus").IsValid() {
+		t.Error("expected bogus GapCategory to be invalid")
+	}
+}
+
+// --- DirectivePriority ---
+
+func TestDirectivePriorityIsValid(t *testing.T) {
+	valid := []DirectivePriority{
+		DirectivePriorityCritical, DirectivePriorityHigh,
+		DirectivePriorityMedium, DirectivePriorityLow,
+	}
+	for _, p := range valid {
+		if !p.IsValid() {
+			t.Errorf("expected %q to be valid", p)
+		}
+	}
+	if DirectivePriority("bogus").IsValid() {
+		t.Error("expected bogus DirectivePriority to be invalid")
+	}
+}
 
 // --- hive.gap.detected ---
 
@@ -19,19 +54,26 @@ func TestGapDetectedContentEventTypeName(t *testing.T) {
 func TestGapDetectedContentAccept(t *testing.T) {
 	// Accept on hive content is a no-op (like agentContent) — just ensure it compiles and does not panic.
 	c := GapDetectedContent{}
-	c.Accept(nil) // no-op; hive content does not dispatch to the base visitor
+	c.Accept(nil)
 }
 
 func TestGapDetectedContentRoundTrip(t *testing.T) {
 	c := GapDetectedContent{
-		Category:    "leadership",
+		Category:    GapCategoryLeadership,
 		MissingRole: "CTO",
 		Evidence:    "no technical decisions in 30 days",
-		Severity:    "high",
+		Severity:    SeverityLevelSerious,
 	}
 	data, err := json.Marshal(c)
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
+	}
+	// Verify PascalCase JSON keys.
+	raw := string(data)
+	for _, key := range []string{`"Category"`, `"MissingRole"`, `"Evidence"`, `"Severity"`} {
+		if !strings.Contains(raw, key) {
+			t.Errorf("serialized JSON missing PascalCase key %s: %s", key, raw)
+		}
 	}
 	got, err := UnmarshalContent("hive.gap.detected", data)
 	if err != nil {
@@ -56,9 +98,9 @@ func TestGapDetectedContentRoundTrip(t *testing.T) {
 }
 
 func TestNewGapDetectedContent(t *testing.T) {
-	c := NewGapDetectedContent("leadership", "CTO", "no technical decisions in 30 days", "high")
-	if c.Category != "leadership" {
-		t.Errorf("Category = %q, want %q", c.Category, "leadership")
+	c := NewGapDetectedContent(GapCategoryLeadership, "CTO", "no technical decisions in 30 days", SeverityLevelSerious)
+	if c.Category != GapCategoryLeadership {
+		t.Errorf("Category = %q, want %q", c.Category, GapCategoryLeadership)
 	}
 	if c.MissingRole != "CTO" {
 		t.Errorf("MissingRole = %q, want %q", c.MissingRole, "CTO")
@@ -66,8 +108,8 @@ func TestNewGapDetectedContent(t *testing.T) {
 	if c.Evidence != "no technical decisions in 30 days" {
 		t.Errorf("Evidence = %q, want %q", c.Evidence, "no technical decisions in 30 days")
 	}
-	if c.Severity != "high" {
-		t.Errorf("Severity = %q, want %q", c.Severity, "high")
+	if c.Severity != SeverityLevelSerious {
+		t.Errorf("Severity = %q, want %q", c.Severity, SeverityLevelSerious)
 	}
 }
 
@@ -90,11 +132,18 @@ func TestDirectiveIssuedContentRoundTrip(t *testing.T) {
 		Target:   "engineering-team",
 		Action:   "hire-cto",
 		Reason:   "gap detected in technical leadership",
-		Priority: "critical",
+		Priority: DirectivePriorityCritical,
 	}
 	data, err := json.Marshal(c)
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
+	}
+	// Verify PascalCase JSON keys.
+	raw := string(data)
+	for _, key := range []string{`"Target"`, `"Action"`, `"Reason"`, `"Priority"`} {
+		if !strings.Contains(raw, key) {
+			t.Errorf("serialized JSON missing PascalCase key %s: %s", key, raw)
+		}
 	}
 	got, err := UnmarshalContent("hive.directive.issued", data)
 	if err != nil {
@@ -119,7 +168,7 @@ func TestDirectiveIssuedContentRoundTrip(t *testing.T) {
 }
 
 func TestNewDirectiveIssuedContent(t *testing.T) {
-	c := NewDirectiveIssuedContent("engineering-team", "hire-cto", "gap detected in technical leadership", "critical")
+	c := NewDirectiveIssuedContent("engineering-team", "hire-cto", "gap detected in technical leadership", DirectivePriorityCritical)
 	if c.Target != "engineering-team" {
 		t.Errorf("Target = %q, want %q", c.Target, "engineering-team")
 	}
@@ -129,8 +178,8 @@ func TestNewDirectiveIssuedContent(t *testing.T) {
 	if c.Reason != "gap detected in technical leadership" {
 		t.Errorf("Reason = %q, want %q", c.Reason, "gap detected in technical leadership")
 	}
-	if c.Priority != "critical" {
-		t.Errorf("Priority = %q, want %q", c.Priority, "critical")
+	if c.Priority != DirectivePriorityCritical {
+		t.Errorf("Priority = %q, want %q", c.Priority, DirectivePriorityCritical)
 	}
 }
 
