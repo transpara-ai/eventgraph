@@ -166,6 +166,9 @@ func init() {
 		// Hive
 		"hive.gap.detected":     unmarshal[GapDetectedContent],
 		"hive.directive.issued": unmarshal[DirectiveIssuedContent],
+		"hive.role.proposed":    unmarshal[RoleProposedContent],
+		"hive.role.approved":    unmarshal[RoleApprovedContent],
+		"hive.role.rejected":    unmarshal[RoleRejectedContent],
 	}
 }
 

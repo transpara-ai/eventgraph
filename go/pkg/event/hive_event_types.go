@@ -6,6 +6,9 @@ import "github.com/lovyou-ai/eventgraph/go/pkg/types"
 var (
 	EventTypeGapDetected     = types.MustEventType("hive.gap.detected")
 	EventTypeDirectiveIssued = types.MustEventType("hive.directive.issued")
+	EventTypeRoleProposed    = types.MustEventType("hive.role.proposed")
+	EventTypeRoleApproved    = types.MustEventType("hive.role.approved")
+	EventTypeRoleRejected    = types.MustEventType("hive.role.rejected")
 )
 
 // AllHiveEventTypes returns all registered hive event types.
@@ -13,5 +16,8 @@ func AllHiveEventTypes() []types.EventType {
 	return []types.EventType{
 		EventTypeGapDetected,
 		EventTypeDirectiveIssued,
+		EventTypeRoleProposed,
+		EventTypeRoleApproved,
+		EventTypeRoleRejected,
 	}
 }

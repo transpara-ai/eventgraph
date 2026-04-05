@@ -48,3 +48,38 @@ func NewDirectiveIssuedContent(target, action, reason string, priority Directive
 		Priority: priority,
 	}
 }
+
+// RoleProposedContent records a role proposal submitted for governance review.
+type RoleProposedContent struct {
+	hiveContent
+	Name          string   `json:"name"`
+	Model         string   `json:"model"`
+	WatchPatterns []string `json:"watch_patterns"`
+	CanOperate    bool     `json:"can_operate"`
+	MaxIterations int      `json:"max_iterations"`
+	Prompt        string   `json:"prompt"`
+	Reason        string   `json:"reason"`
+	ProposedBy    string   `json:"proposed_by"`
+}
+
+func (c RoleProposedContent) EventTypeName() string { return "hive.role.proposed" }
+
+// RoleApprovedContent records the approval of a proposed role.
+type RoleApprovedContent struct {
+	hiveContent
+	Name       string `json:"name"`
+	ApprovedBy string `json:"approved_by"`
+	Reason     string `json:"reason"`
+}
+
+func (c RoleApprovedContent) EventTypeName() string { return "hive.role.approved" }
+
+// RoleRejectedContent records the rejection of a proposed role.
+type RoleRejectedContent struct {
+	hiveContent
+	Name       string `json:"name"`
+	RejectedBy string `json:"rejected_by"`
+	Reason     string `json:"reason"`
+}
+
+func (c RoleRejectedContent) EventTypeName() string { return "hive.role.rejected" }
