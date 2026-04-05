@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # EventGraph
 
 ## Soul
@@ -106,18 +110,60 @@ Sovereign systems communicate without shared infrastructure:
 
 ## Dev Setup
 
-```bash
-# Clone
-git clone https://github.com/lovyou-ai/eventgraph.git
-cd eventgraph
+All Go commands run from the `go/` subdirectory (the module root — `go.mod` lives there, not the repo root).
 
-# Go reference implementation
-cd go
+```bash
+# Build
 go build ./...
+
+# All tests
 go test ./...
+
+# Single package
+go test ./pkg/event/...
+
+# Single test by name
+go test -run TestGapDetectedContentRoundTrip ./pkg/event/...
+
+# Vet (required before committing)
+go vet ./...
+
+# Staticcheck (required before committing)
+staticcheck ./...
 ```
 
-No external dependencies yet. When packages exist, `go test ./...` from the `go/` directory runs everything.
+**Module path:** `github.com/lovyou-ai/eventgraph/go`
+
+**Known pre-existing test failures** (do not fix unless explicitly assigned):
+- `TestAgentEventTypeCount` in `pkg/agent` — off-by-one from a recent PR, not yet fixed
+- `TestIntegrationAnthropic*` in `pkg/intelligence` — require a live Anthropic API key
+
+## Working in this Codebase
+
+### Adding a new event type
+
+Four coordinated changes are required — missing any one silently breaks deserialization or factory validation:
+
+1. **`*_event_types.go`** — add `EventTypeFoo = types.MustEventType("domain.foo")` constant and include it in the `AllDomainEventTypes()` slice
+2. **`*_content.go`** — add `FooContent` struct with `EventTypeName() string` and `Accept(EventContentVisitor)` methods; add `NewFooContent(...)` constructor if the struct has unexported fields or needs sorting
+3. **`content_unmarshal.go`** — add `"domain.foo": unmarshal[FooContent]` to the `init()` map
+4. **`content.go` `DefaultRegistry()`** — add the type (or ensure its domain's `AllXEventTypes()` loop is already called there)
+
+See `agent_event_types.go` + `agent_content.go` for the reference pattern. Domain-specific content types (agent, codegraph, hive) embed a private `*Content` struct to provide a no-op `Accept(EventContentVisitor)` — they do not dispatch to the base visitor.
+
+### Implementing a new Store
+
+Any new `Store` implementation must pass the full conformance suite at `go/pkg/store/conformance_test.go`. Run it with:
+
+```bash
+go test -run TestConformance ./pkg/store/...
+```
+
+The suite covers: append, get, query, causal traversal, hash chain verification, and concurrent access.
+
+### Types system (`go/pkg/types`)
+
+All IDs, scores, and constrained values are distinct named types — never bare strings or numbers. Key types: `EventID`, `ActorID`, `ConversationID`, `Hash`, `Score` (0.0–1.0), `Weight`, `Activation`, `Layer` (0–13), `Cadence` (≥1), `Option[T]`, `NonEmpty[T]`, `Page[T]`. Construction panics on invalid input so downstream code never re-validates.
 
 ## Current State
 
