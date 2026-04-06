@@ -174,6 +174,9 @@ func init() {
 		"knowledge.insight.recorded":   unmarshal[KnowledgeInsightContent],
 		"knowledge.insight.superseded": unmarshal[KnowledgeSupersessionContent],
 		"knowledge.insight.expired":    unmarshal[KnowledgeExpirationContent],
+
+		// Review
+		"code.review.submitted": unmarshal[CodeReviewContent],
 	}
 }
 

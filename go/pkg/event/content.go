@@ -753,5 +753,9 @@ func DefaultRegistry() *EventTypeRegistry {
 	for _, et := range AllKnowledgeEventTypes() {
 		r.Register(et, nil)
 	}
+	// Review event types
+	for _, et := range AllReviewEventTypes() {
+		r.Register(et, nil)
+	}
 	return r
 }
