@@ -113,6 +113,24 @@ func TestNewGapDetectedContent(t *testing.T) {
 	}
 }
 
+func TestNewGapDetectedContentPanicsOnInvalidCategory(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic for invalid GapCategory")
+		}
+	}()
+	NewGapDetectedContent(GapCategory("bogus"), "CTO", "evidence", SeverityLevelSerious)
+}
+
+func TestNewGapDetectedContentPanicsOnInvalidSeverity(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic for invalid SeverityLevel")
+		}
+	}()
+	NewGapDetectedContent(GapCategoryLeadership, "CTO", "evidence", SeverityLevel("bogus"))
+}
+
 // --- hive.directive.issued ---
 
 func TestDirectiveIssuedContentEventTypeName(t *testing.T) {
@@ -181,6 +199,15 @@ func TestNewDirectiveIssuedContent(t *testing.T) {
 	if c.Priority != DirectivePriorityCritical {
 		t.Errorf("Priority = %q, want %q", c.Priority, DirectivePriorityCritical)
 	}
+}
+
+func TestNewDirectiveIssuedContentPanicsOnInvalidPriority(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic for invalid DirectivePriority")
+		}
+	}()
+	NewDirectiveIssuedContent("target", "action", "reason", DirectivePriority("bogus"))
 }
 
 // --- Event type constants ---
@@ -307,6 +334,37 @@ func TestRoleProposedContentRoundTrip(t *testing.T) {
 	}
 	if typed.ProposedBy != c.ProposedBy {
 		t.Errorf("ProposedBy = %q, want %q", typed.ProposedBy, c.ProposedBy)
+	}
+}
+
+func TestNewRoleProposedContentSortsWatchPatterns(t *testing.T) {
+	c := NewRoleProposedContent(
+		"code-reviewer", "claude-opus-4-6",
+		[]string{"*.ts", "*.go", "*.py"},
+		true, 10, "Review code.", "need reviews", "cto-agent",
+	)
+	if len(c.WatchPatterns) != 3 {
+		t.Fatalf("WatchPatterns len = %d, want 3", len(c.WatchPatterns))
+	}
+	if c.WatchPatterns[0] != "*.go" {
+		t.Errorf("WatchPatterns[0] = %q, want %q", c.WatchPatterns[0], "*.go")
+	}
+	if c.WatchPatterns[1] != "*.py" {
+		t.Errorf("WatchPatterns[1] = %q, want %q", c.WatchPatterns[1], "*.py")
+	}
+	if c.WatchPatterns[2] != "*.ts" {
+		t.Errorf("WatchPatterns[2] = %q, want %q", c.WatchPatterns[2], "*.ts")
+	}
+}
+
+func TestNewRoleProposedContentDoesNotMutateInput(t *testing.T) {
+	input := []string{"*.ts", "*.go"}
+	_ = NewRoleProposedContent(
+		"reviewer", "model", input,
+		false, 5, "prompt", "reason", "proposer",
+	)
+	if input[0] != "*.ts" {
+		t.Errorf("input[0] = %q, want %q — constructor mutated input slice", input[0], "*.ts")
 	}
 }
 

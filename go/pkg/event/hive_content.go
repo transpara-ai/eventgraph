@@ -1,5 +1,10 @@
 package event
 
+import (
+	"fmt"
+	"sort"
+)
+
 // hiveContent is embedded in all hive content types to satisfy the
 // EventContent interface's Accept method. Hive content types use their
 // own visitor rather than the base EventContentVisitor.
@@ -19,7 +24,14 @@ type GapDetectedContent struct {
 func (c GapDetectedContent) EventTypeName() string { return "hive.gap.detected" }
 
 // NewGapDetectedContent creates a GapDetectedContent.
+// Panics if category or severity is not a valid enum value.
 func NewGapDetectedContent(category GapCategory, missingRole, evidence string, severity SeverityLevel) GapDetectedContent {
+	if !category.IsValid() {
+		panic(fmt.Sprintf("NewGapDetectedContent: invalid GapCategory %q", category))
+	}
+	if !severity.IsValid() {
+		panic(fmt.Sprintf("NewGapDetectedContent: invalid SeverityLevel %q", severity))
+	}
 	return GapDetectedContent{
 		Category:    category,
 		MissingRole: missingRole,
@@ -40,7 +52,11 @@ type DirectiveIssuedContent struct {
 func (c DirectiveIssuedContent) EventTypeName() string { return "hive.directive.issued" }
 
 // NewDirectiveIssuedContent creates a DirectiveIssuedContent.
+// Panics if priority is not a valid enum value.
 func NewDirectiveIssuedContent(target, action, reason string, priority DirectivePriority) DirectiveIssuedContent {
+	if !priority.IsValid() {
+		panic(fmt.Sprintf("NewDirectiveIssuedContent: invalid DirectivePriority %q", priority))
+	}
 	return DirectiveIssuedContent{
 		Target:   target,
 		Action:   action,
@@ -63,6 +79,24 @@ type RoleProposedContent struct {
 }
 
 func (c RoleProposedContent) EventTypeName() string { return "hive.role.proposed" }
+
+// NewRoleProposedContent creates a RoleProposedContent with WatchPatterns
+// sorted lexicographically for deterministic canonical-form hashing.
+func NewRoleProposedContent(name, model string, watchPatterns []string, canOperate bool, maxIterations int, prompt, reason, proposedBy string) RoleProposedContent {
+	sorted := make([]string, len(watchPatterns))
+	copy(sorted, watchPatterns)
+	sort.Strings(sorted)
+	return RoleProposedContent{
+		Name:          name,
+		Model:         model,
+		WatchPatterns: sorted,
+		CanOperate:    canOperate,
+		MaxIterations: maxIterations,
+		Prompt:        prompt,
+		Reason:        reason,
+		ProposedBy:    proposedBy,
+	}
+}
 
 // RoleApprovedContent records the approval of a proposed role.
 type RoleApprovedContent struct {
