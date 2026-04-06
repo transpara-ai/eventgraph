@@ -745,5 +745,9 @@ func DefaultRegistry() *EventTypeRegistry {
 	for _, et := range AllCodeGraphEventTypes() {
 		r.Register(et, nil)
 	}
+	// Hive event types
+	for _, et := range AllHiveEventTypes() {
+		r.Register(et, nil)
+	}
 	return r
 }

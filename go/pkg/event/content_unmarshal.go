@@ -162,6 +162,13 @@ func init() {
 		// CodeGraph social
 		"codegraph.social.presence.updated":   unmarshal[CodeGraphPresenceUpdatedContent],
 		"codegraph.social.salience.triggered": unmarshal[CodeGraphSalienceTriggeredContent],
+
+		// Hive
+		"hive.gap.detected":     unmarshal[GapDetectedContent],
+		"hive.directive.issued": unmarshal[DirectiveIssuedContent],
+		"hive.role.proposed":    unmarshal[RoleProposedContent],
+		"hive.role.approved":    unmarshal[RoleApprovedContent],
+		"hive.role.rejected":    unmarshal[RoleRejectedContent],
 	}
 }
 
@@ -224,9 +231,8 @@ func IsKnownEventType(eventType string) bool {
 }
 
 // RegisterContentUnmarshaler registers a custom content unmarshaler for an event type.
-// Used by downstream packages (e.g., hive) to register their own event types
-// without modifying eventgraph's init block. Call during startup before
-// concurrent access.
+// Used by downstream packages to register their own event types without modifying
+// eventgraph's init block. Call during startup before concurrent access.
 func RegisterContentUnmarshaler(eventType string, fn func([]byte) (EventContent, error)) {
 	contentUnmarshalers[eventType] = fn
 }
