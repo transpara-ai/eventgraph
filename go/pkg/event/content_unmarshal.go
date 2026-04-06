@@ -169,6 +169,11 @@ func init() {
 		"hive.role.proposed":    unmarshal[RoleProposedContent],
 		"hive.role.approved":    unmarshal[RoleApprovedContent],
 		"hive.role.rejected":    unmarshal[RoleRejectedContent],
+
+		// Knowledge
+		"knowledge.insight.recorded":   unmarshal[KnowledgeInsightContent],
+		"knowledge.insight.superseded": unmarshal[KnowledgeSupersessionContent],
+		"knowledge.insight.expired":    unmarshal[KnowledgeExpirationContent],
 	}
 }
 

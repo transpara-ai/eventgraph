@@ -749,5 +749,9 @@ func DefaultRegistry() *EventTypeRegistry {
 	for _, et := range AllHiveEventTypes() {
 		r.Register(et, nil)
 	}
+	// Knowledge event types
+	for _, et := range AllKnowledgeEventTypes() {
+		r.Register(et, nil)
+	}
 	return r
 }
