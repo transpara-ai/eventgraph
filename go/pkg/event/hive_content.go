@@ -1,6 +1,9 @@
 package event
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 // hiveContent is embedded in all hive content types to satisfy the
 // EventContent interface's Accept method. Hive content types use their
@@ -76,6 +79,24 @@ type RoleProposedContent struct {
 }
 
 func (c RoleProposedContent) EventTypeName() string { return "hive.role.proposed" }
+
+// NewRoleProposedContent creates a RoleProposedContent with WatchPatterns
+// sorted lexicographically for deterministic canonical-form hashing.
+func NewRoleProposedContent(name, model string, watchPatterns []string, canOperate bool, maxIterations int, prompt, reason, proposedBy string) RoleProposedContent {
+	sorted := make([]string, len(watchPatterns))
+	copy(sorted, watchPatterns)
+	sort.Strings(sorted)
+	return RoleProposedContent{
+		Name:          name,
+		Model:         model,
+		WatchPatterns: sorted,
+		CanOperate:    canOperate,
+		MaxIterations: maxIterations,
+		Prompt:        prompt,
+		Reason:        reason,
+		ProposedBy:    proposedBy,
+	}
+}
 
 // RoleApprovedContent records the approval of a proposed role.
 type RoleApprovedContent struct {
