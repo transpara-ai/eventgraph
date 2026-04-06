@@ -149,10 +149,14 @@ func (p *claudeCliProvider) Reason(ctx context.Context, prompt string, history [
 	// CLAUDECODE is removed to allow nested invocation.
 	// DATABASE_URL, HIVE_AGENT_ID, HIVE_HUMAN_ID contain credentials/identity
 	// that the Claude CLI process doesn't need and shouldn't forward further.
+	// ANTHROPIC_API_KEY and HIVE_ANTHROPIC_API_KEY override the Claude Max
+	// OAuth credentials — they must never reach the subprocess.
 	env := removeEnv(cmd.Environ(), "CLAUDECODE")
 	env = removeEnv(env, "DATABASE_URL")
 	env = removeEnv(env, "HIVE_AGENT_ID")
 	env = removeEnv(env, "HIVE_HUMAN_ID")
+	env = removeEnv(env, "ANTHROPIC_API_KEY")
+	env = removeEnv(env, "HIVE_ANTHROPIC_API_KEY")
 	cmd.Env = env
 
 	var stdout, stderr bytes.Buffer
@@ -269,6 +273,8 @@ func (p *claudeCliProvider) Operate(ctx context.Context, task decision.OperateTa
 	env = removeEnv(env, "DATABASE_URL")
 	env = removeEnv(env, "HIVE_AGENT_ID")
 	env = removeEnv(env, "HIVE_HUMAN_ID")
+	env = removeEnv(env, "ANTHROPIC_API_KEY")
+	env = removeEnv(env, "HIVE_ANTHROPIC_API_KEY")
 	cmd.Env = env
 
 	var stdout, stderr bytes.Buffer
