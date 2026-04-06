@@ -113,6 +113,24 @@ func TestNewGapDetectedContent(t *testing.T) {
 	}
 }
 
+func TestNewGapDetectedContentPanicsOnInvalidCategory(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic for invalid GapCategory")
+		}
+	}()
+	NewGapDetectedContent(GapCategory("bogus"), "CTO", "evidence", SeverityLevelSerious)
+}
+
+func TestNewGapDetectedContentPanicsOnInvalidSeverity(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic for invalid SeverityLevel")
+		}
+	}()
+	NewGapDetectedContent(GapCategoryLeadership, "CTO", "evidence", SeverityLevel("bogus"))
+}
+
 // --- hive.directive.issued ---
 
 func TestDirectiveIssuedContentEventTypeName(t *testing.T) {
@@ -181,6 +199,15 @@ func TestNewDirectiveIssuedContent(t *testing.T) {
 	if c.Priority != DirectivePriorityCritical {
 		t.Errorf("Priority = %q, want %q", c.Priority, DirectivePriorityCritical)
 	}
+}
+
+func TestNewDirectiveIssuedContentPanicsOnInvalidPriority(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("expected panic for invalid DirectivePriority")
+		}
+	}()
+	NewDirectiveIssuedContent("target", "action", "reason", DirectivePriority("bogus"))
 }
 
 // --- Event type constants ---
