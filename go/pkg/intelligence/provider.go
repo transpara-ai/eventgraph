@@ -62,7 +62,7 @@ type Config struct {
 // New creates a Provider from the given Config.
 func New(cfg Config) (Provider, error) {
 	if cfg.MaxTokens == 0 {
-		cfg.MaxTokens = 1024
+		cfg.MaxTokens = 8192
 	}
 
 	switch cfg.Provider {

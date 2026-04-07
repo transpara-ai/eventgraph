@@ -234,6 +234,11 @@ func (p *openaiProvider) Reason(ctx context.Context, prompt string, history []ev
 
 	content := result.Choices[0].Message.Content
 	confidence := defaultConfidence()
+	// CostUSD is not calculated — the OpenAI-compatible API does not return
+	// pricing data. Cost-based budget enforcement is silently disabled for all
+	// providers using this path (Ollama, OpenAI, Groq, Together, xAI, etc.).
+	// Token counts are accurate. Use iteration/duration limits instead of cost
+	// limits when running with these providers.
 	usage := decision.TokenUsage{
 		InputTokens:  result.Usage.PromptTokens,
 		OutputTokens: result.Usage.CompletionTokens,
