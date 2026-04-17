@@ -132,9 +132,10 @@ func TestSiteOpTranslatedContentAccept(t *testing.T) {
 
 func TestSiteOpTranslatedContentRoundTrip(t *testing.T) {
 	now := time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC)
+	busEventID := types.MustEventID("01912345-6789-7abc-8def-0123456789ab")
 	c := SiteOpTranslatedContent{
 		ExternalRef:  ExternalRef{System: "site", ID: "op_abc"},
-		BusEventID:   "evt_999",
+		BusEventID:   busEventID,
 		TranslatedAt: now,
 	}
 	data, err := json.Marshal(c)
@@ -159,7 +160,7 @@ func TestSiteOpTranslatedContentRoundTrip(t *testing.T) {
 		t.Errorf("ExternalRef = %+v, want %+v", typed.ExternalRef, c.ExternalRef)
 	}
 	if typed.BusEventID != c.BusEventID {
-		t.Errorf("BusEventID = %q, want %q", typed.BusEventID, c.BusEventID)
+		t.Errorf("BusEventID = %v, want %v", typed.BusEventID, c.BusEventID)
 	}
 	if !typed.TranslatedAt.Equal(c.TranslatedAt) {
 		t.Errorf("TranslatedAt = %v, want %v", typed.TranslatedAt, c.TranslatedAt)
@@ -232,9 +233,10 @@ func TestSiteOpMirroredContentAccept(t *testing.T) {
 
 func TestSiteOpMirroredContentRoundTrip(t *testing.T) {
 	now := time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC)
+	mirrorEventID := types.MustEventID("01912345-6789-7abc-8def-0123456789ab")
 	c := SiteOpMirroredContent{
 		ExternalRef:   ExternalRef{System: "site", ID: "op_abc"},
-		MirrorEventID: "evt_mirror_321",
+		MirrorEventID: mirrorEventID,
 		HTTPStatus:    200,
 		MirroredAt:    now,
 	}
@@ -262,7 +264,7 @@ func TestSiteOpMirroredContentRoundTrip(t *testing.T) {
 		t.Errorf("ExternalRef = %+v, want %+v", typed.ExternalRef, c.ExternalRef)
 	}
 	if typed.MirrorEventID != c.MirrorEventID {
-		t.Errorf("MirrorEventID = %q, want %q", typed.MirrorEventID, c.MirrorEventID)
+		t.Errorf("MirrorEventID = %v, want %v", typed.MirrorEventID, c.MirrorEventID)
 	}
 	if typed.HTTPStatus != c.HTTPStatus {
 		t.Errorf("HTTPStatus = %d, want %d", typed.HTTPStatus, c.HTTPStatus)

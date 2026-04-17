@@ -25,9 +25,10 @@ func TestSpecIngestedContentAccept(t *testing.T) {
 
 func TestSpecIngestedContentRoundTrip(t *testing.T) {
 	now := time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC)
+	sourceOpID := types.MustEventID("01912345-6789-7abc-8def-0123456789ab")
 	c := SpecIngestedContent{
 		SpecRef:    "specs/bridge.md",
-		SourceOpID: "evt_123",
+		SourceOpID: sourceOpID,
 		IngestedAt: now,
 	}
 	data, err := json.Marshal(c)
@@ -52,7 +53,7 @@ func TestSpecIngestedContentRoundTrip(t *testing.T) {
 		t.Errorf("SpecRef = %q, want %q", typed.SpecRef, c.SpecRef)
 	}
 	if typed.SourceOpID != c.SourceOpID {
-		t.Errorf("SourceOpID = %q, want %q", typed.SourceOpID, c.SourceOpID)
+		t.Errorf("SourceOpID = %v, want %v", typed.SourceOpID, c.SourceOpID)
 	}
 	if !typed.IngestedAt.Equal(c.IngestedAt) {
 		t.Errorf("IngestedAt = %v, want %v", typed.IngestedAt, c.IngestedAt)
@@ -183,11 +184,7 @@ func TestSpecCompletedContentAccept(t *testing.T) {
 
 func TestSpecCompletedContentRoundTrip(t *testing.T) {
 	now := time.Date(2026, 4, 17, 12, 0, 0, 0, time.UTC)
-	c := SpecCompletedContent{
-		SpecRef:     "specs/bridge.md",
-		Outcome:     "success",
-		CompletedAt: now,
-	}
+	c := NewSpecCompletedContent("specs/bridge.md", SpecOutcomeSuccess, now)
 	data, err := json.Marshal(c)
 	if err != nil {
 		t.Fatalf("Marshal: %v", err)
@@ -264,4 +261,30 @@ func TestHiveSpecUnmarshalersRegistered(t *testing.T) {
 			t.Errorf("IsKnownEventType(%q) = false, want true", name)
 		}
 	}
+}
+
+// --- SpecOutcome enum ---
+
+func TestSpecOutcomeIsValid(t *testing.T) {
+	valid := []SpecOutcome{SpecOutcomeSuccess, SpecOutcomePartial, SpecOutcomeFailed}
+	for _, o := range valid {
+		if !o.IsValid() {
+			t.Errorf("%q.IsValid() = false, want true", o)
+		}
+	}
+	invalid := []SpecOutcome{"", "done", "Success", "SUCCESS"}
+	for _, o := range invalid {
+		if o.IsValid() {
+			t.Errorf("%q.IsValid() = true, want false", o)
+		}
+	}
+}
+
+func TestNewSpecCompletedContentPanicsOnInvalidOutcome(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil {
+			t.Error("NewSpecCompletedContent with invalid outcome did not panic")
+		}
+	}()
+	NewSpecCompletedContent("specs/x.md", SpecOutcome("bogus"), time.Now())
 }

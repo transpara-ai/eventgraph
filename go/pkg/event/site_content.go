@@ -1,6 +1,10 @@
 package event
 
-import "time"
+import (
+	"time"
+
+	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+)
 
 // siteContent is embedded in all site content types to satisfy the
 // EventContent interface's Accept method. Site content types use their
@@ -33,9 +37,9 @@ func (c SiteOpReceivedContent) EventTypeName() string { return "site.op.received
 // successfully converts an anchored op into a hive bus event.
 type SiteOpTranslatedContent struct {
 	siteContent
-	ExternalRef  ExternalRef `json:"external_ref"`
-	BusEventID   string      `json:"bus_event_id"`
-	TranslatedAt time.Time   `json:"translated_at"`
+	ExternalRef  ExternalRef   `json:"external_ref"`
+	BusEventID   types.EventID `json:"bus_event_id"`
+	TranslatedAt time.Time     `json:"translated_at"`
 }
 
 func (c SiteOpTranslatedContent) EventTypeName() string { return "site.op.translated" }
@@ -54,10 +58,10 @@ func (c SiteOpRejectedContent) EventTypeName() string { return "site.op.rejected
 // MirrorEventID is the hive event whose update was mirrored to site.
 type SiteOpMirroredContent struct {
 	siteContent
-	ExternalRef   ExternalRef `json:"external_ref"`
-	MirrorEventID string      `json:"mirror_event_id"`
-	HTTPStatus    int         `json:"http_status"`
-	MirroredAt    time.Time   `json:"mirrored_at"`
+	ExternalRef   ExternalRef   `json:"external_ref"`
+	MirrorEventID types.EventID `json:"mirror_event_id"`
+	HTTPStatus    int           `json:"http_status"`
+	MirroredAt    time.Time     `json:"mirrored_at"`
 }
 
 func (c SiteOpMirroredContent) EventTypeName() string { return "site.op.mirrored" }
