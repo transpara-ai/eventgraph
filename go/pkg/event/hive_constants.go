@@ -37,3 +37,21 @@ var validDirectivePriorities = map[DirectivePriority]bool{
 
 // IsValid returns true if the directive priority is a known priority.
 func (p DirectivePriority) IsValid() bool { return validDirectivePriorities[p] }
+
+// SpecOutcome represents the terminal state of a parsed spec.
+type SpecOutcome string
+
+const (
+	SpecOutcomeSuccess SpecOutcome = "success"
+	SpecOutcomePartial SpecOutcome = "partial"
+	SpecOutcomeFailed  SpecOutcome = "failed"
+)
+
+var validSpecOutcomes = map[SpecOutcome]bool{
+	SpecOutcomeSuccess: true,
+	SpecOutcomePartial: true,
+	SpecOutcomeFailed:  true,
+}
+
+// IsValid returns true if the spec outcome is a known outcome.
+func (o SpecOutcome) IsValid() bool { return validSpecOutcomes[o] }

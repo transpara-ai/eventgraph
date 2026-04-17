@@ -170,6 +170,18 @@ func init() {
 		"hive.role.approved":    unmarshal[RoleApprovedContent],
 		"hive.role.rejected":    unmarshal[RoleRejectedContent],
 
+		// Hive spec
+		"hive.spec.ingested":  unmarshal[SpecIngestedContent],
+		"hive.spec.parsed":    unmarshal[SpecParsedContent],
+		"hive.spec.assigned":  unmarshal[SpecAssignedContent],
+		"hive.spec.completed": unmarshal[SpecCompletedContent],
+
+		// Site
+		"site.op.received":   unmarshal[SiteOpReceivedContent],
+		"site.op.translated": unmarshal[SiteOpTranslatedContent],
+		"site.op.rejected":   unmarshal[SiteOpRejectedContent],
+		"site.op.mirrored":   unmarshal[SiteOpMirroredContent],
+
 		// Knowledge
 		"knowledge.insight.recorded":   unmarshal[KnowledgeInsightContent],
 		"knowledge.insight.superseded": unmarshal[KnowledgeSupersessionContent],
