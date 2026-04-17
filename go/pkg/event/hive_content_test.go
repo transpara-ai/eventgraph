@@ -234,8 +234,8 @@ func TestHiveEventTypeConstants(t *testing.T) {
 
 func TestAllHiveEventTypesContainsBoth(t *testing.T) {
 	all := AllHiveEventTypes()
-	if len(all) != 5 {
-		t.Fatalf("AllHiveEventTypes() returned %d types, want 5", len(all))
+	if len(all) != 9 {
+		t.Fatalf("AllHiveEventTypes() returned %d types, want 9", len(all))
 	}
 	found := map[string]bool{}
 	for _, et := range all {
@@ -244,6 +244,8 @@ func TestAllHiveEventTypesContainsBoth(t *testing.T) {
 	for _, want := range []string{
 		"hive.gap.detected", "hive.directive.issued",
 		"hive.role.proposed", "hive.role.approved", "hive.role.rejected",
+		"hive.spec.ingested", "hive.spec.parsed",
+		"hive.spec.assigned", "hive.spec.completed",
 	} {
 		if !found[want] {
 			t.Errorf("AllHiveEventTypes() missing %q", want)
