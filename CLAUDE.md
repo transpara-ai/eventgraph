@@ -132,7 +132,7 @@ go vet ./...
 staticcheck ./...
 ```
 
-**Module path:** `github.com/lovyou-ai/eventgraph/go`
+**Module path:** `github.com/transpara-ai/eventgraph/go`
 
 **Known pre-existing test failures** (do not fix unless explicitly assigned):
 - `TestAgentEventTypeCount` in `pkg/agent` — off-by-one from a recent PR, not yet fixed

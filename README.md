@@ -1,7 +1,7 @@
 # EventGraph
 
-[![CI](https://github.com/lovyou-ai/eventgraph/actions/workflows/ci.yml/badge.svg)](https://github.com/lovyou-ai/eventgraph/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/@lovyou-ai/eventgraph)](https://www.npmjs.com/package/@lovyou-ai/eventgraph)
+[![CI](https://github.com/transpara-ai/eventgraph/actions/workflows/ci.yml/badge.svg)](https://github.com/transpara-ai/eventgraph/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@transpara-ai/eventgraph)](https://www.npmjs.com/package/@transpara-ai/eventgraph)
 [![PyPI](https://img.shields.io/pypi/v/lovyou-eventgraph)](https://pypi.org/project/lovyou-eventgraph/)
 [![NuGet](https://img.shields.io/nuget/v/LovYou.EventGraph)](https://www.nuget.org/packages/LovYou.EventGraph)
 [![crates.io](https://img.shields.io/crates/v/eventgraph)](https://crates.io/crates/eventgraph)
@@ -57,7 +57,7 @@ graph := eventgraph.New(store.Postgres(connString))   // production
 
 ```bash
 # Go
-go get github.com/lovyou-ai/eventgraph/go
+go get github.com/transpara-ai/eventgraph/go
 
 # Rust
 cargo add eventgraph
@@ -66,7 +66,7 @@ cargo add eventgraph
 pip install lovyou-eventgraph
 
 # TypeScript / Node.js
-npm install @lovyou-ai/eventgraph
+npm install @transpara-ai/eventgraph
 
 # .NET
 dotnet add package LovYou.EventGraph
@@ -81,9 +81,9 @@ import (
     "context"
     "fmt"
 
-    eg "github.com/lovyou-ai/eventgraph/go/pkg/graph"
-    "github.com/lovyou-ai/eventgraph/go/pkg/store"
-    "github.com/lovyou-ai/eventgraph/go/pkg/types"
+    eg "github.com/transpara-ai/eventgraph/go/pkg/graph"
+    "github.com/transpara-ai/eventgraph/go/pkg/store"
+    "github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 func main() {
@@ -110,7 +110,7 @@ func main() {
 For PostgreSQL persistence:
 
 ```go
-import "github.com/lovyou-ai/eventgraph/go/pkg/store/pgstore"
+import "github.com/transpara-ai/eventgraph/go/pkg/store/pgstore"
 
 s, _ := pgstore.NewPostgresStore(ctx, "postgres://user:pass@localhost:5432/mydb")
 defer s.Close()
@@ -229,10 +229,10 @@ Published to every ecosystem developers already work in:
 
 | Language | Package | Tests | Path |
 |----------|---------|-------|------|
-| Go | `go get github.com/lovyou-ai/eventgraph/go` | 1,052 (reference) | `go/` |
+| Go | `go get github.com/transpara-ai/eventgraph/go` | 1,052 (reference) | `go/` |
 | Rust | `cargo add eventgraph` | 407 | `rust/` |
 | Python | `pip install lovyou-eventgraph` | 593 | `python/` |
-| TypeScript | `npm install @lovyou-ai/eventgraph` | 657 | `ts/` |
+| TypeScript | `npm install @transpara-ai/eventgraph` | 657 | `ts/` |
 | .NET | `dotnet add package LovYou.EventGraph` | 569 | `dotnet/` |
 
 All implementations pass the language-agnostic conformance test suite — identical SHA-256 hashes for the same canonical form inputs. Each implements the same interfaces native to its ecosystem: types, event, store, bus, primitive, tick engine.
