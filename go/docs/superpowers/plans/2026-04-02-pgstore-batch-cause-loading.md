@@ -89,7 +89,7 @@ t.Run("MultiCauseRoundTrip", func(t *testing.T) {
 
 - [ ] **Step 2: Run the test to verify it passes with current code**
 
-Run: `cd /home/transpara/transpara-ai/repos/lovyou-ai-eventgraph/go && go test ./pkg/store/storetest/... -v -run MultiCause`
+Run: `cd /home/transpara/transpara-ai/repos/eventgraph/go && go test ./pkg/store/storetest/... -v -run MultiCause`
 
 This test should pass against the current N+1 implementation (it tests behavior, not performance). This establishes the baseline.
 
@@ -155,7 +155,7 @@ func scanRawSingleEvent(row pgx.Row) (scannedEvent, error) {
 
 - [ ] **Step 2: Verify it compiles**
 
-Run: `cd /home/transpara/transpara-ai/repos/lovyou-ai-eventgraph/go && go build ./pkg/store/pgstore/...`
+Run: `cd /home/transpara/transpara-ai/repos/eventgraph/go && go build ./pkg/store/pgstore/...`
 
 Expected: compiles with no errors (new code is unused but compiles).
 
@@ -208,7 +208,7 @@ func batchLoadCauses(ctx context.Context, pool *pgxpool.Pool, eventIDs []string)
 
 - [ ] **Step 2: Verify it compiles**
 
-Run: `cd /home/transpara/transpara-ai/repos/lovyou-ai-eventgraph/go && go build ./pkg/store/pgstore/...`
+Run: `cd /home/transpara/transpara-ai/repos/eventgraph/go && go build ./pkg/store/pgstore/...`
 
 - [ ] **Step 3: Commit**
 
@@ -283,7 +283,7 @@ func scanEvent(ctx context.Context, pool *pgxpool.Pool, row pgx.Row) (event.Even
 
 - [ ] **Step 3: Verify it compiles**
 
-Run: `cd /home/transpara/transpara-ai/repos/lovyou-ai-eventgraph/go && go build ./pkg/store/pgstore/...`
+Run: `cd /home/transpara/transpara-ai/repos/eventgraph/go && go build ./pkg/store/pgstore/...`
 
 Expected: compiles successfully. `scanEventFromRows` is still present (unused by new code but still called by old call sites).
 
@@ -356,7 +356,7 @@ for _, r := range raws {
 
 - [ ] **Step 2: Verify it compiles**
 
-Run: `cd /home/transpara/transpara-ai/repos/lovyou-ai-eventgraph/go && go build ./pkg/store/pgstore/...`
+Run: `cd /home/transpara/transpara-ai/repos/eventgraph/go && go build ./pkg/store/pgstore/...`
 
 Expected: compiles (old `scanEventFromRows` call sites still use it until Tasks 6-8 update them).
 
@@ -654,13 +654,13 @@ Delete the `scanEventFromRows` function entirely. All call sites have been updat
 
 - [ ] **Step 3: Verify it compiles**
 
-Run: `cd /home/transpara/transpara-ai/repos/lovyou-ai-eventgraph/go && go build ./pkg/store/pgstore/...`
+Run: `cd /home/transpara/transpara-ai/repos/eventgraph/go && go build ./pkg/store/pgstore/...`
 
 Expected: compiles successfully. All `scanEventFromRows` references are now removed.
 
 - [ ] **Step 4: Run `go vet`**
 
-Run: `cd /home/transpara/transpara-ai/repos/lovyou-ai-eventgraph/go && go vet ./pkg/store/pgstore/...`
+Run: `cd /home/transpara/transpara-ai/repos/eventgraph/go && go vet ./pkg/store/pgstore/...`
 
 Expected: no issues.
 
@@ -684,25 +684,25 @@ Removes scanEventFromRows — all call sites now use two-phase pattern."
 
 - [ ] **Step 1: Run in-memory store tests**
 
-Run: `cd /home/transpara/transpara-ai/repos/lovyou-ai-eventgraph/go && go test ./pkg/store/... -v -count=1`
+Run: `cd /home/transpara/transpara-ai/repos/eventgraph/go && go test ./pkg/store/... -v -count=1`
 
 Expected: all tests pass, including the new `MultiCauseRoundTrip` test.
 
 - [ ] **Step 2: Run pgstore tests (if Postgres available)**
 
-Run: `cd /home/transpara/transpara-ai/repos/lovyou-ai-eventgraph/go && EVENTGRAPH_POSTGRES_URL="postgres://localhost:5432/eventgraph_test?sslmode=disable" go test ./pkg/store/pgstore/... -v -count=1`
+Run: `cd /home/transpara/transpara-ai/repos/eventgraph/go && EVENTGRAPH_POSTGRES_URL="postgres://localhost:5432/eventgraph_test?sslmode=disable" go test ./pkg/store/pgstore/... -v -count=1`
 
 If `EVENTGRAPH_POSTGRES_URL` is not configured, the tests will be skipped. That's acceptable — the conformance suite runs against in-memory which validates the multi-cause test, and the pgstore-specific changes are verified by compilation + vet.
 
 - [ ] **Step 3: Run all package tests**
 
-Run: `cd /home/transpara/transpara-ai/repos/lovyou-ai-eventgraph/go && go test ./... -count=1`
+Run: `cd /home/transpara/transpara-ai/repos/eventgraph/go && go test ./... -count=1`
 
 Expected: all pass.
 
 - [ ] **Step 4: Run go vet across the module**
 
-Run: `cd /home/transpara/transpara-ai/repos/lovyou-ai-eventgraph/go && go vet ./...`
+Run: `cd /home/transpara/transpara-ai/repos/eventgraph/go && go vet ./...`
 
 Expected: no issues.
 
@@ -715,7 +715,7 @@ Expected: no issues.
 
 - [ ] **Step 1: Review the full diff**
 
-Run: `cd /home/transpara/transpara-ai/repos/lovyou-ai-eventgraph && git diff main --stat`
+Run: `cd /home/transpara/transpara-ai/repos/eventgraph && git diff main --stat`
 
 Verify:
 - `pkg/store/pgstore/pgstore.go` — modified (the main change)
@@ -724,6 +724,6 @@ Verify:
 
 - [ ] **Step 2: Verify no unused imports or dead code**
 
-Run: `cd /home/transpara/transpara-ai/repos/lovyou-ai-eventgraph/go && go vet ./pkg/store/pgstore/...`
+Run: `cd /home/transpara/transpara-ai/repos/eventgraph/go && go vet ./pkg/store/pgstore/...`
 
 Ensure the old `scanEventFromRows` is fully removed and no orphaned imports remain.

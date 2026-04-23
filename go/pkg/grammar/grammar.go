@@ -11,9 +11,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/event"
-	"github.com/lovyou-ai/eventgraph/go/pkg/graph"
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/event"
+	"github.com/transpara-ai/eventgraph/go/pkg/graph"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // Grammar provides the 15 social grammar operations.

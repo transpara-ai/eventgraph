@@ -1,7 +1,7 @@
 package event
 
 import (
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // Edge is a typed, weighted, directional relationship. Immutable after construction.

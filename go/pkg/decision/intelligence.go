@@ -3,8 +3,8 @@ package decision
 import (
 	"context"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/event"
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/event"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // TokenUsage tracks per-call token consumption with full breakdown.

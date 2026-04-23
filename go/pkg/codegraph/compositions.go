@@ -1,6 +1,6 @@
 package codegraph
 
-import "github.com/lovyou-ai/eventgraph/go/pkg/types"
+import "github.com/transpara-ai/eventgraph/go/pkg/types"
 
 // CompositionDescriptor names a product pattern and the code graph primitives it wires together.
 type CompositionDescriptor struct {

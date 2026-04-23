@@ -1,9 +1,9 @@
 package primitive
 
 import (
-	"github.com/lovyou-ai/eventgraph/go/pkg/actor"
-	"github.com/lovyou-ai/eventgraph/go/pkg/event"
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/actor"
+	"github.com/transpara-ai/eventgraph/go/pkg/event"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // Harness is a test utility for invoking primitives in isolation.

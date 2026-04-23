@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/store"
-	"github.com/lovyou-ai/eventgraph/go/pkg/store/mysqlstore"
-	"github.com/lovyou-ai/eventgraph/go/pkg/store/storetest"
+	"github.com/transpara-ai/eventgraph/go/pkg/store"
+	"github.com/transpara-ai/eventgraph/go/pkg/store/mysqlstore"
+	"github.com/transpara-ai/eventgraph/go/pkg/store/storetest"
 )
 
 func TestMySQLConformance(t *testing.T) {

@@ -9,12 +9,12 @@ import (
 	"log"
 	"time"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/event"
-	"github.com/lovyou-ai/eventgraph/go/pkg/grammar"
-	"github.com/lovyou-ai/eventgraph/go/pkg/graph"
-	"github.com/lovyou-ai/eventgraph/go/pkg/protocol/egip"
-	"github.com/lovyou-ai/eventgraph/go/pkg/store"
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/event"
+	"github.com/transpara-ai/eventgraph/go/pkg/grammar"
+	"github.com/transpara-ai/eventgraph/go/pkg/graph"
+	"github.com/transpara-ai/eventgraph/go/pkg/protocol/egip"
+	"github.com/transpara-ai/eventgraph/go/pkg/store"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 type noopSigner struct{}

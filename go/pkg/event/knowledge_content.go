@@ -3,7 +3,7 @@ package event
 import (
 	"sort"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // knowledgeContent is embedded in all knowledge content types to satisfy the

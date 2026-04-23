@@ -3,11 +3,11 @@ package graph
 import (
 	"context"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/actor"
-	"github.com/lovyou-ai/eventgraph/go/pkg/event"
-	"github.com/lovyou-ai/eventgraph/go/pkg/store"
-	"github.com/lovyou-ai/eventgraph/go/pkg/trust"
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/actor"
+	"github.com/transpara-ai/eventgraph/go/pkg/event"
+	"github.com/transpara-ai/eventgraph/go/pkg/store"
+	"github.com/transpara-ai/eventgraph/go/pkg/trust"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // Query provides a query interface for the graph.

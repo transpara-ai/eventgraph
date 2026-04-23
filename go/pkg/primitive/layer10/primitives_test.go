@@ -3,11 +3,11 @@ package layer10_test
 import (
 	"testing"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/event"
-	"github.com/lovyou-ai/eventgraph/go/pkg/primitive"
-	"github.com/lovyou-ai/eventgraph/go/pkg/primitive/layer10"
-	"github.com/lovyou-ai/eventgraph/go/pkg/store"
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/event"
+	"github.com/transpara-ai/eventgraph/go/pkg/primitive"
+	"github.com/transpara-ai/eventgraph/go/pkg/primitive/layer10"
+	"github.com/transpara-ai/eventgraph/go/pkg/store"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 var (

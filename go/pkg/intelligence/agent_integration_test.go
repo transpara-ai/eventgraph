@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/intelligence"
+	"github.com/transpara-ai/eventgraph/go/pkg/intelligence"
 )
 
 // These tests exercise real LLM intelligence through agent composition scenarios.

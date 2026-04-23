@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/event"
-	"github.com/lovyou-ai/eventgraph/go/pkg/grammar"
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/event"
+	"github.com/transpara-ai/eventgraph/go/pkg/grammar"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // BeingGrammar provides Layer 13 (Existence) composition operations.

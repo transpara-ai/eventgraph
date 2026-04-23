@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/event"
-	"github.com/lovyou-ai/eventgraph/go/pkg/intelligence"
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/event"
+	"github.com/transpara-ai/eventgraph/go/pkg/intelligence"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // ════════════════════════════════════════════════════════════════════════
@@ -281,7 +281,7 @@ func TestRealLLMResearchAndDescribeMultipleProducts(t *testing.T) {
 
 	// Research the project README for product ideas
 	_, extraction, err := rt.Research(ctx,
-		"https://github.com/lovyou-ai/eventgraph",
+		"https://github.com/transpara-ai/eventgraph",
 		"identify what products could be built on this infrastructure. List 3 product ideas with one sentence each.")
 	if err != nil {
 		t.Fatalf("Research: %v", err)
