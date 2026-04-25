@@ -27,32 +27,33 @@ var (
 	EventTypeAgentGoalAbandoned    = types.MustEventType("agent.goal.abandoned")
 
 	// Operational events
-	EventTypeAgentObserved         = types.MustEventType("agent.observed")
-	EventTypeAgentProbed           = types.MustEventType("agent.probed")
-	EventTypeAgentEvaluated        = types.MustEventType("agent.evaluated")
-	EventTypeAgentDecided          = types.MustEventType("agent.decided")
-	EventTypeAgentActed            = types.MustEventType("agent.acted")
-	EventTypeAgentDelegated        = types.MustEventType("agent.delegated")
-	EventTypeAgentEscalated        = types.MustEventType("agent.escalated")
-	EventTypeAgentRefused          = types.MustEventType("agent.refused")
-	EventTypeAgentLearned          = types.MustEventType("agent.learned")
-	EventTypeAgentIntrospected     = types.MustEventType("agent.introspected")
-	EventTypeAgentCommunicated     = types.MustEventType("agent.communicated")
-	EventTypeAgentRepaired         = types.MustEventType("agent.repaired")
-	EventTypeAgentExpectationSet   = types.MustEventType("agent.expectation.set")
-	EventTypeAgentExpectationMet   = types.MustEventType("agent.expectation.met")
+	EventTypeAgentObserved           = types.MustEventType("agent.observed")
+	EventTypeAgentProbed             = types.MustEventType("agent.probed")
+	EventTypeAgentEvaluated          = types.MustEventType("agent.evaluated")
+	EventTypeAgentDecided            = types.MustEventType("agent.decided")
+	EventTypeAgentActed              = types.MustEventType("agent.acted")
+	EventTypeAgentDelegated          = types.MustEventType("agent.delegated")
+	EventTypeAgentEscalated          = types.MustEventType("agent.escalated")
+	EventTypeAgentRefused            = types.MustEventType("agent.refused")
+	EventTypeAgentLearned            = types.MustEventType("agent.learned")
+	EventTypeAgentIntrospected       = types.MustEventType("agent.introspected")
+	EventTypeAgentCommunicated       = types.MustEventType("agent.communicated")
+	EventTypeAgentRepaired           = types.MustEventType("agent.repaired")
+	EventTypeAgentExpectationSet     = types.MustEventType("agent.expectation.set")
+	EventTypeAgentExpectationMet     = types.MustEventType("agent.expectation.met")
 	EventTypeAgentExpectationExpired = types.MustEventType("agent.expectation.expired")
+	EventTypeAgentVitalReported      = types.MustEventType("agent.vital.reported")
 
 	// Relational events
-	EventTypeAgentConsentRequested      = types.MustEventType("agent.consent.requested")
-	EventTypeAgentConsentGranted        = types.MustEventType("agent.consent.granted")
-	EventTypeAgentConsentDenied         = types.MustEventType("agent.consent.denied")
-	EventTypeAgentChannelOpened         = types.MustEventType("agent.channel.opened")
-	EventTypeAgentChannelClosed         = types.MustEventType("agent.channel.closed")
-	EventTypeAgentCompositionFormed     = types.MustEventType("agent.composition.formed")
-	EventTypeAgentCompositionDissolved  = types.MustEventType("agent.composition.dissolved")
-	EventTypeAgentCompositionJoined     = types.MustEventType("agent.composition.joined")
-	EventTypeAgentCompositionLeft       = types.MustEventType("agent.composition.left")
+	EventTypeAgentConsentRequested     = types.MustEventType("agent.consent.requested")
+	EventTypeAgentConsentGranted       = types.MustEventType("agent.consent.granted")
+	EventTypeAgentConsentDenied        = types.MustEventType("agent.consent.denied")
+	EventTypeAgentChannelOpened        = types.MustEventType("agent.channel.opened")
+	EventTypeAgentChannelClosed        = types.MustEventType("agent.channel.closed")
+	EventTypeAgentCompositionFormed    = types.MustEventType("agent.composition.formed")
+	EventTypeAgentCompositionDissolved = types.MustEventType("agent.composition.dissolved")
+	EventTypeAgentCompositionJoined    = types.MustEventType("agent.composition.joined")
+	EventTypeAgentCompositionLeft      = types.MustEventType("agent.composition.left")
 
 	// Modal events
 	EventTypeAgentAttenuated        = types.MustEventType("agent.attenuated")
@@ -82,6 +83,7 @@ func AllAgentEventTypes() []types.EventType {
 		EventTypeAgentLearned, EventTypeAgentIntrospected,
 		EventTypeAgentCommunicated, EventTypeAgentRepaired,
 		EventTypeAgentExpectationSet, EventTypeAgentExpectationMet, EventTypeAgentExpectationExpired,
+		EventTypeAgentVitalReported,
 		// Relational
 		EventTypeAgentConsentRequested, EventTypeAgentConsentGranted, EventTypeAgentConsentDenied,
 		EventTypeAgentChannelOpened, EventTypeAgentChannelClosed,

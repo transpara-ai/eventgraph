@@ -238,8 +238,8 @@ func TestAllAgentEventTypesRegistered(t *testing.T) {
 
 func TestAgentEventTypeCount(t *testing.T) {
 	types := event.AllAgentEventTypes()
-	// 19 structural + 15 operational + 9 relational + 2 modal = 45
-	if len(types) != 45 {
-		t.Errorf("AllAgentEventTypes() returned %d, want 45", len(types))
+	// 20 structural + 16 operational + 9 relational + 2 modal = 47
+	if len(types) != 47 {
+		t.Errorf("AllAgentEventTypes() returned %d, want 47", len(types))
 	}
 }
