@@ -94,6 +94,7 @@ func init() {
 		"agent.expectation.set":     unmarshal[AgentExpectationSetContent],
 		"agent.expectation.met":     unmarshal[AgentExpectationMetContent],
 		"agent.expectation.expired": unmarshal[AgentExpectationExpiredContent],
+		"agent.vital.reported":      unmarshal[AgentVitalReportedContent],
 
 		// Agent relational
 		"agent.consent.requested":     unmarshal[AgentConsentRequestedContent],
@@ -117,7 +118,7 @@ func init() {
 		"codegraph.state.transitioned": unmarshal[CodeGraphStateTransitionedContent],
 
 		// CodeGraph logic
-		"codegraph.logic.transform.applied":  unmarshal[CodeGraphTransformAppliedContent],
+		"codegraph.logic.transform.applied":   unmarshal[CodeGraphTransformAppliedContent],
 		"codegraph.logic.condition.evaluated": unmarshal[CodeGraphConditionEvaluatedContent],
 		"codegraph.logic.sequence.executed":   unmarshal[CodeGraphSequenceExecutedContent],
 		"codegraph.logic.loop.iterated":       unmarshal[CodeGraphLoopIteratedContent],
@@ -125,7 +126,7 @@ func init() {
 		"codegraph.logic.constraint.violated": unmarshal[CodeGraphConstraintViolatedContent],
 
 		// CodeGraph IO
-		"codegraph.io.query.executed":      unmarshal[CodeGraphQueryExecutedContent],
+		"codegraph.io.query.executed":       unmarshal[CodeGraphQueryExecutedContent],
 		"codegraph.io.command.executed":     unmarshal[CodeGraphCommandExecutedContent],
 		"codegraph.io.command.rejected":     unmarshal[CodeGraphCommandRejectedContent],
 		"codegraph.io.subscribe.registered": unmarshal[CodeGraphSubscribeRegisteredContent],
@@ -210,8 +211,8 @@ type RawContent struct {
 	Data     json.RawMessage `json:"Data"`
 }
 
-func (c RawContent) EventTypeName() string       { return c.TypeName }
-func (c RawContent) Accept(EventContentVisitor)   {}
+func (c RawContent) EventTypeName() string      { return c.TypeName }
+func (c RawContent) Accept(EventContentVisitor) {}
 
 // fallbackUnmarshaler is used when no registered unmarshaler matches.
 // When nil (default), unknown event types return an error.

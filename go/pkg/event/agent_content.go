@@ -14,9 +14,9 @@ func (agentContent) Accept(EventContentVisitor) {}
 // AgentIdentityCreatedContent records agent registration.
 type AgentIdentityCreatedContent struct {
 	agentContent
-	AgentID   types.ActorID  `json:"AgentID"`
+	AgentID   types.ActorID   `json:"AgentID"`
 	PublicKey types.PublicKey `json:"PublicKey"`
-	AgentType string         `json:"AgentType"`
+	AgentType string          `json:"AgentType"`
 }
 
 func (c AgentIdentityCreatedContent) EventTypeName() string { return "agent.identity.created" }
@@ -24,8 +24,8 @@ func (c AgentIdentityCreatedContent) EventTypeName() string { return "agent.iden
 // AgentIdentityRotatedContent records key rotation.
 type AgentIdentityRotatedContent struct {
 	agentContent
-	AgentID    types.ActorID  `json:"AgentID"`
-	NewKey     types.PublicKey `json:"NewKey"`
+	AgentID     types.ActorID   `json:"AgentID"`
+	NewKey      types.PublicKey `json:"NewKey"`
 	PreviousKey types.PublicKey `json:"PreviousKey"`
 }
 
@@ -170,9 +170,9 @@ func (c AgentLifespanStartedContent) EventTypeName() string { return "agent.life
 // AgentLifespanExtendedContent records lifespan adjustment.
 type AgentLifespanExtendedContent struct {
 	agentContent
-	AgentID  types.ActorID   `json:"AgentID"`
-	NewEnd   types.Timestamp `json:"NewEnd"`
-	Reason   string          `json:"Reason"`
+	AgentID types.ActorID   `json:"AgentID"`
+	NewEnd  types.Timestamp `json:"NewEnd"`
+	Reason  string          `json:"Reason"`
 }
 
 func (c AgentLifespanExtendedContent) EventTypeName() string { return "agent.lifespan.extended" }
@@ -189,10 +189,10 @@ func (c AgentLifespanEndedContent) EventTypeName() string { return "agent.lifesp
 // AgentGoalSetContent records new objective assigned.
 type AgentGoalSetContent struct {
 	agentContent
-	AgentID     types.ActorID `json:"AgentID"`
-	Goal        string        `json:"Goal"`
-	Priority    int           `json:"Priority"`
-	ParentGoal  string        `json:"ParentGoal,omitempty"`
+	AgentID    types.ActorID `json:"AgentID"`
+	Goal       string        `json:"Goal"`
+	Priority   int           `json:"Priority"`
+	ParentGoal string        `json:"ParentGoal,omitempty"`
 }
 
 func (c AgentGoalSetContent) EventTypeName() string { return "agent.goal.set" }
@@ -364,6 +364,24 @@ type AgentExpectationExpiredContent struct {
 
 func (c AgentExpectationExpiredContent) EventTypeName() string { return "agent.expectation.expired" }
 
+// AgentVitalReportedContent records SysMon's per-agent slice of a health-report
+// cycle. Emitted once per AgentVital per cycle, alongside the umbrella
+// health.report event; the HealthReportCycleID correlates the per-agent
+// vital back to the cycle. Severity follows the severity_level enum
+// ("OK" | "Warning" | "Critical").
+type AgentVitalReportedContent struct {
+	agentContent
+	AgentID               types.ActorID `json:"AgentID"`
+	IterationsPct         float64       `json:"IterationsPct"`
+	TrustScore            float64       `json:"TrustScore"`
+	BudgetBurnRatePerHour float64       `json:"BudgetBurnRatePerHour"`
+	LastHeartbeatTicks    int64         `json:"LastHeartbeatTicks"`
+	Severity              string        `json:"Severity"`
+	HealthReportCycleID   string        `json:"HealthReportCycleID"`
+}
+
+func (c AgentVitalReportedContent) EventTypeName() string { return "agent.vital.reported" }
+
 // --- Agent relational content ---
 
 // AgentConsentRequestedContent records consent asked of another agent.
@@ -436,7 +454,9 @@ type AgentCompositionDissolvedContent struct {
 	Reason  string        `json:"Reason"`
 }
 
-func (c AgentCompositionDissolvedContent) EventTypeName() string { return "agent.composition.dissolved" }
+func (c AgentCompositionDissolvedContent) EventTypeName() string {
+	return "agent.composition.dissolved"
+}
 
 // AgentCompositionJoinedContent records agent joined existing group.
 type AgentCompositionJoinedContent struct {
