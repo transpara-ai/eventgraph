@@ -1158,4 +1158,4 @@ Not "trust us, we designed it well." Walk the chain. Check the code graph. Verif
 
 *Matt Searles is the founder of LovYou. Claude is an AI made by Anthropic. They built this together.*
 
-*The code: github.com/lovyou-ai/eventgraph*
+*The code: github.com/transpara-ai/eventgraph*

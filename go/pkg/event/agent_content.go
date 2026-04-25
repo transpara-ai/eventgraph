@@ -1,6 +1,6 @@
 package event
 
-import "github.com/lovyou-ai/eventgraph/go/pkg/types"
+import "github.com/transpara-ai/eventgraph/go/pkg/types"
 
 // agentContent is embedded in all agent content types to satisfy the
 // EventContent interface's Accept method. Agent content types use their

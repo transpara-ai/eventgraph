@@ -1,6 +1,6 @@
 package event
 
-import "github.com/lovyou-ai/eventgraph/go/pkg/types"
+import "github.com/transpara-ai/eventgraph/go/pkg/types"
 
 // codegraphContent is embedded in all code graph content types to satisfy
 // EventContent.Accept. Code graph events use their own domain, not the base visitor.

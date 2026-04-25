@@ -17,7 +17,7 @@
 
 ## Problem
 
-`reconstructEvent` in `pgstore.go` issues a separate `SELECT cause_id FROM event_causes WHERE event_id = $1` query for every event row returned by any read operation. For a `ByType` call returning 100 events, this produces 100 additional round-trips to the database. The `batchStatus` method in lovyou-ai-work calls `ByType` 4 times, resulting in up to 400 sequential database round-trips per request.
+`reconstructEvent` in `pgstore.go` issues a separate `SELECT cause_id FROM event_causes WHERE event_id = $1` query for every event row returned by any read operation. For a `ByType` call returning 100 events, this produces 100 additional round-trips to the database. The `batchStatus` method in transpara-ai-work calls `ByType` 4 times, resulting in up to 400 sequential database round-trips per request.
 
 This N+1 pattern is the dominant performance bottleneck for all pgstore read operations.
 
@@ -202,5 +202,5 @@ If `len(raws) == 0` after scanning, skip the `batchLoadCauses` call entirely. No
 - No `Store` interface changes
 - No changes to `Append` — cause insertion during writes stays per-cause within a transaction
 - No changes to other store implementations (memory, mysql, sqlite)
-- No changes to consumer code (lovyou-ai-work, lovyou-ai-agent, etc.)
+- No changes to consumer code (transpara-ai-work, transpara-ai-agent, etc.)
 - No behavioral changes visible to callers

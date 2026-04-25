@@ -3,8 +3,8 @@ package decision
 import (
 	"sync"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/event"
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/event"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // DecisionNode is a node in a decision tree — either InternalNode or LeafNode.

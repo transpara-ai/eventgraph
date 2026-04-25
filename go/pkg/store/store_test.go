@@ -5,10 +5,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/event"
-	"github.com/lovyou-ai/eventgraph/go/pkg/store"
-	"github.com/lovyou-ai/eventgraph/go/pkg/store/storetest"
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/event"
+	"github.com/transpara-ai/eventgraph/go/pkg/store"
+	"github.com/transpara-ai/eventgraph/go/pkg/store/storetest"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // TestInMemoryStoreConformance runs the shared conformance test suite.

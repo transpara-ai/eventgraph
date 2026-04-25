@@ -6,7 +6,7 @@ description = "Hash-chained, append-only, causal event graph"
 license-file = "LICENSE"
 authors = ["LovYou AI <matt@lovyou.ai>"]
 keywords = ["eventgraph", "event-sourcing", "hash-chain", "causal-graph"]
-repository = "https://github.com/lovyou-ai/eventgraph"
+repository = "https://github.com/transpara-ai/eventgraph"
 readme = "README.md"
 autobins = false
 

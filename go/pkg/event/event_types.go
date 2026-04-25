@@ -1,6 +1,6 @@
 package event
 
-import "github.com/lovyou-ai/eventgraph/go/pkg/types"
+import "github.com/transpara-ai/eventgraph/go/pkg/types"
 
 // Standard event type constants. Use these instead of bare strings.
 var (

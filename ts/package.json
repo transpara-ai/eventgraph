@@ -1,5 +1,5 @@
 {
-  "name": "@lovyou-ai/eventgraph",
+  "name": "@transpara-ai/eventgraph",
   "version": "0.6.0",
   "description": "Hash-chained, append-only, causal event graph",
   "main": "dist/index.js",
@@ -36,10 +36,10 @@
   "author": "LovYou AI <matt@lovyou.ai>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/lovyou-ai/eventgraph.git",
+    "url": "https://github.com/transpara-ai/eventgraph.git",
     "directory": "ts"
   },
-  "homepage": "https://github.com/lovyou-ai/eventgraph",
+  "homepage": "https://github.com/transpara-ai/eventgraph",
   "engines": {
     "node": ">=18"
   },

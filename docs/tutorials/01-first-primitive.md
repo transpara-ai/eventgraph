@@ -12,7 +12,7 @@ A primitive that:
 ## Prerequisites
 
 - Go 1.22+ installed
-- EventGraph cloned: `git clone https://github.com/lovyou-ai/eventgraph.git`
+- EventGraph cloned: `git clone https://github.com/transpara-ai/eventgraph.git`
 
 ## Step 1: Define the Primitive
 
@@ -22,9 +22,9 @@ Create `counter.go`:
 package main
 
 import (
-    "github.com/lovyou-ai/eventgraph/go/pkg/event"
-    "github.com/lovyou-ai/eventgraph/go/pkg/primitive"
-    "github.com/lovyou-ai/eventgraph/go/pkg/types"
+    "github.com/transpara-ai/eventgraph/go/pkg/event"
+    "github.com/transpara-ai/eventgraph/go/pkg/primitive"
+    "github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 type Counter struct {
@@ -103,7 +103,7 @@ package main
 import (
     "fmt"
 
-    "github.com/lovyou-ai/eventgraph/go/pkg/graph"
+    "github.com/transpara-ai/eventgraph/go/pkg/graph"
 )
 
 func main() {

@@ -3,7 +3,7 @@ package event
 import (
 	"time"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // siteContent is embedded in all site content types to satisfy the

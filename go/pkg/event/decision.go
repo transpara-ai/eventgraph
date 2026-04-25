@@ -3,7 +3,7 @@ package event
 import (
 	"encoding/json"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // Decision represents what IDecisionMaker.Decide() returns. Immutable.

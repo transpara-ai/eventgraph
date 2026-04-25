@@ -10,7 +10,7 @@
     <Authors>LovYou AI</Authors>
     <Description>SQLite store for EventGraph</Description>
     <PackageTags>eventgraph;sqlite;event-sourcing</PackageTags>
-    <RepositoryUrl>https://github.com/lovyou-ai/eventgraph</RepositoryUrl>
+    <RepositoryUrl>https://github.com/transpara-ai/eventgraph</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 

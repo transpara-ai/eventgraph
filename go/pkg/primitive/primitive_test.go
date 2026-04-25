@@ -3,9 +3,9 @@ package primitive_test
 import (
 	"testing"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/event"
-	"github.com/lovyou-ai/eventgraph/go/pkg/primitive"
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/event"
+	"github.com/transpara-ai/eventgraph/go/pkg/primitive"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // testPrimitive is a minimal Primitive for testing.

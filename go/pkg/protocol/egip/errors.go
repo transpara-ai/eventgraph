@@ -3,7 +3,7 @@ package egip
 import (
 	"fmt"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // EGIPError is the marker interface for all EGIP protocol errors.
