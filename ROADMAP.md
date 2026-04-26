@@ -462,7 +462,7 @@ All 201 primitives across 14 layers (L0: 45, L1-L12: 12 each, L13: 12). Each imp
 
 ### CI/CD & Publishing — DONE
 - [x] `.github/workflows/ci.yml` — Tests all languages on push/PR (Go, Python 3.10-3.13, .NET 9, Rust, TypeScript/Node 22)
-- [x] `.github/workflows/publish-npm.yml` — Publishes `@lovyou-ai/eventgraph` to npm on release
+- [x] `.github/workflows/publish-npm.yml` — Publishes `@transpara-ai/eventgraph` to npm on release
 - [x] `.github/workflows/publish-pypi.yml` — Publishes `eventgraph` to PyPI on release (trusted publisher)
 - [x] `.github/workflows/publish-nuget.yml` — Publishes `LovYou.EventGraph` to NuGet on release
 - [x] `.github/workflows/publish-crates.yml` — Publishes `eventgraph` to crates.io on release
@@ -471,7 +471,7 @@ All 201 primitives across 14 layers (L0: 45, L1-L12: 12 each, L13: 12). Each imp
 
 | Registry | Package | Install |
 |----------|---------|---------|
-| npm | `@lovyou-ai/eventgraph` | `npm install @lovyou-ai/eventgraph` |
+| npm | `@transpara-ai/eventgraph` | `npm install @transpara-ai/eventgraph` |
 | PyPI | `lovyou-eventgraph` | `pip install lovyou-eventgraph` |
 | NuGet | `LovYou.EventGraph` | `dotnet add package LovYou.EventGraph` |
 | NuGet | `LovYou.EventGraph.Sqlite` | `dotnet add package LovYou.EventGraph.Sqlite` |

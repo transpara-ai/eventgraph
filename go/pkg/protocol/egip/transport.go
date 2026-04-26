@@ -3,7 +3,7 @@ package egip
 import (
 	"context"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // ITransport is the pluggable transport layer for EGIP communication.

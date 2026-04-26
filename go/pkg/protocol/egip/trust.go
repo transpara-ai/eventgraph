@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // Inter-system trust parameters (more conservative than intra-system).

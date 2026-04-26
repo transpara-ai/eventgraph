@@ -26,10 +26,10 @@ package main
 import (
     "fmt"
 
-    "github.com/lovyou-ai/eventgraph/go/pkg/event"
-    "github.com/lovyou-ai/eventgraph/go/pkg/graph"
-    "github.com/lovyou-ai/eventgraph/go/pkg/protocol/egip"
-    "github.com/lovyou-ai/eventgraph/go/pkg/types"
+    "github.com/transpara-ai/eventgraph/go/pkg/event"
+    "github.com/transpara-ai/eventgraph/go/pkg/graph"
+    "github.com/transpara-ai/eventgraph/go/pkg/protocol/egip"
+    "github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 func main() {

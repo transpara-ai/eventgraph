@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/decision"
-	"github.com/lovyou-ai/eventgraph/go/pkg/intelligence"
+	"github.com/transpara-ai/eventgraph/go/pkg/decision"
+	"github.com/transpara-ai/eventgraph/go/pkg/intelligence"
 )
 
 // TestMain handles the fake claude subprocess mode used by IsError tests.

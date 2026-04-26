@@ -5,7 +5,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // Registry holds all registered primitives and their mutable state.

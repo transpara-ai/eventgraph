@@ -3,9 +3,9 @@ package sqlitestore_test
 import (
 	"testing"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/store"
-	"github.com/lovyou-ai/eventgraph/go/pkg/store/sqlitestore"
-	"github.com/lovyou-ai/eventgraph/go/pkg/store/storetest"
+	"github.com/transpara-ai/eventgraph/go/pkg/store"
+	"github.com/transpara-ai/eventgraph/go/pkg/store/sqlitestore"
+	"github.com/transpara-ai/eventgraph/go/pkg/store/storetest"
 )
 
 func TestSQLiteConformance(t *testing.T) {

@@ -17,5 +17,5 @@ export * from "./egip.js";
 export * from "./agent.js";
 export * from "./intelligence.js";
 export * from "./codegraph.js";
-// SQLite store available via: import { SQLiteStore } from "@lovyou-ai/eventgraph/sqlite-store"
+// SQLite store available via: import { SQLiteStore } from "@transpara-ai/eventgraph/sqlite-store"
 // Requires: npm install better-sqlite3 @types/better-sqlite3

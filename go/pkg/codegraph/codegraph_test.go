@@ -3,8 +3,8 @@ package codegraph_test
 import (
 	"testing"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/codegraph"
-	"github.com/lovyou-ai/eventgraph/go/pkg/event"
+	"github.com/transpara-ai/eventgraph/go/pkg/codegraph"
+	"github.com/transpara-ai/eventgraph/go/pkg/event"
 )
 
 func TestAllCompositions(t *testing.T) {

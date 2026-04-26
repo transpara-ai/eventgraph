@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/actor"
-	"github.com/lovyou-ai/eventgraph/go/pkg/event"
-	"github.com/lovyou-ai/eventgraph/go/pkg/trust"
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/actor"
+	"github.com/transpara-ai/eventgraph/go/pkg/event"
+	"github.com/transpara-ai/eventgraph/go/pkg/trust"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 func testPublicKey(b byte) types.PublicKey {

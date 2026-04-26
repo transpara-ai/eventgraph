@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/intelligence"
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/intelligence"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // These tests exercise real LLM intelligence for coding tasks through the AgentRuntime.

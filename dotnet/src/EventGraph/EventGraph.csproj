@@ -12,7 +12,7 @@
     <Description>Hash-chained, append-only, causal event graph</Description>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageTags>eventgraph;event-sourcing;hash-chain;causal-graph</PackageTags>
-    <RepositoryUrl>https://github.com/lovyou-ai/eventgraph</RepositoryUrl>
+    <RepositoryUrl>https://github.com/transpara-ai/eventgraph</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>

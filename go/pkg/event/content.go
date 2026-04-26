@@ -7,7 +7,7 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // EventContent is the interface for all typed event content.

@@ -10,7 +10,7 @@
     <Authors>LovYou AI</Authors>
     <Description>SQL Server store for EventGraph</Description>
     <PackageTags>eventgraph;sqlserver;mssql;event-sourcing</PackageTags>
-    <RepositoryUrl>https://github.com/lovyou-ai/eventgraph</RepositoryUrl>
+    <RepositoryUrl>https://github.com/transpara-ai/eventgraph</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 

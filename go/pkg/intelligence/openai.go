@@ -10,8 +10,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/decision"
-	"github.com/lovyou-ai/eventgraph/go/pkg/event"
+	"github.com/transpara-ai/eventgraph/go/pkg/decision"
+	"github.com/transpara-ai/eventgraph/go/pkg/event"
 )
 
 // openaiProvider implements Provider using the OpenAI Chat Completions API.

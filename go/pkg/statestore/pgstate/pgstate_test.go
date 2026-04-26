@@ -7,7 +7,7 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/statestore/pgstate"
+	"github.com/transpara-ai/eventgraph/go/pkg/statestore/pgstate"
 )
 
 func setup(t *testing.T) *pgstate.PostgresStateStore {

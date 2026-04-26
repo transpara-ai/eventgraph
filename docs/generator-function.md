@@ -198,5 +198,5 @@ It is incomplete. It is groundless. It is finite. It is enough.
 *Matt Searles is the founder of LovYou. Claude is an AI made by Anthropic. They built this together.*
 
 *The method: decompose, dimension, traverse, gap, compose, loop.*
-*The code: github.com/lovyou-ai/eventgraph*
+*The code: github.com/transpara-ai/eventgraph*
 *The writing: mattsearles2.substack.com*

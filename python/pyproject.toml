@@ -26,9 +26,9 @@ dependencies = []
 eg = "eventgraph.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/lovyou-ai/eventgraph"
-Repository = "https://github.com/lovyou-ai/eventgraph"
-Documentation = "https://github.com/lovyou-ai/eventgraph/tree/main/docs"
+Homepage = "https://github.com/transpara-ai/eventgraph"
+Repository = "https://github.com/transpara-ai/eventgraph"
+Documentation = "https://github.com/transpara-ai/eventgraph/tree/main/docs"
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0"]

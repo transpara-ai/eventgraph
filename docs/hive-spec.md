@@ -269,7 +269,7 @@ hive/
 
 ### Dependencies
 
-- `github.com/lovyou-ai/eventgraph/go` — event graph, agent runtime, intelligence
+- `github.com/transpara-ai/eventgraph/go` — event graph, agent runtime, intelligence
 - Claude CLI — intelligence backend (flat rate via Max plan)
 - Git — version control for generated products
 - Target platform SDKs as needed

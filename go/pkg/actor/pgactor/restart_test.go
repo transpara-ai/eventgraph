@@ -5,12 +5,12 @@ import (
 	"os"
 	"testing"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/actor"
-	"github.com/lovyou-ai/eventgraph/go/pkg/actor/pgactor"
-	"github.com/lovyou-ai/eventgraph/go/pkg/event"
-	"github.com/lovyou-ai/eventgraph/go/pkg/statestore/pgstate"
-	"github.com/lovyou-ai/eventgraph/go/pkg/trust"
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/actor"
+	"github.com/transpara-ai/eventgraph/go/pkg/actor/pgactor"
+	"github.com/transpara-ai/eventgraph/go/pkg/event"
+	"github.com/transpara-ai/eventgraph/go/pkg/statestore/pgstate"
+	"github.com/transpara-ai/eventgraph/go/pkg/trust"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // TestRestartPersistence simulates a hive restart: create actors and trust state

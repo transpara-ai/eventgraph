@@ -1,11 +1,11 @@
-# @lovyou-ai/eventgraph
+# @transpara-ai/eventgraph
 
 A hash-chained, append-only, causal event graph. The foundation for building systems where every action is signed, auditable, and causally linked.
 
 ## Install
 
 ```bash
-npm install @lovyou-ai/eventgraph
+npm install @transpara-ai/eventgraph
 ```
 
 ## Quick Start
@@ -14,7 +14,7 @@ npm install @lovyou-ai/eventgraph
 import {
   ActorId, EventType, ConversationId, Hash,
   createBootstrap, createEvent, NoopSigner, InMemoryStore,
-} from "@lovyou-ai/eventgraph";
+} from "@transpara-ai/eventgraph";
 
 // Create store and bootstrap
 const store = new InMemoryStore();
@@ -55,10 +55,10 @@ This package produces identical SHA-256 hashes to the Go reference implementatio
 
 ## Links
 
-- [GitHub](https://github.com/lovyou-ai/eventgraph)
-- [Documentation](https://github.com/lovyou-ai/eventgraph/tree/main/docs)
-- [Go reference implementation](https://github.com/lovyou-ai/eventgraph/tree/main/go)
+- [GitHub](https://github.com/transpara-ai/eventgraph)
+- [Documentation](https://github.com/transpara-ai/eventgraph/tree/main/docs)
+- [Go reference implementation](https://github.com/transpara-ai/eventgraph/tree/main/go)
 
 ## License
 
-[BSL 1.1](https://github.com/lovyou-ai/eventgraph/blob/main/LICENSE) converting to Apache 2.0 on 26 February 2030.
+[BSL 1.1](https://github.com/transpara-ai/eventgraph/blob/main/LICENSE) converting to Apache 2.0 on 26 February 2030.

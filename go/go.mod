@@ -1,4 +1,4 @@
-module github.com/lovyou-ai/eventgraph/go
+module github.com/transpara-ai/eventgraph/go
 
 go 1.24.0
 

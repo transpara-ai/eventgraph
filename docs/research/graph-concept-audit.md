@@ -1,7 +1,7 @@
 # Graph Concept Audit: Ethics Graph, Identity Graph, Community Graph
 
 > **Date:** 2026-04-03
-> **Scope:** All lovyou-ai repositories
+> **Scope:** All transpara-ai repositories
 > **Purpose:** Locate every reference to three named product graphs across the codebase
 
 ---
@@ -28,7 +28,7 @@ All three concepts are **fully codified named entities** — not aspirational te
 
 ---
 
-## Part I: lovyou-ai-eventgraph
+## Part I: transpara-ai-eventgraph
 
 The authoritative source. All three graphs are defined here as product layers with full specifications, primitives, grammars, and implementations.
 
@@ -196,7 +196,7 @@ Beyond the primary three, related scenarios exist:
 
 ---
 
-## Part II: lovyou-ai-site
+## Part II: transpara-ai-site
 
 The public-facing documentation layer. Contains the richest narrative context for all three concepts.
 
@@ -253,7 +253,7 @@ The public-facing documentation layer. Contains the richest narrative context fo
 
 ---
 
-## Part III: lovyou-ai-hive
+## Part III: transpara-ai-hive
 
 The operational layer. Contains layer specifications and governance planning, but no shipped implementations of these three graphs.
 
@@ -288,7 +288,7 @@ All three are **spec'd but not built**. Only Layer 1 (Work) is shipped; fragment
 
 ---
 
-## Part IV: lovyou-ai-agent
+## Part IV: transpara-ai-agent
 
 The agent runtime. Contains no explicit graph references but surfaces the concepts indirectly through agent capabilities.
 
@@ -327,7 +327,7 @@ The agent package is deliberately **role-agnostic** and **identity-agnostic**. I
 
 ---
 
-## Part V: lovyou-ai-work
+## Part V: transpara-ai-work
 
 **No matches found.** Zero references to Ethics Graph, Identity Graph, or Community Graph in any form.
 

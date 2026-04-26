@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // IIdentity represents a system's cryptographic identity.

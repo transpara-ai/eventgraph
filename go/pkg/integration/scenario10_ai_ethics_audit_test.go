@@ -3,8 +3,8 @@ package integration_test
 import (
 	"testing"
 
-	"github.com/lovyou-ai/eventgraph/go/pkg/event"
-	"github.com/lovyou-ai/eventgraph/go/pkg/types"
+	"github.com/transpara-ai/eventgraph/go/pkg/event"
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 // TestScenario10_AIEthicsAudit exercises fairness, accountability, and redress.
