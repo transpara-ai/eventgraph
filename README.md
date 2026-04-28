@@ -251,4 +251,4 @@ The packages are free. The spec is free. The ideas are free (deed poll). Run it 
 
 ## Patent
 
-Australian Provisional Patent Application No. 2026901564. Subject to an irrevocable [Defensive Patent Pledge](patent/defensive_patent_pledge.pdf) — free and open source implementations are protected, always. The patent exists as a shield, not a weapon. See `PATENT-NOTICE` for details.
+Australian Provisional Patent Application No. 2026901564. Subject to an irrevocable [Defensive Patent Pledge](patent/defensive_patent_pledge.pdf) — free and open source implementations are protected, always. The patent exists as a shield, not a weapon. See `PATENT-NOTICE` for details. 
