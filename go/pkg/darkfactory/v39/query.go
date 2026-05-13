@@ -70,39 +70,57 @@ func (s *InMemoryStore) QueryRequiredPath(startID string, edgeTypes ...string) (
 
 func (s *InMemoryStore) FactoryOrderRequirementAcceptanceTask(factoryOrderID string) (RequiredPath, error) {
 	path := RequiredPath{Name: "FactoryOrder -> Requirement -> AcceptanceCriterion -> Task", NodeIDs: []string{factoryOrderID}}
-	req, ok := s.firstRequirementForFactoryOrder(factoryOrderID)
-	if !ok {
-		path.Missing = append(path.Missing, "Requirement for FactoryOrder "+factoryOrderID)
+	reqEdges := s.outgoingEdges(factoryOrderID, EdgeRequires)
+	if len(reqEdges) == 0 {
+		path.Missing = append(path.Missing, "REQUIRES from FactoryOrder "+factoryOrderID)
 		return path, path.Err()
 	}
-	path.NodeIDs = append(path.NodeIDs, req.CommonNode.ID)
+	for _, reqEdge := range reqEdges {
+		req, ok := s.mustGetRequirement(reqEdge.ToID)
+		if !ok || req.FactoryOrderID != factoryOrderID {
+			path.Missing = append(path.Missing, "Requirement "+reqEdge.ToID)
+			continue
+		}
+		path.EdgeIDs = append(path.EdgeIDs, reqEdge.ID)
+		path.NodeIDs = append(path.NodeIDs, req.CommonNode.ID)
 
-	ac, ok := s.firstAcceptanceCriterionForRequirement(req.CommonNode.ID)
-	if !ok {
-		path.Missing = append(path.Missing, "AcceptanceCriterion for Requirement "+req.CommonNode.ID)
-		return path, path.Err()
-	}
-	path.NodeIDs = append(path.NodeIDs, ac.CommonNode.ID)
+		acEdges := s.outgoingEdges(req.CommonNode.ID, EdgeRequires)
+		if len(acEdges) == 0 {
+			path.Missing = append(path.Missing, "REQUIRES from Requirement "+req.CommonNode.ID)
+			continue
+		}
+		for _, acEdge := range acEdges {
+			ac, ok := s.mustGetAcceptanceCriterion(acEdge.ToID)
+			if !ok || ac.RequirementID != req.CommonNode.ID {
+				path.Missing = append(path.Missing, "AcceptanceCriterion "+acEdge.ToID)
+				continue
+			}
+			path.EdgeIDs = append(path.EdgeIDs, acEdge.ID)
+			path.NodeIDs = append(path.NodeIDs, ac.CommonNode.ID)
 
-	edge, ok := s.firstOutgoingEdge(ac.CommonNode.ID, EdgeDecomposedInto)
-	if !ok {
-		edge, ok = s.firstOutgoingEdge(ac.CommonNode.ID, EdgeRequires)
+			taskEdge, ok := s.firstOutgoingEdge(ac.CommonNode.ID, EdgeDecomposedInto)
+			if !ok {
+				taskEdge, ok = s.firstOutgoingEdge(ac.CommonNode.ID, EdgeRequires)
+			}
+			if !ok {
+				path.Missing = append(path.Missing, "Task edge from AcceptanceCriterion "+ac.CommonNode.ID)
+				continue
+			}
+			task, ok := s.mustGetTask(taskEdge.ToID)
+			if !ok {
+				path.Missing = append(path.Missing, "Task "+taskEdge.ToID)
+				continue
+			}
+			if task.FactoryOrderID == nil || *task.FactoryOrderID != factoryOrderID {
+				path.Missing = append(path.Missing, "Task "+task.CommonNode.ID+" linked to FactoryOrder "+factoryOrderID)
+				continue
+			}
+			path.EdgeIDs = append(path.EdgeIDs, taskEdge.ID)
+			path.NodeIDs = append(path.NodeIDs, task.CommonNode.ID)
+		}
 	}
-	if !ok {
-		path.Missing = append(path.Missing, "Task edge from AcceptanceCriterion "+ac.CommonNode.ID)
-		return path, path.Err()
-	}
-	if task, ok := s.mustGetTask(edge.ToID); !ok {
-		path.Missing = append(path.Missing, "Task "+edge.ToID)
-		return path, path.Err()
-	} else if task.FactoryOrderID == nil || *task.FactoryOrderID != factoryOrderID {
-		path.Missing = append(path.Missing, "Task "+task.CommonNode.ID+" linked to FactoryOrder "+factoryOrderID)
-		return path, path.Err()
-	}
-	path.EdgeIDs = append(path.EdgeIDs, edge.ID)
-	path.NodeIDs = append(path.NodeIDs, edge.ToID)
-	path.Completed = true
-	return path, nil
+	path.Completed = len(path.Missing) == 0
+	return path, path.Err()
 }
 
 func (s *InMemoryStore) TaskRuntimeEnvelopeResult(taskID string) (RequiredPath, error) {
@@ -126,16 +144,8 @@ func (s *InMemoryStore) TaskRuntimeEnvelopeResult(taskID string) (RequiredPath, 
 
 func (s *InMemoryStore) TaskArtifact(taskID string) (RequiredPath, error) {
 	path := RequiredPath{Name: "Task -> Artifact", NodeIDs: []string{taskID}}
-	for _, r := range s.ByType(TypeArtifact) {
-		artifact := r.(*Artifact)
-		if artifact.TaskID != nil && *artifact.TaskID == taskID {
-			path.NodeIDs = append(path.NodeIDs, artifact.CommonNode.ID)
-			path.Completed = true
-			return path, nil
-		}
-	}
 	if edge, ok := s.firstOutgoingEdge(taskID, EdgeProduced); ok {
-		if _, ok := s.mustGetArtifact(edge.ToID); ok {
+		if artifact, ok := s.mustGetArtifact(edge.ToID); ok && artifact.TaskID != nil && *artifact.TaskID == taskID {
 			path.EdgeIDs = append(path.EdgeIDs, edge.ID)
 			path.NodeIDs = append(path.NodeIDs, edge.ToID)
 			path.Completed = true
@@ -148,31 +158,43 @@ func (s *InMemoryStore) TaskArtifact(taskID string) (RequiredPath, error) {
 
 func (s *InMemoryStore) TaskTestCaseRunGateResult(taskID string) (RequiredPath, error) {
 	path := RequiredPath{Name: "Task -> TestCase -> TestRun -> GateResult", NodeIDs: []string{taskID}}
-	edge, ok := s.firstOutgoingEdge(taskID, EdgeVerifies)
+	tcEdge, ok := s.firstOutgoingEdge(taskID, EdgeVerifies)
 	if !ok {
 		path.Missing = append(path.Missing, "TestCase edge from Task "+taskID)
 		return path, path.Err()
 	}
-	tc, ok := s.mustGetTestCase(edge.ToID)
+	tc, ok := s.mustGetTestCase(tcEdge.ToID)
 	if !ok {
-		path.Missing = append(path.Missing, "TestCase "+edge.ToID)
+		path.Missing = append(path.Missing, "TestCase "+tcEdge.ToID)
 		return path, path.Err()
 	}
-	path.EdgeIDs = append(path.EdgeIDs, edge.ID)
+	path.EdgeIDs = append(path.EdgeIDs, tcEdge.ID)
 	path.NodeIDs = append(path.NodeIDs, tc.CommonNode.ID)
 
-	tr, ok := s.firstTestRunForTestCase(tc.CommonNode.ID)
+	trEdge, ok := s.firstOutgoingEdge(tc.CommonNode.ID, EdgeVerifies)
 	if !ok {
-		path.Missing = append(path.Missing, "TestRun for TestCase "+tc.CommonNode.ID)
+		path.Missing = append(path.Missing, "VERIFIES from TestCase "+tc.CommonNode.ID)
 		return path, path.Err()
 	}
+	tr, ok := s.mustGetTestRun(trEdge.ToID)
+	if !ok || tr.TestCaseID == nil || *tr.TestCaseID != tc.CommonNode.ID {
+		path.Missing = append(path.Missing, "TestRun "+trEdge.ToID)
+		return path, path.Err()
+	}
+	path.EdgeIDs = append(path.EdgeIDs, trEdge.ID)
 	path.NodeIDs = append(path.NodeIDs, tr.CommonNode.ID)
 
-	gr, ok := s.firstGateResultForEvidence(tr.CommonNode.ID)
+	grEdge, ok := s.firstOutgoingEdge(tr.CommonNode.ID, EdgeProduced)
 	if !ok {
-		path.Missing = append(path.Missing, "GateResult evidence for TestRun "+tr.CommonNode.ID)
+		path.Missing = append(path.Missing, "PRODUCED from TestRun "+tr.CommonNode.ID)
 		return path, path.Err()
 	}
+	gr, ok := s.mustGetGateResult(grEdge.ToID)
+	if !ok || !containsString(gr.EvidenceRefs, tr.CommonNode.ID) {
+		path.Missing = append(path.Missing, "GateResult "+grEdge.ToID)
+		return path, path.Err()
+	}
+	path.EdgeIDs = append(path.EdgeIDs, grEdge.ID)
 	path.NodeIDs = append(path.NodeIDs, gr.CommonNode.ID)
 	path.Completed = true
 	return path, nil
@@ -186,25 +208,43 @@ func (s *InMemoryStore) GateResultFailureRepairWaiver(gateResultID string) (Requ
 		return path, path.Err()
 	}
 	if gr.WaiverRef != nil && *gr.WaiverRef != "" {
-		if _, ok := s.mustGetWaiver(*gr.WaiverRef); !ok {
-			path.Missing = append(path.Missing, "Waiver "+*gr.WaiverRef)
+		waiverEdge, ok := s.firstOutgoingEdge(gateResultID, EdgeWaivedBy)
+		if !ok {
+			path.Missing = append(path.Missing, "WAIVED_BY from GateResult "+gateResultID)
 			return path, path.Err()
 		}
-		path.NodeIDs = append(path.NodeIDs, *gr.WaiverRef)
+		if _, ok := s.mustGetWaiver(waiverEdge.ToID); !ok || waiverEdge.ToID != *gr.WaiverRef {
+			path.Missing = append(path.Missing, "Waiver "+waiverEdge.ToID)
+			return path, path.Err()
+		}
+		path.EdgeIDs = append(path.EdgeIDs, waiverEdge.ID)
+		path.NodeIDs = append(path.NodeIDs, waiverEdge.ToID)
 		path.Completed = true
 		return path, nil
 	}
-	failure, ok := s.firstFailureForGateResult(gateResultID)
+	failureEdge, ok := s.firstOutgoingEdge(gateResultID, EdgeFailedBy)
 	if !ok {
-		path.Missing = append(path.Missing, "Failure or Waiver for GateResult "+gateResultID)
+		path.Missing = append(path.Missing, "FAILED_BY from GateResult "+gateResultID)
 		return path, path.Err()
 	}
+	failure, ok := s.mustGetFailure(failureEdge.ToID)
+	if !ok || failure.GateResultID == nil || *failure.GateResultID != gateResultID {
+		path.Missing = append(path.Missing, "Failure "+failureEdge.ToID)
+		return path, path.Err()
+	}
+	path.EdgeIDs = append(path.EdgeIDs, failureEdge.ID)
 	path.NodeIDs = append(path.NodeIDs, failure.CommonNode.ID)
-	repair, ok := s.firstRepairAttemptForFailure(failure.CommonNode.ID)
+	repairEdge, ok := s.firstOutgoingEdge(failure.CommonNode.ID, EdgeRepairedBy)
 	if !ok {
-		path.Missing = append(path.Missing, "RepairAttempt for Failure "+failure.CommonNode.ID)
+		path.Missing = append(path.Missing, "REPAIRED_BY from Failure "+failure.CommonNode.ID)
 		return path, path.Err()
 	}
+	repair, ok := s.mustGetRepairAttempt(repairEdge.ToID)
+	if !ok || repair.FailureID != failure.CommonNode.ID {
+		path.Missing = append(path.Missing, "RepairAttempt "+repairEdge.ToID)
+		return path, path.Err()
+	}
+	path.EdgeIDs = append(path.EdgeIDs, repairEdge.ID)
 	path.NodeIDs = append(path.NodeIDs, repair.CommonNode.ID)
 	path.Completed = true
 	return path, nil
@@ -213,49 +253,58 @@ func (s *InMemoryStore) GateResultFailureRepairWaiver(gateResultID string) (Requ
 func (s *InMemoryStore) FactoryRuntimeVersionPath(factoryOrderOrReleaseCandidateID string) (RequiredPath, error) {
 	path := RequiredPath{Name: "FactoryOrder or ReleaseCandidate -> FactoryRuntimeVersion", NodeIDs: []string{factoryOrderOrReleaseCandidateID}}
 	if rc, ok := s.mustGetReleaseCandidate(factoryOrderOrReleaseCandidateID); ok {
-		if rc.FactoryRuntimeVersionID == nil || *rc.FactoryRuntimeVersionID == "" {
-			path.Missing = append(path.Missing, "FactoryRuntimeVersion for ReleaseCandidate "+rc.CommonNode.ID)
+		frvEdge, ok := s.firstOutgoingEdge(rc.CommonNode.ID, EdgePackagedAs)
+		if !ok {
+			path.Missing = append(path.Missing, "PACKAGED_AS from ReleaseCandidate "+rc.CommonNode.ID)
 			return path, path.Err()
 		}
-		if _, ok := s.mustGetFactoryRuntimeVersion(*rc.FactoryRuntimeVersionID); !ok {
-			path.Missing = append(path.Missing, "FactoryRuntimeVersion "+*rc.FactoryRuntimeVersionID)
+		if _, ok := s.mustGetFactoryRuntimeVersion(frvEdge.ToID); !ok || rc.FactoryRuntimeVersionID == nil || *rc.FactoryRuntimeVersionID != frvEdge.ToID {
+			path.Missing = append(path.Missing, "FactoryRuntimeVersion "+frvEdge.ToID)
 			return path, path.Err()
 		}
-		path.NodeIDs = append(path.NodeIDs, *rc.FactoryRuntimeVersionID)
+		path.EdgeIDs = append(path.EdgeIDs, frvEdge.ID)
+		path.NodeIDs = append(path.NodeIDs, frvEdge.ToID)
 		path.Completed = true
 		return path, nil
 	}
-	for _, r := range s.ByType(TypeReleaseCandidate) {
-		rc := r.(*ReleaseCandidate)
-		if rc.FactoryOrderID == factoryOrderOrReleaseCandidateID && rc.FactoryRuntimeVersionID != nil {
-			if _, ok := s.mustGetFactoryRuntimeVersion(*rc.FactoryRuntimeVersionID); ok {
-				path.NodeIDs = append(path.NodeIDs, rc.CommonNode.ID, *rc.FactoryRuntimeVersionID)
-				path.Completed = true
-				return path, nil
-			}
-		}
+	rcEdge, ok := s.firstOutgoingEdge(factoryOrderOrReleaseCandidateID, EdgePackagedAs)
+	if !ok {
+		path.Missing = append(path.Missing, "PACKAGED_AS from FactoryOrder "+factoryOrderOrReleaseCandidateID)
+		return path, path.Err()
 	}
-	path.Missing = append(path.Missing, "FactoryRuntimeVersion for "+factoryOrderOrReleaseCandidateID)
-	return path, path.Err()
+	rc, ok := s.mustGetReleaseCandidate(rcEdge.ToID)
+	if !ok || rc.FactoryOrderID != factoryOrderOrReleaseCandidateID {
+		path.Missing = append(path.Missing, "ReleaseCandidate "+rcEdge.ToID)
+		return path, path.Err()
+	}
+	path.EdgeIDs = append(path.EdgeIDs, rcEdge.ID)
+	path.NodeIDs = append(path.NodeIDs, rc.CommonNode.ID)
+	frvPath, err := s.FactoryRuntimeVersionPath(rc.CommonNode.ID)
+	path.EdgeIDs = append(path.EdgeIDs, frvPath.EdgeIDs...)
+	path.NodeIDs = append(path.NodeIDs, frvPath.NodeIDs[1:]...)
+	path.Missing = append(path.Missing, frvPath.Missing...)
+	path.Completed = frvPath.Completed
+	return path, err
 }
 
 func (s *InMemoryStore) ReleaseCandidateCertificationOrRejection(releaseCandidateID string) (RequiredPath, error) {
 	path := RequiredPath{Name: "ReleaseCandidate -> Certification or Rejection", NodeIDs: []string{releaseCandidateID}}
-	for _, r := range s.ByType(TypeCertification) {
-		cert := r.(*Certification)
-		if cert.ReleaseCandidateID == releaseCandidateID {
-			path.NodeIDs = append(path.NodeIDs, cert.CommonNode.ID)
-			path.Completed = true
-			return path, nil
-		}
+	edge, ok := s.firstOutgoingEdge(releaseCandidateID, EdgeCertifiedBy)
+	if !ok {
+		path.Missing = append(path.Missing, "CERTIFIED_BY from ReleaseCandidate "+releaseCandidateID)
+		return path, path.Err()
 	}
-	for _, r := range s.ByType(TypeRejection) {
-		rejection := r.(*Rejection)
-		if rejection.ReleaseCandidateID == releaseCandidateID {
-			path.NodeIDs = append(path.NodeIDs, rejection.CommonNode.ID)
-			path.Completed = true
-			return path, nil
-		}
+	if cert, ok := s.mustGetCertification(edge.ToID); ok && cert.ReleaseCandidateID == releaseCandidateID {
+		path.EdgeIDs = append(path.EdgeIDs, edge.ID)
+		path.NodeIDs = append(path.NodeIDs, cert.CommonNode.ID)
+		path.Completed = true
+		return path, nil
+	}
+	if rejection, ok := s.mustGetRejection(edge.ToID); ok && rejection.ReleaseCandidateID == releaseCandidateID {
+		path.EdgeIDs = append(path.EdgeIDs, edge.ID)
+		path.NodeIDs = append(path.NodeIDs, rejection.CommonNode.ID)
+		path.Completed = true
+		return path, nil
 	}
 	path.Missing = append(path.Missing, "Certification or Rejection for ReleaseCandidate "+releaseCandidateID)
 	return path, path.Err()
@@ -277,24 +326,36 @@ func (s *InMemoryStore) DecisionAuditReport(decisionID string) (RequiredPath, er
 
 func (s *InMemoryStore) AuthorityRequestDecisionReceipt(authorityRequestID string) (RequiredPath, error) {
 	path := RequiredPath{Name: "AuthorityRequest -> AuthorityDecision -> ExecutionReceipt", NodeIDs: []string{authorityRequestID}}
-	decision, ok := s.firstAuthorityDecisionForRequest(authorityRequestID)
+	decisionEdge, ok := s.firstOutgoingEdge(authorityRequestID, EdgeDecidedBy)
 	if !ok {
-		path.Missing = append(path.Missing, "AuthorityDecision for AuthorityRequest "+authorityRequestID)
+		path.Missing = append(path.Missing, "DECIDED_BY from AuthorityRequest "+authorityRequestID)
 		return path, path.Err()
 	}
+	decision, ok := s.mustGetAuthorityDecision(decisionEdge.ToID)
+	if !ok || decision.AuthorityRequestID != authorityRequestID {
+		path.Missing = append(path.Missing, "AuthorityDecision "+decisionEdge.ToID)
+		return path, path.Err()
+	}
+	path.EdgeIDs = append(path.EdgeIDs, decisionEdge.ID)
 	path.NodeIDs = append(path.NodeIDs, decision.CommonNode.ID)
-	receipt, ok := s.firstExecutionReceiptForDecision(decision.CommonNode.ID)
+	receiptEdge, ok := s.firstOutgoingEdge(decision.CommonNode.ID, EdgeReceiptedBy)
 	if !ok {
-		path.Missing = append(path.Missing, "ExecutionReceipt for AuthorityDecision "+decision.CommonNode.ID)
+		path.Missing = append(path.Missing, "RECEIPTED_BY from AuthorityDecision "+decision.CommonNode.ID)
 		return path, path.Err()
 	}
+	receipt, ok := s.mustGetExecutionReceipt(receiptEdge.ToID)
+	if !ok || receipt.AuthorityDecisionID != decision.CommonNode.ID {
+		path.Missing = append(path.Missing, "ExecutionReceipt "+receiptEdge.ToID)
+		return path, path.Err()
+	}
+	path.EdgeIDs = append(path.EdgeIDs, receiptEdge.ID)
 	path.NodeIDs = append(path.NodeIDs, receipt.CommonNode.ID)
 	path.Completed = true
 	return path, nil
 }
 
 func (s *InMemoryStore) ActorAuthorityRequestDecisionReceipt(authorityRequestID string) (RequiredPath, error) {
-	path := RequiredPath{Name: "ActorIdentity / AuthorityRequest / AuthorityDecision / ExecutionReceipt", NodeIDs: []string{authorityRequestID}}
+	path := RequiredPath{Name: "ActorIdentity / AuthorityRequest / AuthorityDecision / ExecutionReceipt"}
 	requestRecord, err := s.Get(authorityRequestID)
 	if err != nil {
 		path.Missing = append(path.Missing, "AuthorityRequest "+authorityRequestID)
@@ -309,6 +370,14 @@ func (s *InMemoryStore) ActorAuthorityRequestDecisionReceipt(authorityRequestID 
 		path.Missing = append(path.Missing, "ActorIdentity for actor "+request.ActorID)
 		return path, path.Err()
 	}
+	identity, _ := s.actorIdentityForActor(request.ActorID)
+	requestEdge, ok := s.firstOutgoingEdge(identity.CommonNode.ID, EdgeRequestedAuthority)
+	if !ok || requestEdge.ToID != authorityRequestID {
+		path.Missing = append(path.Missing, "REQUESTED_AUTHORITY from ActorIdentity "+identity.CommonNode.ID)
+		return path, path.Err()
+	}
+	path.NodeIDs = append(path.NodeIDs, identity.CommonNode.ID, authorityRequestID)
+	path.EdgeIDs = append(path.EdgeIDs, requestEdge.ID)
 	authorityPath, err := s.AuthorityRequestDecisionReceipt(authorityRequestID)
 	path.NodeIDs = append(path.NodeIDs, authorityPath.NodeIDs[1:]...)
 	path.EdgeIDs = append(path.EdgeIDs, authorityPath.EdgeIDs...)
@@ -329,96 +398,47 @@ func (s *InMemoryStore) firstOutgoingEdge(fromID, edgeType string) (CommonEdge, 
 	return CommonEdge{}, false
 }
 
-func (s *InMemoryStore) firstRequirementForFactoryOrder(factoryOrderID string) (*Requirement, bool) {
-	for _, r := range s.ByType(TypeRequirement) {
-		req := r.(*Requirement)
-		if req.FactoryOrderID == factoryOrderID {
-			return req, true
+func (s *InMemoryStore) outgoingEdges(fromID, edgeType string) []CommonEdge {
+	var out []CommonEdge
+	for _, edge := range s.EdgesFrom(fromID) {
+		if edge.Type == edgeType {
+			out = append(out, edge)
 		}
 	}
-	return nil, false
-}
-
-func (s *InMemoryStore) firstAcceptanceCriterionForRequirement(requirementID string) (*AcceptanceCriterion, bool) {
-	for _, r := range s.ByType(TypeAcceptanceCriterion) {
-		ac := r.(*AcceptanceCriterion)
-		if ac.RequirementID == requirementID {
-			return ac, true
-		}
-	}
-	return nil, false
-}
-
-func (s *InMemoryStore) firstTestRunForTestCase(testCaseID string) (*TestRun, bool) {
-	for _, r := range s.ByType(TypeTestRun) {
-		tr := r.(*TestRun)
-		if tr.TestCaseID != nil && *tr.TestCaseID == testCaseID {
-			return tr, true
-		}
-	}
-	return nil, false
-}
-
-func (s *InMemoryStore) firstGateResultForEvidence(evidenceID string) (*GateResult, bool) {
-	for _, r := range s.ByType(TypeGateResult) {
-		gr := r.(*GateResult)
-		for _, ref := range gr.EvidenceRefs {
-			if ref == evidenceID {
-				return gr, true
-			}
-		}
-	}
-	return nil, false
-}
-
-func (s *InMemoryStore) firstFailureForGateResult(gateResultID string) (*Failure, bool) {
-	for _, r := range s.ByType(TypeFailure) {
-		failure := r.(*Failure)
-		if failure.GateResultID != nil && *failure.GateResultID == gateResultID {
-			return failure, true
-		}
-	}
-	return nil, false
-}
-
-func (s *InMemoryStore) firstRepairAttemptForFailure(failureID string) (*RepairAttempt, bool) {
-	for _, r := range s.ByType(TypeRepairAttempt) {
-		repair := r.(*RepairAttempt)
-		if repair.FailureID == failureID {
-			return repair, true
-		}
-	}
-	return nil, false
-}
-
-func (s *InMemoryStore) firstAuthorityDecisionForRequest(authorityRequestID string) (*AuthorityDecision, bool) {
-	for _, r := range s.ByType(TypeAuthorityDecision) {
-		decision := r.(*AuthorityDecision)
-		if decision.AuthorityRequestID == authorityRequestID {
-			return decision, true
-		}
-	}
-	return nil, false
-}
-
-func (s *InMemoryStore) firstExecutionReceiptForDecision(authorityDecisionID string) (*ExecutionReceipt, bool) {
-	for _, r := range s.ByType(TypeExecutionReceipt) {
-		receipt := r.(*ExecutionReceipt)
-		if receipt.AuthorityDecisionID == authorityDecisionID {
-			return receipt, true
-		}
-	}
-	return nil, false
+	return out
 }
 
 func (s *InMemoryStore) hasActorIdentity(actorID string) bool {
+	_, ok := s.actorIdentityForActor(actorID)
+	return ok
+}
+
+func (s *InMemoryStore) actorIdentityForActor(actorID string) (*ActorIdentity, bool) {
 	for _, r := range s.ByType(TypeActorIdentity) {
 		identity := r.(*ActorIdentity)
 		if identity.ActorID == actorID {
-			return true
+			return identity, true
 		}
 	}
-	return false
+	return nil, false
+}
+
+func (s *InMemoryStore) mustGetRequirement(id string) (*Requirement, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	req, ok := r.(*Requirement)
+	return req, ok
+}
+
+func (s *InMemoryStore) mustGetAcceptanceCriterion(id string) (*AcceptanceCriterion, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	ac, ok := r.(*AcceptanceCriterion)
+	return ac, ok
 }
 
 func (s *InMemoryStore) mustGetTask(id string) (*Task, bool) {
@@ -466,6 +486,15 @@ func (s *InMemoryStore) mustGetTestCase(id string) (*TestCase, bool) {
 	return tc, ok
 }
 
+func (s *InMemoryStore) mustGetTestRun(id string) (*TestRun, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	tr, ok := r.(*TestRun)
+	return tr, ok
+}
+
 func (s *InMemoryStore) mustGetGateResult(id string) (*GateResult, bool) {
 	r, err := s.Get(id)
 	if err != nil {
@@ -473,6 +502,24 @@ func (s *InMemoryStore) mustGetGateResult(id string) (*GateResult, bool) {
 	}
 	gr, ok := r.(*GateResult)
 	return gr, ok
+}
+
+func (s *InMemoryStore) mustGetFailure(id string) (*Failure, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	failure, ok := r.(*Failure)
+	return failure, ok
+}
+
+func (s *InMemoryStore) mustGetRepairAttempt(id string) (*RepairAttempt, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	repair, ok := r.(*RepairAttempt)
+	return repair, ok
 }
 
 func (s *InMemoryStore) mustGetWaiver(id string) (*Waiver, bool) {
@@ -493,6 +540,24 @@ func (s *InMemoryStore) mustGetReleaseCandidate(id string) (*ReleaseCandidate, b
 	return rc, ok
 }
 
+func (s *InMemoryStore) mustGetCertification(id string) (*Certification, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	cert, ok := r.(*Certification)
+	return cert, ok
+}
+
+func (s *InMemoryStore) mustGetRejection(id string) (*Rejection, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	rejection, ok := r.(*Rejection)
+	return rejection, ok
+}
+
 func (s *InMemoryStore) mustGetFactoryRuntimeVersion(id string) (*FactoryRuntimeVersion, bool) {
 	r, err := s.Get(id)
 	if err != nil {
@@ -502,6 +567,24 @@ func (s *InMemoryStore) mustGetFactoryRuntimeVersion(id string) (*FactoryRuntime
 	return frv, ok
 }
 
+func (s *InMemoryStore) mustGetAuthorityDecision(id string) (*AuthorityDecision, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	decision, ok := r.(*AuthorityDecision)
+	return decision, ok
+}
+
+func (s *InMemoryStore) mustGetExecutionReceipt(id string) (*ExecutionReceipt, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	receipt, ok := r.(*ExecutionReceipt)
+	return receipt, ok
+}
+
 func (s *InMemoryStore) mustGetAuditReport(id string) (*AuditReport, bool) {
 	r, err := s.Get(id)
 	if err != nil {
@@ -509,4 +592,13 @@ func (s *InMemoryStore) mustGetAuditReport(id string) (*AuditReport, bool) {
 	}
 	audit, ok := r.(*AuditReport)
 	return audit, ok
+}
+
+func containsString(values []string, want string) bool {
+	for _, value := range values {
+		if value == want {
+			return true
+		}
+	}
+	return false
 }

@@ -3,6 +3,7 @@ package v39
 import (
 	"errors"
 	"fmt"
+	"math"
 	"reflect"
 )
 
@@ -275,7 +276,12 @@ func (r *RuntimeResult) Validate() error {
 		return fieldError(TypeRuntimeResult, "completed_at", "required")
 	}
 	switch v := r.ExitStatus.(type) {
-	case int, int32, int64, float64:
+	case int, int32, int64:
+		return nil
+	case float64:
+		if math.IsNaN(v) || math.IsInf(v, 0) || math.Trunc(v) != v {
+			return fieldError(TypeRuntimeResult, "exit_status", "must be an integer")
+		}
 		return nil
 	case string:
 		return requireOneOf(TypeRuntimeResult, "exit_status", v, "succeeded", "failed", "timed_out", "policy_blocked")

@@ -55,7 +55,7 @@ func TestCanonicalJSONIsDeterministicAndOmitsNull(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []byte(`{"correlation_id":"corr_001","created_at":"2026-05-13T12:00:00Z","created_by":"act_001","factory_order_version":1,"id":"fo_001","idempotency_key":"idem_fo_001","release_policy":"human_approval_required","risk_class":"medium","source_intent_hash":"sha256:intent","source_intent_ref":"issue://30","status":"draft","type":"FactoryOrder"}`)
+	want := []byte(`{"correlation_id":"corr_001","created_at":"2026-05-13T12:00:00Z","created_by":"act_001","id":"fo_001","idempotency_key":"idem_fo_001","release_policy":"human_approval_required","risk_class":"medium","source_intent_hash":"sha256:intent","source_intent_ref":"issue://30","status":"draft","type":"FactoryOrder","version":1}`)
 	if !bytes.Equal(got, want) {
 		t.Fatalf("canonical JSON mismatch\nwant %s\n got %s", want, got)
 	}
@@ -102,6 +102,56 @@ func TestInMemoryStoreIdempotentAppendAndAppendOnlyConflict(t *testing.T) {
 	}
 }
 
+func TestInMemoryStoreReturnsImmutableSnapshots(t *testing.T) {
+	store := NewInMemoryStore()
+	order := factoryOrder("fo_immutable")
+	if _, err := store.AppendRecord(order); err != nil {
+		t.Fatal(err)
+	}
+
+	order.RiskClass = "critical"
+	stored, err := store.Get("fo_immutable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := stored.(*FactoryOrder).RiskClass; got != "medium" {
+		t.Fatalf("stored record changed through original pointer: got %s", got)
+	}
+
+	stored.(*FactoryOrder).RiskClass = "critical"
+	storedAgain, err := store.Get("fo_immutable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := storedAgain.(*FactoryOrder).RiskClass; got != "medium" {
+		t.Fatalf("stored record changed through Get result: got %s", got)
+	}
+
+	byType := store.ByType(TypeFactoryOrder)
+	byType[0].(*FactoryOrder).RiskClass = "critical"
+	storedAgain, err = store.Get("fo_immutable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := storedAgain.(*FactoryOrder).RiskClass; got != "medium" {
+		t.Fatalf("stored record changed through ByType result: got %s", got)
+	}
+}
+
+func TestRuntimeResultRejectsFractionalExitStatus(t *testing.T) {
+	result := &RuntimeResult{
+		CommonNode:       common("rr_fractional", TypeRuntimeResult, "recorded"),
+		InvocationID:     "env_001",
+		RuntimeAdapterID: "local",
+		StartedAt:        fixedTime,
+		CompletedAt:      fixedTime,
+		ExitStatus:       1.5,
+	}
+	if err := result.Validate(); !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("expected fractional exit status to be invalid, got %v", err)
+	}
+}
+
 func TestRequiredPathQueriesCompleteAndMissingEvidence(t *testing.T) {
 	store := completePathStore(t)
 
@@ -117,18 +167,39 @@ func TestRequiredPathQueriesCompleteAndMissingEvidence(t *testing.T) {
 	assertPath(t, path, err, "gate_fail_001", "fail_001", "rep_001")
 	path, err = store.FactoryRuntimeVersionPath("rc_001")
 	assertPath(t, path, err, "rc_001", "frv_001")
+	path, err = store.FactoryRuntimeVersionPath("fo_001")
+	assertPath(t, path, err, "fo_001", "rc_001", "frv_001")
 	path, err = store.ReleaseCandidateCertificationOrRejection("rc_001")
 	assertPath(t, path, err, "rc_001", "cert_001")
 	path, err = store.DecisionAuditReport("cert_001")
 	assertPath(t, path, err, "cert_001", "aud_001")
 	path, err = store.AuthorityRequestDecisionReceipt("auth_req_001")
 	assertPath(t, path, err, "auth_req_001", "auth_dec_001", "exec_001")
+	path, err = store.ActorAuthorityRequestDecisionReceipt("auth_req_001")
+	assertPath(t, path, err, "actor_identity_001", "auth_req_001", "auth_dec_001", "exec_001")
 
 	missingStore := completePathStore(t)
 	delete(missingStore.records, "rr_001")
 	path, err = missingStore.TaskRuntimeEnvelopeResult("tsk_001")
 	if !errors.Is(err, ErrRequiredPathMissing) {
 		t.Fatalf("expected missing path error, got path=%+v err=%v", path, err)
+	}
+
+	branchStore := completePathStore(t)
+	appendRecord(t, branchStore, &Requirement{CommonNode: common("req_missing_ac", TypeRequirement, "accepted"), FactoryOrderID: "fo_001", Text: "Second requirement needs evidence", Source: "explicit", RiskClass: "medium"})
+	appendEdge(t, branchStore, edge("edge_fo_req_missing_ac", EdgeRequires, "fo_001", "req_missing_ac"))
+	path, err = branchStore.FactoryOrderRequirementAcceptanceTask("fo_001")
+	if !errors.Is(err, ErrRequiredPathMissing) {
+		t.Fatalf("expected missing branch evidence error, got path=%+v err=%v", path, err)
+	}
+
+	fieldOnlyStore := NewInMemoryStore()
+	for _, record := range completeTier0Records() {
+		appendRecord(t, fieldOnlyStore, record)
+	}
+	path, err = fieldOnlyStore.FactoryOrderRequirementAcceptanceTask("fo_001")
+	if !errors.Is(err, ErrRequiredPathMissing) {
+		t.Fatalf("expected explicit edge evidence requirement, got path=%+v err=%v", path, err)
 	}
 }
 
@@ -156,11 +227,24 @@ func completePathStore(t *testing.T) *InMemoryStore {
 	for _, record := range completeTier0Records() {
 		appendRecord(t, store, record)
 	}
+	appendEdge(t, store, edge("edge_fo_req", EdgeRequires, "fo_001", "req_001"))
+	appendEdge(t, store, edge("edge_req_ac", EdgeRequires, "req_001", "ac_001"))
 	appendEdge(t, store, edge("edge_ac_task", EdgeDecomposedInto, "ac_001", "tsk_001"))
 	appendEdge(t, store, edge("edge_task_env", EdgeUsedEnvelope, "tsk_001", "env_001"))
 	appendEdge(t, store, edge("edge_env_result", EdgeProduced, "env_001", "rr_001"))
+	appendEdge(t, store, edge("edge_task_art", EdgeProduced, "tsk_001", "art_001"))
 	appendEdge(t, store, edge("edge_task_tc", EdgeVerifies, "tsk_001", "tc_001"))
+	appendEdge(t, store, edge("edge_tc_tr", EdgeVerifies, "tc_001", "tr_001"))
+	appendEdge(t, store, edge("edge_tr_gate", EdgeProduced, "tr_001", "gate_001"))
+	appendEdge(t, store, edge("edge_gate_failure", EdgeFailedBy, "gate_fail_001", "fail_001"))
+	appendEdge(t, store, edge("edge_failure_repair", EdgeRepairedBy, "fail_001", "rep_001"))
+	appendEdge(t, store, edge("edge_fo_rc", EdgePackagedAs, "fo_001", "rc_001"))
+	appendEdge(t, store, edge("edge_rc_frv", EdgePackagedAs, "rc_001", "frv_001"))
+	appendEdge(t, store, edge("edge_rc_cert", EdgeCertifiedBy, "rc_001", "cert_001"))
 	appendEdge(t, store, edge("edge_cert_audit", EdgeAuditedBy, "cert_001", "aud_001"))
+	appendEdge(t, store, edge("edge_actor_auth_req", EdgeRequestedAuthority, "actor_identity_001", "auth_req_001"))
+	appendEdge(t, store, edge("edge_auth_req_dec", EdgeDecidedBy, "auth_req_001", "auth_dec_001"))
+	appendEdge(t, store, edge("edge_auth_dec_exec", EdgeReceiptedBy, "auth_dec_001", "exec_001"))
 	return store
 }
 

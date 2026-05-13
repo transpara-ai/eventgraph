@@ -78,7 +78,7 @@ type CommonEdge struct {
 
 type FactoryOrder struct {
 	CommonNode
-	FactoryOrderVersion int    `json:"factory_order_version"`
+	FactoryOrderVersion int    `json:"version"`
 	SourceIntentHash    string `json:"source_intent_hash"`
 	SourceIntentRef     string `json:"source_intent_ref"`
 	RiskClass           string `json:"risk_class"`
@@ -287,7 +287,7 @@ type Waiver struct {
 
 type FactoryRuntimeVersion struct {
 	CommonNode
-	RuntimeVersion        string   `json:"runtime_version"`
+	RuntimeVersion        string   `json:"version"`
 	CapabilityVersionRefs []string `json:"capability_version_refs"`
 	RuntimeRefs           []string `json:"runtime_refs"`
 }
@@ -464,7 +464,7 @@ type CapabilityArtifact struct {
 	ArtifactID           string   `json:"artifact_id"`
 	ArtifactType         string   `json:"artifact_type"`
 	Name                 string   `json:"name"`
-	ArtifactVersion      string   `json:"artifact_version"`
+	ArtifactVersion      string   `json:"version"`
 	SourceRepoOrOrigin   string   `json:"source_repo_or_origin"`
 	ContentHash          string   `json:"content_hash"`
 	Owner                string   `json:"owner"`

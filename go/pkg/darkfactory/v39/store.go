@@ -2,6 +2,7 @@ package v39
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -54,20 +55,24 @@ func (s *InMemoryStore) AppendRecord(r Record) (Record, error) {
 		if !bytes.Equal(existingBytes, canonical) {
 			return nil, fmt.Errorf("%w: key %s", ErrIdempotencyConflict, common.IdempotencyKey)
 		}
-		return s.records[existingID], nil
+		return cloneRecord(s.records[existingID])
 	}
 	if existing, ok := s.records[common.ID]; ok {
 		if !bytes.Equal(s.canonicalByID[common.ID], canonical) {
 			return nil, fmt.Errorf("%w: %s: %w", ErrDuplicateRecordID, common.ID, ErrImmutable)
 		}
-		return existing, nil
+		return cloneRecord(existing)
 	}
 
-	s.records[common.ID] = r
+	stored, err := cloneRecord(r)
+	if err != nil {
+		return nil, err
+	}
+	s.records[common.ID] = stored
 	s.canonicalByID[common.ID] = append([]byte(nil), canonical...)
 	s.byType[common.Type] = append(s.byType[common.Type], common.ID)
 	s.byIdem[common.IdempotencyKey] = common.ID
-	return r, nil
+	return cloneRecord(stored)
 }
 
 func (s *InMemoryStore) AppendEdge(e CommonEdge) (CommonEdge, error) {
@@ -116,7 +121,7 @@ func (s *InMemoryStore) Get(id string) (Record, error) {
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrNotFound, id)
 	}
-	return r, nil
+	return cloneRecord(r)
 }
 
 func (s *InMemoryStore) ByType(typ string) []Record {
@@ -125,7 +130,10 @@ func (s *InMemoryStore) ByType(typ string) []Record {
 	ids := s.byType[typ]
 	out := make([]Record, 0, len(ids))
 	for _, id := range ids {
-		out = append(out, s.records[id])
+		clone, err := cloneRecord(s.records[id])
+		if err == nil {
+			out = append(out, clone)
+		}
 	}
 	return out
 }
@@ -160,4 +168,101 @@ func (s *InMemoryStore) CanonicalRecord(id string) ([]byte, error) {
 		return nil, fmt.Errorf("%w: %s", ErrNotFound, id)
 	}
 	return append([]byte(nil), b...), nil
+}
+
+func cloneRecord(r Record) (Record, error) {
+	common := r.GetCommon()
+	b, err := json.Marshal(r)
+	if err != nil {
+		return nil, err
+	}
+	clone, err := newRecordForType(common.Type)
+	if err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(b, clone); err != nil {
+		return nil, err
+	}
+	return clone, nil
+}
+
+func newRecordForType(typ string) (Record, error) {
+	switch typ {
+	case TypeFactoryOrder:
+		return &FactoryOrder{}, nil
+	case TypePlanningProposal:
+		return &PlanningProposal{}, nil
+	case TypeRequirement:
+		return &Requirement{}, nil
+	case TypeAcceptanceCriterion:
+		return &AcceptanceCriterion{}, nil
+	case TypeAssumption:
+		return &Assumption{}, nil
+	case TypeDesignDecision:
+		return &DesignDecision{}, nil
+	case TypeTask:
+		return &Task{}, nil
+	case TypeCell:
+		return &Cell{}, nil
+	case TypeActorInvocation:
+		return &ActorInvocation{}, nil
+	case TypeRuntimeEnvelope:
+		return &RuntimeEnvelope{}, nil
+	case TypeRuntimeResult:
+		return &RuntimeResult{}, nil
+	case TypeArtifact:
+		return &Artifact{}, nil
+	case TypeCodeChange:
+		return &CodeChange{}, nil
+	case TypeTestCase:
+		return &TestCase{}, nil
+	case TypeTestRun:
+		return &TestRun{}, nil
+	case TypeGateResult:
+		return &GateResult{}, nil
+	case TypeFailure:
+		return &Failure{}, nil
+	case TypeRepairAttempt:
+		return &RepairAttempt{}, nil
+	case TypeWaiver:
+		return &Waiver{}, nil
+	case TypeFactoryRuntimeVersion:
+		return &FactoryRuntimeVersion{}, nil
+	case TypeReleaseCandidate:
+		return &ReleaseCandidate{}, nil
+	case TypeCertification:
+		return &Certification{}, nil
+	case TypeRejection:
+		return &Rejection{}, nil
+	case TypeAuditReport:
+		return &AuditReport{}, nil
+	case TypeAuthorityRequest:
+		return &AuthorityRequest{}, nil
+	case TypeAuthorityDecision:
+		return &AuthorityDecision{}, nil
+	case TypeExecutionReceipt:
+		return &ExecutionReceipt{}, nil
+	case TypeHumanApproval:
+		return &HumanApproval{}, nil
+	case TypeActorIdentity:
+		return &ActorIdentity{}, nil
+	case TypeLifecycleTransition:
+		return &LifecycleTransition{}, nil
+	case TypeTrustRecord:
+		return &TrustRecord{}, nil
+	case TypeDecisionRecord:
+		return &DecisionRecord{}, nil
+	case TypeMemoryReference:
+		return &MemoryReference{}, nil
+	case TypeKnowledgeReference:
+		return &KnowledgeReference{}, nil
+	case TypeDocumentEvidenceRetrieval:
+		return &DocumentEvidenceRetrieval{}, nil
+	case TypeCapabilityArtifact:
+		return &CapabilityArtifact{}, nil
+	case TypePolicyEngineAdapterDecision:
+		return &PolicyEngineAdapterDecision{}, nil
+	default:
+		return nil, fmt.Errorf("%w: unknown record type %s", ErrInvalidRecord, typ)
+	}
 }
