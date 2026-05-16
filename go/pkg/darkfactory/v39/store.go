@@ -256,6 +256,8 @@ func newRecordForType(typ string) (Record, error) {
 		return &MemoryReference{}, nil
 	case TypeKnowledgeReference:
 		return &KnowledgeReference{}, nil
+	case TypeContradictionLog:
+		return &ContradictionLog{}, nil
 	case TypeDocumentEvidenceRetrieval:
 		return &DocumentEvidenceRetrieval{}, nil
 	case TypeCapabilityArtifact:

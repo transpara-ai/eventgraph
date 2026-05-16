@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strings"
 )
 
 var (
@@ -556,10 +557,25 @@ func (r *DecisionRecord) Validate() error {
 }
 
 func (r *MemoryReference) Validate() error {
-	return validateAdvisoryReference(&r.AdvisoryReference, TypeMemoryReference)
+	if err := validateAdvisoryReference(&r.AdvisoryReference, TypeMemoryReference); err != nil {
+		return err
+	}
+	if isQuarantinedAdvisoryReference(r.TrustLevel, r.RedactionState) {
+		return fieldError(TypeMemoryReference, "redaction_state", "quarantined memory cannot be used")
+	}
+	return nil
 }
 func (r *KnowledgeReference) Validate() error {
-	return validateAdvisoryReference(&r.AdvisoryReference, TypeKnowledgeReference)
+	if err := validateAdvisoryReference(&r.AdvisoryReference, TypeKnowledgeReference); err != nil {
+		return err
+	}
+	if isQuarantinedAdvisoryReference(r.TrustLevel, r.RedactionState) {
+		return fieldError(TypeKnowledgeReference, "redaction_state", "quarantined knowledge cannot be used")
+	}
+	if isStaleAdvisoryReference(r.TrustLevel, r.FreshnessStatus) && isHighRiskScope(r.RiskScope) {
+		return fieldError(TypeKnowledgeReference, "freshness_status", "stale knowledge is blocked for high-risk use")
+	}
+	return nil
 }
 
 func validateAdvisoryReference(r *AdvisoryReference, typ string) error {
@@ -578,6 +594,34 @@ func validateAdvisoryReference(r *AdvisoryReference, typ string) error {
 		return fieldError(typ, "retrieved_at", "required")
 	}
 	return nil
+}
+
+func (r *ContradictionLog) Validate() error {
+	if err := r.CommonNode.validate(TypeContradictionLog); err != nil {
+		return err
+	}
+	for f, v := range map[string]string{"contradiction_id": r.ContradictionID, "claim_a_ref": r.ClaimARef, "claim_b_ref": r.ClaimBRef} {
+		if err := requireNonEmpty(TypeContradictionLog, f, v); err != nil {
+			return err
+		}
+	}
+	if err := requireStatus(r.CommonNode, "open", "resolved", "accepted_conflict"); err != nil {
+		return err
+	}
+	return requireOneOf(TypeContradictionLog, "severity", r.Severity, "low", "medium", "high", "critical")
+}
+
+func isQuarantinedAdvisoryReference(trustLevel, redactionState string) bool {
+	return strings.EqualFold(trustLevel, "quarantined") || strings.EqualFold(redactionState, "quarantined")
+}
+
+func isStaleAdvisoryReference(trustLevel, freshnessStatus string) bool {
+	return strings.EqualFold(trustLevel, "stale") || strings.EqualFold(freshnessStatus, "stale")
+}
+
+func isHighRiskScope(riskScope string) bool {
+	normalized := strings.ToLower(riskScope)
+	return strings.Contains(normalized, "high") || strings.Contains(normalized, "critical")
 }
 
 func (r *DocumentEvidenceRetrieval) Validate() error {

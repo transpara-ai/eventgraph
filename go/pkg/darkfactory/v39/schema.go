@@ -39,6 +39,7 @@ const (
 	TypeDecisionRecord              = "DecisionRecord"
 	TypeMemoryReference             = "MemoryReference"
 	TypeKnowledgeReference          = "KnowledgeReference"
+	TypeContradictionLog            = "ContradictionLog"
 	TypeDocumentEvidenceRetrieval   = "DocumentEvidenceRetrieval"
 	TypeCapabilityArtifact          = "CapabilityArtifact"
 	TypePolicyEngineAdapterDecision = "PolicyEngineAdapterDecision"
@@ -278,6 +279,7 @@ type CertificationEligibilityResult struct {
 	Completed                 bool                        `json:"completed"`
 	TraceCompleteness         TraceCompletenessGateResult `json:"trace_completeness"`
 	RuntimeBOMPath            RequiredPath                `json:"runtime_bom_path"`
+	AdvisoryReferencePath     RequiredPath                `json:"advisory_reference_path"`
 	Missing                   []string                    `json:"missing,omitempty"`
 	EvidenceRefs              []string                    `json:"evidence_refs"`
 	FactoryRuntimeVersionID   *string                     `json:"factory_runtime_version_id,omitempty"`
@@ -451,6 +453,16 @@ type AdvisoryReference struct {
 
 type MemoryReference struct{ AdvisoryReference }
 type KnowledgeReference struct{ AdvisoryReference }
+
+type ContradictionLog struct {
+	CommonNode
+	ContradictionID string  `json:"contradiction_id"`
+	ClaimARef       string  `json:"claim_a_ref"`
+	ClaimBRef       string  `json:"claim_b_ref"`
+	Severity        string  `json:"severity"`
+	Resolution      *string `json:"resolution,omitempty"`
+	ReviewedBy      *string `json:"reviewed_by,omitempty"`
+}
 
 type DocumentEvidenceRetrieval struct {
 	CommonNode
