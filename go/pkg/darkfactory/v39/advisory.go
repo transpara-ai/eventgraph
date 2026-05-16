@@ -1,12 +1,20 @@
 package v39
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 type advisoryReferenceKind string
 
 const (
 	advisoryReferenceMemory    advisoryReferenceKind = "memory"
 	advisoryReferenceKnowledge advisoryReferenceKind = "knowledge"
+
+	memorySourceRefPrefix          = "memory:"
+	legacyMemorySourceRefPrefix    = "mem:"
+	knowledgeSourceRefPrefix       = "knowledge:"
+	legacyKnowledgeSourceRefPrefix = "know:"
 )
 
 func (s *InMemoryStore) RecordMemoryReference(reference *MemoryReference) (*MemoryReference, error) {
@@ -148,27 +156,20 @@ func (s *InMemoryStore) advisoryReferencesForTask(taskID string, kind advisoryRe
 func advisorySourceRefs(sourceRefs []string, kind advisoryReferenceKind) []string {
 	var out []string
 	for _, sourceRef := range sourceRefs {
+		// Task.SourceRefs declares material advisory inputs with these stable prefixes.
+		// Explicit reference edges can also satisfy the evidence path.
 		switch kind {
 		case advisoryReferenceMemory:
-			if hasAnyPrefix(sourceRef, "memory:", "mem:") {
+			if strings.HasPrefix(sourceRef, memorySourceRefPrefix) || strings.HasPrefix(sourceRef, legacyMemorySourceRefPrefix) {
 				out = append(out, sourceRef)
 			}
 		case advisoryReferenceKnowledge:
-			if hasAnyPrefix(sourceRef, "knowledge:", "know:") {
+			if strings.HasPrefix(sourceRef, knowledgeSourceRefPrefix) || strings.HasPrefix(sourceRef, legacyKnowledgeSourceRefPrefix) {
 				out = append(out, sourceRef)
 			}
 		}
 	}
 	return out
-}
-
-func hasAnyPrefix(value string, prefixes ...string) bool {
-	for _, prefix := range prefixes {
-		if len(value) >= len(prefix) && value[:len(prefix)] == prefix {
-			return true
-		}
-	}
-	return false
 }
 
 func contradictionBlocksHighRiskUse(contradiction *ContradictionLog) bool {

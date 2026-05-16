@@ -473,6 +473,7 @@ func completeTier0Records() []Record {
 	frvID := "frv_001"
 	authReqID := "auth_req_001"
 	authDecisionID := "auth_dec_001"
+	memoryID := "memory_001"
 	knowledgeID := "know_001"
 
 	return []Record{
@@ -505,6 +506,10 @@ func completeTier0Records() []Record {
 		&Certification{CommonNode: common("cert_001", TypeCertification, "certified"), ReleaseCandidateID: rcID, CertifierActorID: "act_human", Reason: "all required evidence present", EvidenceRefs: []string{gateID}},
 		&Rejection{CommonNode: common("rej_001", TypeRejection, "rejected"), ReleaseCandidateID: "rc_rejected", RejectorActorID: "act_human", Reason: "negative fixture", EvidenceRefs: []string{failGateID}},
 		&AuditReport{CommonNode: common("aud_001", TypeAuditReport, "complete"), TargetType: "release_candidate", TargetID: rcID, TraceScore: 1},
+		&MemoryIngested{CommonNode: common("memory_001_ingested", TypeMemoryIngested, "recorded"), MemoryID: memoryID, SourceSystem: "fixture", SourceRef: "memory://fixture/context", SourceHashOrImmutableLocator: "sha256:memory", Classification: "internal", ContentHash: "sha256:memory", IngestedAt: fixedTime},
+		&MemoryIndexed{CommonNode: common("memory_001_indexed", TypeMemoryIndexed, "recorded"), MemoryID: memoryID, IndexID: "idx:memory_001", IndexRef: "memory-index://memory_001", ContentHashOrImmutableLocator: "sha256:memory", Summary: "fixture memory", IndexedAt: fixedTime},
+		&MemoryScopeAssigned{CommonNode: common("memory_001_scope", TypeMemoryScopeAssigned, "recorded"), MemoryID: memoryID, Scope: "factory-order:fo_001", AssignedBy: "act_001", Reason: "fixture scope"},
+		&MemoryRedactionApplied{CommonNode: common("memory_001_redaction", TypeMemoryRedactionApplied, "recorded"), MemoryID: memoryID, RedactionState: "none"},
 		&MemoryReference{AdvisoryReference: advisory("mem_001", TypeMemoryReference, taskID)},
 		&KnowledgeReference{AdvisoryReference: advisory(knowledgeID, TypeKnowledgeReference, taskID)},
 		&ContradictionLog{CommonNode: common("contradiction_001", TypeContradictionLog, "resolved"), ContradictionID: "contradiction_001", ClaimARef: "mem_001", ClaimBRef: knowledgeID, Severity: "medium", Resolution: strPtr("fixture resolved"), ReviewedBy: strPtr("act_human")},
@@ -553,7 +558,7 @@ func advisory(id, typ, taskID string) AdvisoryReference {
 		RetrievedAt:                  fixedTime,
 		UsedByActor:                  "act_001",
 		UsedInTask:                   taskID,
-		InfluenceSummary:             "schema fixture only",
+		InfluenceSummary:             "planning: schema fixture only",
 		RiskScope:                    "test",
 		TrustLevel:                   "fixture",
 		FreshnessStatus:              "current",

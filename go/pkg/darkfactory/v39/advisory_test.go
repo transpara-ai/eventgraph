@@ -32,6 +32,18 @@ func TestKnowledgeReferenceRejectsStaleKnowledgeForHighRiskUse(t *testing.T) {
 	}
 }
 
+func TestKnowledgeReferenceRejectsQuarantinedKnowledge(t *testing.T) {
+	store := NewInMemoryStore()
+	ref := &KnowledgeReference{AdvisoryReference: advisory("know_quarantined", TypeKnowledgeReference, "tsk_001")}
+	ref.SourceRef = "knowledge://recipe/quarantined"
+	ref.TrustLevel = "quarantined"
+	ref.RedactionState = "quarantined"
+
+	if _, err := store.AppendRecord(ref); !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("expected quarantined knowledge to be rejected, got %v", err)
+	}
+}
+
 func TestKnowledgeReferenceBlocksOpenHighContradictionForHighRiskUse(t *testing.T) {
 	store := stage6BaseStore(t)
 	appendRecord(t, store, &ContradictionLog{
@@ -48,6 +60,48 @@ func TestKnowledgeReferenceBlocksOpenHighContradictionForHighRiskUse(t *testing.
 
 	if _, err := store.RecordKnowledgeReference(ref); !errors.Is(err, ErrInvalidRecord) {
 		t.Fatalf("expected open high contradiction to block high-risk knowledge use, got %v", err)
+	}
+}
+
+func TestMemoryReferenceBlocksOpenHighContradictionThroughAppendRecord(t *testing.T) {
+	store := stage6BaseStore(t)
+	appendRecord(t, store, &ContradictionLog{
+		CommonNode:      common("contradiction_mem_high", TypeContradictionLog, "open"),
+		ContradictionID: "contradiction_mem_high",
+		ClaimARef:       "memory://planning/context",
+		ClaimBRef:       "eventgraph://gate/security",
+		Severity:        "critical",
+	})
+	ref := &MemoryReference{AdvisoryReference: advisory("mem_contradicted", TypeMemoryReference, "tsk_001")}
+	ref.SourceRef = "memory://planning/context"
+	ref.RiskScope = "critical"
+	ref.ContradictionRefs = []string{"contradiction_mem_high"}
+
+	if _, err := store.AppendRecord(ref); !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("expected open critical contradiction to block high-risk memory append, got %v", err)
+	}
+}
+
+func TestMemoryReferenceRejectsNonMaterialInfluenceThroughAppendRecord(t *testing.T) {
+	store := stage6BaseStore(t)
+	ref := &MemoryReference{AdvisoryReference: advisory("mem_non_material", TypeMemoryReference, "tsk_001")}
+	ref.InfluenceSummary = "ambient_context: glanced at nearby session memory"
+
+	if _, err := store.AppendRecord(ref); !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("expected non-material memory influence to be rejected, got %v", err)
+	}
+}
+
+func TestHighThroughputScopeDoesNotCountAsHighRisk(t *testing.T) {
+	store := stage6BaseStore(t)
+	ref := &KnowledgeReference{AdvisoryReference: advisory("know_high_throughput", TypeKnowledgeReference, "tsk_001")}
+	ref.SourceRef = "knowledge://recipe/performance"
+	ref.RiskScope = "high-throughput planning"
+	ref.TrustLevel = "stale"
+	ref.FreshnessStatus = "stale"
+
+	if _, err := store.AppendRecord(ref); err != nil {
+		t.Fatalf("high-throughput is not a high risk class and should not be rejected: %v", err)
 	}
 }
 
