@@ -39,6 +39,11 @@ const (
 	TypeDecisionRecord              = "DecisionRecord"
 	TypeMemoryReference             = "MemoryReference"
 	TypeKnowledgeReference          = "KnowledgeReference"
+	TypeContradictionLog            = "ContradictionLog"
+	TypeMemoryIngested              = "MemoryIngested"
+	TypeMemoryIndexed               = "MemoryIndexed"
+	TypeMemoryScopeAssigned         = "MemoryScopeAssigned"
+	TypeMemoryRedactionApplied      = "MemoryRedactionApplied"
 	TypeDocumentEvidenceRetrieval   = "DocumentEvidenceRetrieval"
 	TypeCapabilityArtifact          = "CapabilityArtifact"
 	TypePolicyEngineAdapterDecision = "PolicyEngineAdapterDecision"
@@ -278,6 +283,7 @@ type CertificationEligibilityResult struct {
 	Completed                 bool                        `json:"completed"`
 	TraceCompleteness         TraceCompletenessGateResult `json:"trace_completeness"`
 	RuntimeBOMPath            RequiredPath                `json:"runtime_bom_path"`
+	AdvisoryReferencePath     RequiredPath                `json:"advisory_reference_path"`
 	Missing                   []string                    `json:"missing,omitempty"`
 	EvidenceRefs              []string                    `json:"evidence_refs"`
 	FactoryRuntimeVersionID   *string                     `json:"factory_runtime_version_id,omitempty"`
@@ -451,6 +457,55 @@ type AdvisoryReference struct {
 
 type MemoryReference struct{ AdvisoryReference }
 type KnowledgeReference struct{ AdvisoryReference }
+
+type ContradictionLog struct {
+	CommonNode
+	ContradictionID string  `json:"contradiction_id"`
+	ClaimARef       string  `json:"claim_a_ref"`
+	ClaimBRef       string  `json:"claim_b_ref"`
+	Severity        string  `json:"severity"`
+	Resolution      *string `json:"resolution,omitempty"`
+	ReviewedBy      *string `json:"reviewed_by,omitempty"`
+}
+
+type MemoryIngested struct {
+	CommonNode
+	MemoryID                     string    `json:"memory_id"`
+	SourceSystem                 string    `json:"source_system"`
+	SourceRef                    string    `json:"source_ref"`
+	SourceHashOrImmutableLocator string    `json:"source_hash_or_immutable_locator"`
+	Classification               string    `json:"classification"`
+	ContentHash                  string    `json:"content_hash"`
+	SecretIndicators             []string  `json:"secret_indicators,omitempty"`
+	IngestedAt                   time.Time `json:"ingested_at"`
+}
+
+type MemoryIndexed struct {
+	CommonNode
+	MemoryID                      string    `json:"memory_id"`
+	IndexID                       string    `json:"index_id"`
+	IndexRef                      string    `json:"index_ref"`
+	ContentHashOrImmutableLocator string    `json:"content_hash_or_immutable_locator"`
+	Summary                       string    `json:"summary"`
+	IndexedAt                     time.Time `json:"indexed_at"`
+}
+
+type MemoryScopeAssigned struct {
+	CommonNode
+	MemoryID   string `json:"memory_id"`
+	Scope      string `json:"scope"`
+	AssignedBy string `json:"assigned_by"`
+	Reason     string `json:"reason"`
+}
+
+type MemoryRedactionApplied struct {
+	CommonNode
+	MemoryID           string   `json:"memory_id"`
+	RedactionState     string   `json:"redaction_state"`
+	RedactedContentRef *string  `json:"redacted_content_ref,omitempty"`
+	QuarantineReason   *string  `json:"quarantine_reason,omitempty"`
+	SecretIndicators   []string `json:"secret_indicators,omitempty"`
+}
 
 type DocumentEvidenceRetrieval struct {
 	CommonNode

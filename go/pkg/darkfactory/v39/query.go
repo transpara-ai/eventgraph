@@ -389,7 +389,12 @@ func (s *InMemoryStore) EvaluateCertificationEligibility(releaseCandidateID stri
 		result.FactoryRuntimeVersionRefs = appendUniqueStrings(result.FactoryRuntimeVersionRefs, runtimeBOMPath.NodeIDs[len(runtimeBOMPath.NodeIDs)-1])
 	}
 
-	result.Completed = trace.Completed && runtimeBOMPath.Completed && len(result.Missing) == 0
+	advisoryReferencePath, _ := s.AdvisoryReferenceEvidencePath(releaseCandidateID)
+	result.AdvisoryReferencePath = advisoryReferencePath
+	result.EvidenceRefs = appendUniqueStrings(result.EvidenceRefs, pathEvidenceRefs(advisoryReferencePath)...)
+	result.Missing = appendUniqueStrings(result.Missing, advisoryReferencePath.Missing...)
+
+	result.Completed = trace.Completed && runtimeBOMPath.Completed && advisoryReferencePath.Completed && len(result.Missing) == 0
 	if result.Completed {
 		return result, nil
 	}
@@ -774,6 +779,15 @@ func (s *InMemoryStore) mustGetAuditReport(id string) (*AuditReport, bool) {
 	}
 	audit, ok := r.(*AuditReport)
 	return audit, ok
+}
+
+func (s *InMemoryStore) mustGetContradictionLog(id string) (*ContradictionLog, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	contradiction, ok := r.(*ContradictionLog)
+	return contradiction, ok
 }
 
 func (r *TraceCompletenessGateResult) addRequiredPath(path RequiredPath) {

@@ -473,6 +473,7 @@ func completeTier0Records() []Record {
 	frvID := "frv_001"
 	authReqID := "auth_req_001"
 	authDecisionID := "auth_dec_001"
+	memoryID := "memory_001"
 	knowledgeID := "know_001"
 
 	return []Record{
@@ -505,8 +506,13 @@ func completeTier0Records() []Record {
 		&Certification{CommonNode: common("cert_001", TypeCertification, "certified"), ReleaseCandidateID: rcID, CertifierActorID: "act_human", Reason: "all required evidence present", EvidenceRefs: []string{gateID}},
 		&Rejection{CommonNode: common("rej_001", TypeRejection, "rejected"), ReleaseCandidateID: "rc_rejected", RejectorActorID: "act_human", Reason: "negative fixture", EvidenceRefs: []string{failGateID}},
 		&AuditReport{CommonNode: common("aud_001", TypeAuditReport, "complete"), TargetType: "release_candidate", TargetID: rcID, TraceScore: 1},
+		&MemoryIngested{CommonNode: common("memory_001_ingested", TypeMemoryIngested, "recorded"), MemoryID: memoryID, SourceSystem: "fixture", SourceRef: "memory://fixture/context", SourceHashOrImmutableLocator: "sha256:memory", Classification: "internal", ContentHash: "sha256:memory", IngestedAt: fixedTime},
+		&MemoryIndexed{CommonNode: common("memory_001_indexed", TypeMemoryIndexed, "recorded"), MemoryID: memoryID, IndexID: "idx:memory_001", IndexRef: "memory-index://memory_001", ContentHashOrImmutableLocator: "sha256:memory", Summary: "fixture memory", IndexedAt: fixedTime},
+		&MemoryScopeAssigned{CommonNode: common("memory_001_scope", TypeMemoryScopeAssigned, "recorded"), MemoryID: memoryID, Scope: "factory-order:fo_001", AssignedBy: "act_001", Reason: "fixture scope"},
+		&MemoryRedactionApplied{CommonNode: common("memory_001_redaction", TypeMemoryRedactionApplied, "recorded"), MemoryID: memoryID, RedactionState: "none"},
 		&MemoryReference{AdvisoryReference: advisory("mem_001", TypeMemoryReference, taskID)},
 		&KnowledgeReference{AdvisoryReference: advisory(knowledgeID, TypeKnowledgeReference, taskID)},
+		&ContradictionLog{CommonNode: common("contradiction_001", TypeContradictionLog, "resolved"), ContradictionID: "contradiction_001", ClaimARef: "mem_001", ClaimBRef: knowledgeID, Severity: "medium", Resolution: strPtr("fixture resolved"), ReviewedBy: strPtr("act_human")},
 		&DocumentEvidenceRetrieval{CommonNode: common("der_001", TypeDocumentEvidenceRetrieval, "recorded"), RetrieverID: "docs", RetrieverVersion: "3.9.0", SourceDocumentID: "DF-V3.9-SPEC-002", SourceDocumentHash: "sha256:doc", QueryOrNeed: "tier 0 schema", PageRefs: []string{"02"}, SectionRefs: []string{"Per-Node Schemas"}, RetrievedTextRefs: []string{"docs://dark-factory/v3.9/02"}, ConfidenceOrQualityNotes: "canonical fixture", Limitations: "test fixture", LinkedKnowledgeReference: knowledgeID},
 		&PolicyEngineAdapterDecision{CommonNode: common("padc_001", TypePolicyEngineAdapterDecision, "recorded"), DecisionID: "padc_decision_001", AdapterID: "fixture", AdapterVersion: "0.1.0", PolicyBundleID: "policy_fixture", PolicyBundleHash: "sha256:policy", ProtectedActionType: "runtime.invoke.local", ActorID: "act_001", ResourceRefs: []string{taskID}, InputFacts: map[string]any{"risk": "medium"}, RawDecision: "allow local deterministic run", CanonicalDecision: "autonomous", ReasonCodes: []string{"fixture"}, EvidenceRefs: []string{authDecisionID}, LatencyMS: 1, AuthorityDecisionRef: &authDecisionID},
 		&CapabilityArtifact{CommonNode: common("capa_001", TypeCapabilityArtifact, "recorded"), ArtifactID: "capa_art_001", ArtifactType: "schema_instruction", Name: "v3.9 tier 0 schema", ArtifactVersion: "3.9.0", SourceRepoOrOrigin: "eventgraph", ContentHash: "sha256:capa", Owner: "eventgraph", RiskClass: "medium", ActivationScope: "schema-only", EvalRefs: []string{testRunID}, HumanReviewRef: "act_human", RollbackRef: "previous_schema", UsageLoggingRequired: true},
@@ -552,7 +558,7 @@ func advisory(id, typ, taskID string) AdvisoryReference {
 		RetrievedAt:                  fixedTime,
 		UsedByActor:                  "act_001",
 		UsedInTask:                   taskID,
-		InfluenceSummary:             "schema fixture only",
+		InfluenceSummary:             "planning: schema fixture only",
 		RiskScope:                    "test",
 		TrustLevel:                   "fixture",
 		FreshnessStatus:              "current",

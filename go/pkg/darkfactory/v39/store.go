@@ -41,6 +41,9 @@ func (s *InMemoryStore) AppendRecord(r Record) (Record, error) {
 	if err := ValidateRecord(r); err != nil {
 		return nil, err
 	}
+	if err := s.validateRecordRelations(r); err != nil {
+		return nil, err
+	}
 	common := r.GetCommon()
 	canonical, err := CanonicalJSON(r)
 	if err != nil {
@@ -256,6 +259,16 @@ func newRecordForType(typ string) (Record, error) {
 		return &MemoryReference{}, nil
 	case TypeKnowledgeReference:
 		return &KnowledgeReference{}, nil
+	case TypeContradictionLog:
+		return &ContradictionLog{}, nil
+	case TypeMemoryIngested:
+		return &MemoryIngested{}, nil
+	case TypeMemoryIndexed:
+		return &MemoryIndexed{}, nil
+	case TypeMemoryScopeAssigned:
+		return &MemoryScopeAssigned{}, nil
+	case TypeMemoryRedactionApplied:
+		return &MemoryRedactionApplied{}, nil
 	case TypeDocumentEvidenceRetrieval:
 		return &DocumentEvidenceRetrieval{}, nil
 	case TypeCapabilityArtifact:

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strings"
 )
 
 var (
@@ -556,10 +557,28 @@ func (r *DecisionRecord) Validate() error {
 }
 
 func (r *MemoryReference) Validate() error {
-	return validateAdvisoryReference(&r.AdvisoryReference, TypeMemoryReference)
+	if err := validateAdvisoryReference(&r.AdvisoryReference, TypeMemoryReference); err != nil {
+		return err
+	}
+	if !isMaterialMemoryInfluence(materialInfluenceTypeFromSummary(r.InfluenceSummary)) {
+		return fieldError(TypeMemoryReference, "influence_summary", "memory reference requires material influence in planning, repair, review, audit, or capability_evolution")
+	}
+	if isQuarantinedAdvisoryReference(r.TrustLevel, r.RedactionState) {
+		return fieldError(TypeMemoryReference, "redaction_state", "quarantined memory cannot be used")
+	}
+	return nil
 }
 func (r *KnowledgeReference) Validate() error {
-	return validateAdvisoryReference(&r.AdvisoryReference, TypeKnowledgeReference)
+	if err := validateAdvisoryReference(&r.AdvisoryReference, TypeKnowledgeReference); err != nil {
+		return err
+	}
+	if isQuarantinedAdvisoryReference(r.TrustLevel, r.RedactionState) {
+		return fieldError(TypeKnowledgeReference, "redaction_state", "quarantined knowledge cannot be used")
+	}
+	if isStaleAdvisoryReference(r.TrustLevel, r.FreshnessStatus) && isHighRiskScope(r.RiskScope) {
+		return fieldError(TypeKnowledgeReference, "freshness_status", "stale knowledge is blocked for high-risk use")
+	}
+	return nil
 }
 
 func validateAdvisoryReference(r *AdvisoryReference, typ string) error {
@@ -578,6 +597,112 @@ func validateAdvisoryReference(r *AdvisoryReference, typ string) error {
 		return fieldError(typ, "retrieved_at", "required")
 	}
 	return nil
+}
+
+func (r *ContradictionLog) Validate() error {
+	if err := r.CommonNode.validate(TypeContradictionLog); err != nil {
+		return err
+	}
+	for f, v := range map[string]string{"contradiction_id": r.ContradictionID, "claim_a_ref": r.ClaimARef, "claim_b_ref": r.ClaimBRef} {
+		if err := requireNonEmpty(TypeContradictionLog, f, v); err != nil {
+			return err
+		}
+	}
+	if err := requireStatus(r.CommonNode, "open", "resolved", "accepted_conflict"); err != nil {
+		return err
+	}
+	return requireOneOf(TypeContradictionLog, "severity", r.Severity, "low", "medium", "high", "critical")
+}
+
+func (r *MemoryIngested) Validate() error {
+	if err := r.CommonNode.validate(TypeMemoryIngested); err != nil {
+		return err
+	}
+	for f, v := range map[string]string{"memory_id": r.MemoryID, "source_system": r.SourceSystem, "source_ref": r.SourceRef, "source_hash_or_immutable_locator": r.SourceHashOrImmutableLocator, "content_hash": r.ContentHash} {
+		if err := requireNonEmpty(TypeMemoryIngested, f, v); err != nil {
+			return err
+		}
+	}
+	if err := requireStatus(r.CommonNode, "recorded"); err != nil {
+		return err
+	}
+	if err := requireOneOf(TypeMemoryIngested, "classification", r.Classification, "public", "internal", "confidential", "secret"); err != nil {
+		return err
+	}
+	if r.IngestedAt.IsZero() {
+		return fieldError(TypeMemoryIngested, "ingested_at", "required")
+	}
+	return nil
+}
+
+func (r *MemoryIndexed) Validate() error {
+	if err := r.CommonNode.validate(TypeMemoryIndexed); err != nil {
+		return err
+	}
+	for f, v := range map[string]string{"memory_id": r.MemoryID, "index_id": r.IndexID, "index_ref": r.IndexRef, "content_hash_or_immutable_locator": r.ContentHashOrImmutableLocator, "summary": r.Summary} {
+		if err := requireNonEmpty(TypeMemoryIndexed, f, v); err != nil {
+			return err
+		}
+	}
+	if err := requireStatus(r.CommonNode, "recorded"); err != nil {
+		return err
+	}
+	if r.IndexedAt.IsZero() {
+		return fieldError(TypeMemoryIndexed, "indexed_at", "required")
+	}
+	return nil
+}
+
+func (r *MemoryScopeAssigned) Validate() error {
+	if err := r.CommonNode.validate(TypeMemoryScopeAssigned); err != nil {
+		return err
+	}
+	for f, v := range map[string]string{"memory_id": r.MemoryID, "scope": r.Scope, "assigned_by": r.AssignedBy, "reason": r.Reason} {
+		if err := requireNonEmpty(TypeMemoryScopeAssigned, f, v); err != nil {
+			return err
+		}
+	}
+	return requireStatus(r.CommonNode, "recorded")
+}
+
+func (r *MemoryRedactionApplied) Validate() error {
+	if err := r.CommonNode.validate(TypeMemoryRedactionApplied); err != nil {
+		return err
+	}
+	if err := requireNonEmpty(TypeMemoryRedactionApplied, "memory_id", r.MemoryID); err != nil {
+		return err
+	}
+	if err := requireStatus(r.CommonNode, "recorded"); err != nil {
+		return err
+	}
+	if err := requireOneOf(TypeMemoryRedactionApplied, "redaction_state", r.RedactionState, "none", "redacted", "quarantined", "reference_only"); err != nil {
+		return err
+	}
+	if r.RedactionState == "redacted" && (r.RedactedContentRef == nil || *r.RedactedContentRef == "") {
+		return fieldError(TypeMemoryRedactionApplied, "redacted_content_ref", "required when redaction_state is redacted")
+	}
+	if r.RedactionState == "quarantined" && (r.QuarantineReason == nil || *r.QuarantineReason == "") {
+		return fieldError(TypeMemoryRedactionApplied, "quarantine_reason", "required when redaction_state is quarantined")
+	}
+	return nil
+}
+
+func isQuarantinedAdvisoryReference(trustLevel, redactionState string) bool {
+	return strings.EqualFold(trustLevel, "quarantined") || strings.EqualFold(redactionState, "quarantined")
+}
+
+func isStaleAdvisoryReference(trustLevel, freshnessStatus string) bool {
+	return strings.EqualFold(trustLevel, "stale") || strings.EqualFold(freshnessStatus, "stale")
+}
+
+func isHighRiskScope(riskScope string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(riskScope))
+	switch normalized {
+	case "high", "critical", "high-risk", "critical-risk", "high risk", "critical risk", "high-risk planning", "critical-risk planning", "high-risk decision", "critical-risk decision":
+		return true
+	default:
+		return false
+	}
 }
 
 func (r *DocumentEvidenceRetrieval) Validate() error {
