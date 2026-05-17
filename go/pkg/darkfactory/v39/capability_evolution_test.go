@@ -175,6 +175,26 @@ func TestPromoteCapabilityVersionRejectsSelfDecidedAuthorityDecision(t *testing.
 	}
 }
 
+func TestPromoteCapabilityVersionRejectsNonApprovalAuthorityDecisions(t *testing.T) {
+	for _, decision := range []string{"Notify", "Forbidden"} {
+		t.Run(decision, func(t *testing.T) {
+			store, version := capabilityEvolutionStore(t, capabilityEvolutionOptions{omitPromotionAuthority: true})
+			appendCapabilityPromotionAuthorityWithOptions(t, store, version.PromoterActorID, version.CommonNode.ID, capabilityPromotionAuthorityOptions{
+				suffix:   "capability_release_" + strings.ToLower(decision),
+				decision: decision,
+			})
+
+			_, err := store.PromoteCapabilityVersion(version)
+			if !errors.Is(err, ErrInvalidRecord) {
+				t.Fatalf("expected %s authority decision to block promotion, got %v", decision, err)
+			}
+			if !strings.Contains(err.Error(), "decision") {
+				t.Fatalf("expected decision in error, got %v", err)
+			}
+		})
+	}
+}
+
 func TestPromoteCapabilityVersionIgnoresIncompleteShadowAuthorityRequest(t *testing.T) {
 	store, version := capabilityEvolutionStore(t, capabilityEvolutionOptions{omitPromotionAuthority: true})
 	appendCapabilityPromotionAuthorityRequest(t, store, version.PromoterActorID, version.CommonNode.ID, "capability_release_shadow")

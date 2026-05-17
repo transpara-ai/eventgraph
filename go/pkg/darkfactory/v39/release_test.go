@@ -121,6 +121,21 @@ func TestRecordReleaseCandidateRejectsEvolutionOrderOnlyTaskArtifacts(t *testing
 	}
 }
 
+func TestRecordReleaseCandidateAllowsDualTaggedFactoryOrderTaskArtifacts(t *testing.T) {
+	store := stage6BaseStore(t)
+	evolutionOrderID := "evo_dual_tagged_boundary"
+	appendRecord(t, store, &EvolutionOrder{CommonNode: common(evolutionOrderID, TypeEvolutionOrder, "accepted"), EvolutionOrderVersion: 1, TargetCapabilityType: "tool_description", TargetRepo: "eventgraph", TargetPath: "go/pkg/darkfactory/v39", RiskClass: "medium", Motivation: "test dual-tagged release boundary", EvalSource: "golden benchmark", Constraints: []string{"text_only"}, ReviewRequirements: []string{"CapabilityReviewer approval"}})
+	task, ok := store.mustGetTask("tsk_001")
+	if !ok {
+		t.Fatal("missing stage 6 task fixture")
+	}
+	task.EvolutionOrderID = &evolutionOrderID
+
+	if _, err := store.RecordReleaseCandidate(stage6ReleaseCandidate("rc_dual_tagged_artifact")); err != nil {
+		t.Fatalf("expected dual-tagged FactoryOrder task artifact to remain release-eligible, got %v", err)
+	}
+}
+
 func TestEvaluateCertificationEligibilityDeduplicatesMissingOutput(t *testing.T) {
 	store := NewInMemoryStore()
 	frvID := "frv_dedup"
