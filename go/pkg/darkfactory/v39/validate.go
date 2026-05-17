@@ -730,6 +730,97 @@ func (r *PolicyEngineAdapterDecision) Validate() error {
 	}
 	return requireOneOf(TypePolicyEngineAdapterDecision, "canonical_decision", r.CanonicalDecision, "autonomous", "notify", "approval_required", "forbidden")
 }
+func (r *EvolutionOrder) Validate() error {
+	if err := r.CommonNode.validate(TypeEvolutionOrder); err != nil {
+		return err
+	}
+	if r.EvolutionOrderVersion < 1 {
+		return fieldError(TypeEvolutionOrder, "version", "must be >= 1")
+	}
+	for f, v := range map[string]string{"target_repo": r.TargetRepo, "target_path": r.TargetPath, "motivation": r.Motivation, "eval_source": r.EvalSource} {
+		if err := requireNonEmpty(TypeEvolutionOrder, f, v); err != nil {
+			return err
+		}
+	}
+	if err := requireOneOf(TypeEvolutionOrder, "target_capability_type", r.TargetCapabilityType, "skill", "tool_description"); err != nil {
+		return err
+	}
+	if err := requireOneOf(TypeEvolutionOrder, "risk_class", r.RiskClass, "low", "medium"); err != nil {
+		return err
+	}
+	return requireStatus(r.CommonNode, "draft", "accepted", "optimizing", "candidate_ready", "review", "promoted", "rejected", "superseded")
+}
+
+func (r *EvalDataset) Validate() error {
+	if err := r.CommonNode.validate(TypeEvalDataset); err != nil {
+		return err
+	}
+	if err := requireOneOf(TypeEvalDataset, "source_type", r.SourceType, "synthetic", "golden", "sessiondb", "benchmark", "adversarial", "mixed"); err != nil {
+		return err
+	}
+	if err := requireOneOf(TypeEvalDataset, "trust_level", r.TrustLevel, "raw", "curated", "reviewed", "benchmark"); err != nil {
+		return err
+	}
+	if r.TrainCount < 0 || r.ValidationCount < 0 || r.HoldoutCount < 0 {
+		return fieldError(TypeEvalDataset, "counts", "must be >= 0")
+	}
+	if r.TrainCount+r.ValidationCount+r.HoldoutCount == 0 {
+		return fieldError(TypeEvalDataset, "counts", "at least one example required")
+	}
+	return requireStatus(r.CommonNode, "draft", "active", "superseded")
+}
+
+func (r *OptimizationRun) Validate() error {
+	if err := r.CommonNode.validate(TypeOptimizationRun); err != nil {
+		return err
+	}
+	for f, v := range map[string]string{"evolution_order_id": r.EvolutionOrderID, "eval_dataset_id": r.EvalDatasetID} {
+		if err := requireNonEmpty(TypeOptimizationRun, f, v); err != nil {
+			return err
+		}
+	}
+	if err := requireOneOf(TypeOptimizationRun, "engine", r.Engine, "gepa", "manual"); err != nil {
+		return err
+	}
+	return requireStatus(r.CommonNode, "running", "succeeded", "failed", "cancelled")
+}
+
+func (r *CandidateVariant) Validate() error {
+	if err := r.CommonNode.validate(TypeCandidateVariant); err != nil {
+		return err
+	}
+	for f, v := range map[string]string{"optimization_run_id": r.OptimizationRunID, "capability_artifact_id": r.CapabilityArtifactID} {
+		if err := requireNonEmpty(TypeCandidateVariant, f, v); err != nil {
+			return err
+		}
+	}
+	return requireStatus(r.CommonNode, "generated", "gated", "review_required", "approved", "rejected")
+}
+
+func (r *BenchmarkResult) Validate() error {
+	if err := r.CommonNode.validate(TypeBenchmarkResult); err != nil {
+		return err
+	}
+	for f, v := range map[string]string{"candidate_variant_id": r.CandidateVariantID, "baseline_ref": r.BaselineRef} {
+		if err := requireNonEmpty(TypeBenchmarkResult, f, v); err != nil {
+			return err
+		}
+	}
+	return requireStatus(r.CommonNode, "pass", "fail", "error")
+}
+
+func (r *HumanReview) Validate() error {
+	if err := r.CommonNode.validate(TypeHumanReview); err != nil {
+		return err
+	}
+	for f, v := range map[string]string{"reviewer_actor_id": r.ReviewerActorID, "reviewer_role": r.ReviewerRole, "rationale": r.Rationale} {
+		if err := requireNonEmpty(TypeHumanReview, f, v); err != nil {
+			return err
+		}
+	}
+	return requireStatus(r.CommonNode, "approved", "rejected", "changes_requested")
+}
+
 func (r *CapabilityArtifact) Validate() error {
 	if err := r.CommonNode.validate(TypeCapabilityArtifact); err != nil {
 		return err
@@ -742,5 +833,74 @@ func (r *CapabilityArtifact) Validate() error {
 	if err := requireOneOf(TypeCapabilityArtifact, "artifact_type", r.ArtifactType, "skill", "plugin", "prompt_section", "tool_description", "workflow_pack", "schema_instruction", "evaluation_prompt", "runtime_adapter", "policy_bundle"); err != nil {
 		return err
 	}
-	return requireOneOf(TypeCapabilityArtifact, "risk_class", r.RiskClass, "low", "medium", "high", "critical")
+	if err := requireOneOf(TypeCapabilityArtifact, "risk_class", r.RiskClass, "low", "medium", "high", "critical"); err != nil {
+		return err
+	}
+	if !r.UsageLoggingRequired {
+		return fieldError(TypeCapabilityArtifact, "usage_logging_required", "must be true")
+	}
+	return nil
+}
+
+func (r *CapabilityVersion) Validate() error {
+	if err := r.CommonNode.validate(TypeCapabilityVersion); err != nil {
+		return err
+	}
+	for f, v := range map[string]string{"capability_artifact_id": r.CapabilityArtifactID, "version": r.CapabilitySemver} {
+		if err := requireNonEmpty(TypeCapabilityVersion, f, v); err != nil {
+			return err
+		}
+	}
+	return requireStatus(r.CommonNode, "approved", "staged", "canary", "superseded", "rolled_back", "rejected")
+}
+
+func (r *ActivationPolicy) Validate() error {
+	if err := r.CommonNode.validate(TypeActivationPolicy); err != nil {
+		return err
+	}
+	for f, v := range map[string]string{"activation_policy_id": r.ActivationPolicyID, "capability_version_id": r.CapabilityVersionID} {
+		if err := requireNonEmpty(TypeActivationPolicy, f, v); err != nil {
+			return err
+		}
+	}
+	if err := requireOneOf(TypeActivationPolicy, "scope", r.Scope, "disabled", "order", "project", "canary"); err != nil {
+		return err
+	}
+	switch r.Scope {
+	case "order":
+		if len(r.AllowedFactoryOrders) == 0 {
+			return fieldError(TypeActivationPolicy, "allowed_factory_orders", "required for order-scoped activation")
+		}
+	case "project":
+		if len(r.AllowedProjects) == 0 {
+			return fieldError(TypeActivationPolicy, "allowed_projects", "required for project-scoped activation")
+		}
+	case "canary":
+		if r.CanaryPercent == nil || *r.CanaryPercent <= 0 || *r.CanaryPercent >= 100 {
+			return fieldError(TypeActivationPolicy, "canary_percent", "must be > 0 and < 100")
+		}
+	case "disabled":
+		if r.CanaryPercent != nil {
+			return fieldError(TypeActivationPolicy, "canary_percent", "must be empty when disabled")
+		}
+	}
+	if r.CanaryPercent != nil && (*r.CanaryPercent <= 0 || *r.CanaryPercent >= 100) {
+		return fieldError(TypeActivationPolicy, "canary_percent", "must be > 0 and < 100")
+	}
+	if r.MonitoringWindowRuns < 0 {
+		return fieldError(TypeActivationPolicy, "monitoring_window_runs", "must be >= 0")
+	}
+	return requireStatus(r.CommonNode, "draft", "approved", "active", "rejected", "superseded")
+}
+
+func (r *RollbackRecord) Validate() error {
+	if err := r.CommonNode.validate(TypeRollbackRecord); err != nil {
+		return err
+	}
+	for f, v := range map[string]string{"capability_version_id": r.CapabilityVersionID, "rollback_to": r.RollbackTo, "trigger": r.Trigger, "actor_id": r.ActorID, "factory_runtime_version_id": r.FactoryRuntimeVersionID} {
+		if err := requireNonEmpty(TypeRollbackRecord, f, v); err != nil {
+			return err
+		}
+	}
+	return requireStatus(r.CommonNode, "planned", "completed", "failed")
 }

@@ -79,6 +79,14 @@ func (s *InMemoryStore) AppendRecord(r Record) (Record, error) {
 }
 
 func (s *InMemoryStore) AppendEdge(e CommonEdge) (CommonEdge, error) {
+	return s.appendEdge(e, false)
+}
+
+func (s *InMemoryStore) appendTrustedEdge(e CommonEdge) (CommonEdge, error) {
+	return s.appendEdge(e, true)
+}
+
+func (s *InMemoryStore) appendEdge(e CommonEdge, trusted bool) (CommonEdge, error) {
 	if e.ID == "" || e.Type == "" || e.FromID == "" || e.ToID == "" || e.CreatedAt.IsZero() || e.CreatedBy == "" || e.CorrelationID == "" || e.IdempotencyKey == "" {
 		return CommonEdge{}, fmt.Errorf("%w: edge missing required field", ErrInvalidRecord)
 	}
@@ -110,11 +118,127 @@ func (s *InMemoryStore) AppendEdge(e CommonEdge) (CommonEdge, error) {
 	if _, ok := s.records[e.ToID]; !ok {
 		return CommonEdge{}, fmt.Errorf("%w: to_id %s", ErrNotFound, e.ToID)
 	}
+	if err := s.validateCapabilityGovernanceEdgeLocked(e, trusted); err != nil {
+		return CommonEdge{}, err
+	}
 	s.edges[e.ID] = e
 	s.outEdges[e.FromID] = append(s.outEdges[e.FromID], e.ID)
 	s.inEdges[e.ToID] = append(s.inEdges[e.ToID], e.ID)
 	s.byIdem[e.IdempotencyKey] = e.ID
 	return e, nil
+}
+
+func (s *InMemoryStore) validateCapabilityGovernanceEdgeLocked(e CommonEdge, trusted bool) error {
+	from := s.records[e.FromID]
+	to := s.records[e.ToID]
+	if !trusted {
+		if isCapabilityGovernanceEdge(e.Type) {
+			return fieldError("CommonEdge", "type", e.Type+" must be recorded through capability-evolution helpers")
+		}
+		if e.Type == EdgePackagedAs {
+			if _, ok := from.(*CapabilityVersion); ok {
+				return fieldError("CommonEdge", "type", EdgePackagedAs+" from CapabilityVersion must be recorded through capability-evolution helpers")
+			}
+		}
+		return nil
+	}
+
+	switch e.Type {
+	case EdgeUsedCapability:
+		if _, ok := from.(*Task); !ok {
+			return fieldError("CommonEdge", "from_id", EdgeUsedCapability+" source must be a Task")
+		}
+		artifact, ok := to.(*CapabilityArtifact)
+		if !ok {
+			return fieldError("CommonEdge", "to_id", EdgeUsedCapability+" target must be a CapabilityArtifact")
+		}
+		if !artifact.UsageLoggingRequired {
+			return fieldError(TypeCapabilityArtifact, "usage_logging_required", "must be true before capability use")
+		}
+	case EdgePromotedTo:
+		version, ok := from.(*CapabilityVersion)
+		if !ok {
+			return fieldError("CommonEdge", "from_id", EdgePromotedTo+" source must be a CapabilityVersion")
+		}
+		artifact, ok := to.(*CapabilityArtifact)
+		if !ok {
+			return fieldError("CommonEdge", "to_id", EdgePromotedTo+" target must be a CapabilityArtifact")
+		}
+		if version.CapabilityArtifactID != artifact.CommonNode.ID && version.CapabilityArtifactID != artifact.ArtifactID {
+			return fieldError(TypeCapabilityVersion, "capability_artifact_id", "must match PROMOTED_TO target")
+		}
+	case EdgeOptimizedBy:
+		version, ok := from.(*CapabilityVersion)
+		if !ok {
+			return fieldError("CommonEdge", "from_id", EdgeOptimizedBy+" source must be a CapabilityVersion")
+		}
+		if order, ok := to.(*EvolutionOrder); !ok || version.EvolutionOrderID != order.CommonNode.ID {
+			return fieldError("CommonEdge", "to_id", EdgeOptimizedBy+" target must match CapabilityVersion.evolution_order_id")
+		}
+	case EdgeEvaluatedBy:
+		version, ok := from.(*CapabilityVersion)
+		if !ok {
+			return fieldError("CommonEdge", "from_id", EdgeEvaluatedBy+" source must be a CapabilityVersion")
+		}
+		switch target := to.(type) {
+		case *EvalDataset:
+			if version.EvalDatasetID != target.CommonNode.ID {
+				return fieldError("CommonEdge", "to_id", EdgeEvaluatedBy+" EvalDataset target must match CapabilityVersion.eval_dataset_id")
+			}
+		case *BenchmarkResult:
+			if version.BenchmarkResultID != target.CommonNode.ID {
+				return fieldError("CommonEdge", "to_id", EdgeEvaluatedBy+" BenchmarkResult target must match CapabilityVersion.benchmark_result_id")
+			}
+		default:
+			return fieldError("CommonEdge", "to_id", EdgeEvaluatedBy+" target must be an EvalDataset or BenchmarkResult")
+		}
+	case EdgeReviewedBy:
+		version, ok := from.(*CapabilityVersion)
+		if !ok {
+			return fieldError("CommonEdge", "from_id", EdgeReviewedBy+" source must be a CapabilityVersion")
+		}
+		if review, ok := to.(*HumanReview); !ok || version.HumanReviewID != review.CommonNode.ID {
+			return fieldError("CommonEdge", "to_id", EdgeReviewedBy+" target must match CapabilityVersion.human_review_id")
+		}
+	case EdgeRolledBackTo:
+		version, ok := from.(*CapabilityVersion)
+		if !ok {
+			return fieldError("CommonEdge", "from_id", EdgeRolledBackTo+" source must be a CapabilityVersion")
+		}
+		if _, ok := to.(*CapabilityVersion); !ok || version.RollbackTo == nil || *version.RollbackTo != e.ToID {
+			return fieldError("CommonEdge", "to_id", EdgeRolledBackTo+" target must match CapabilityVersion.rollback_to")
+		}
+	case EdgeActivatedBy:
+		version, ok := from.(*CapabilityVersion)
+		if !ok {
+			return fieldError("CommonEdge", "from_id", EdgeActivatedBy+" source must be a CapabilityVersion")
+		}
+		policy, ok := to.(*ActivationPolicy)
+		if !ok || policy.CapabilityVersionID != version.CommonNode.ID {
+			return fieldError("CommonEdge", "to_id", EdgeActivatedBy+" target must be an ActivationPolicy for the version")
+		}
+	case EdgePackagedAs:
+		version, ok := from.(*CapabilityVersion)
+		if !ok {
+			return nil
+		}
+		runtimeVersion, ok := to.(*FactoryRuntimeVersion)
+		if !ok || !containsString(runtimeVersion.CapabilityVersionRefs, version.CommonNode.ID) {
+			return fieldError("CommonEdge", "to_id", EdgePackagedAs+" target must be a FactoryRuntimeVersion containing the capability version")
+		}
+	case EdgeCandidateFor, EdgeSupersedes:
+		return fieldError("CommonEdge", "type", e.Type+" is reserved for capability-evolution helpers")
+	}
+	return nil
+}
+
+func isCapabilityGovernanceEdge(edgeType string) bool {
+	switch edgeType {
+	case EdgeUsedCapability, EdgeOptimizedBy, EdgeEvaluatedBy, EdgeCandidateFor, EdgeReviewedBy, EdgePromotedTo, EdgeActivatedBy, EdgeRolledBackTo, EdgeSupersedes:
+		return true
+	default:
+		return false
+	}
 }
 
 func (s *InMemoryStore) Get(id string) (Record, error) {
@@ -271,8 +395,26 @@ func newRecordForType(typ string) (Record, error) {
 		return &MemoryRedactionApplied{}, nil
 	case TypeDocumentEvidenceRetrieval:
 		return &DocumentEvidenceRetrieval{}, nil
+	case TypeEvolutionOrder:
+		return &EvolutionOrder{}, nil
+	case TypeEvalDataset:
+		return &EvalDataset{}, nil
+	case TypeOptimizationRun:
+		return &OptimizationRun{}, nil
+	case TypeCandidateVariant:
+		return &CandidateVariant{}, nil
+	case TypeBenchmarkResult:
+		return &BenchmarkResult{}, nil
+	case TypeHumanReview:
+		return &HumanReview{}, nil
 	case TypeCapabilityArtifact:
 		return &CapabilityArtifact{}, nil
+	case TypeCapabilityVersion:
+		return &CapabilityVersion{}, nil
+	case TypeActivationPolicy:
+		return &ActivationPolicy{}, nil
+	case TypeRollbackRecord:
+		return &RollbackRecord{}, nil
 	case TypePolicyEngineAdapterDecision:
 		return &PolicyEngineAdapterDecision{}, nil
 	default:
