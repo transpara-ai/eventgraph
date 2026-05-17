@@ -493,6 +493,8 @@ func (s *InMemoryStore) releaseCandidateArtifactEvidencePath(candidate *ReleaseC
 			path.Missing = append(path.Missing, "Task "+*artifact.TaskID+" for packaged Artifact "+artifactID)
 			continue
 		}
+		// Pure EvolutionOrder-only tasks cannot satisfy release packaging; dual-tagged
+		// tasks still must appear in the FactoryOrder trace checked below.
 		if task.FactoryOrderID == nil && task.EvolutionOrderID != nil {
 			path.Missing = append(path.Missing, "EvolutionOrder-only Task "+task.CommonNode.ID+" cannot contribute packaged Artifact "+artifactID+" to ReleaseCandidate "+candidate.CommonNode.ID)
 			continue

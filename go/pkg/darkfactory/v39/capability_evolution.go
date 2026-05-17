@@ -323,7 +323,7 @@ func (s *InMemoryStore) resolveCapabilityPromotionEvidence(version *CapabilityVe
 		return evidence, fieldError(TypeBenchmarkResult, "status", "benchmark regression blocks capability promotion")
 	}
 	if stale, ok := s.laterBlockingBenchmarkForCandidate(benchmark); ok {
-		return evidence, fieldError(TypeBenchmarkResult, "created_at", "stale benchmark result "+benchmark.CommonNode.ID+" is superseded by later "+*stale.CommonNode.Status+" result "+stale.CommonNode.ID)
+		return evidence, fieldError(TypeBenchmarkResult, "created_at", "stale benchmark result "+benchmark.CommonNode.ID+" is superseded by same-time or later "+*stale.CommonNode.Status+" result "+stale.CommonNode.ID)
 	}
 	evidence.benchmark = benchmark
 
@@ -353,6 +353,12 @@ func (s *InMemoryStore) resolveCapabilityPromotionAuthority(version *CapabilityV
 		return capabilityPromotionAuthority{}, fieldError(TypeActorIdentity, "status", "active promoter identity required")
 	}
 
+	var firstErr error
+	remember := func(err error) {
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
 	for _, record := range s.ByType(TypeAuthorityRequest) {
 		request := record.(*AuthorityRequest)
 		if !capabilityPromotionRequestMatches(request, version) {
@@ -360,28 +366,41 @@ func (s *InMemoryStore) resolveCapabilityPromotionAuthority(version *CapabilityV
 		}
 		authorityPath, err := s.ActorAuthorityRequestDecisionReceipt(request.CommonNode.ID)
 		if err != nil {
-			return capabilityPromotionAuthority{}, err
+			remember(err)
+			continue
 		}
 		if !authorityPath.Completed {
-			return capabilityPromotionAuthority{}, fmt.Errorf("%w: capability promotion authority path for %s", ErrRequiredPathMissing, request.CommonNode.ID)
+			remember(fmt.Errorf("%w: capability promotion authority path for %s", ErrRequiredPathMissing, request.CommonNode.ID))
+			continue
+		}
+		if len(authorityPath.NodeIDs) < 4 {
+			remember(fmt.Errorf("%w: capability promotion authority path for %s", ErrRequiredPathMissing, request.CommonNode.ID))
+			continue
 		}
 		decisionID := authorityPath.NodeIDs[len(authorityPath.NodeIDs)-2]
 		receiptID := authorityPath.NodeIDs[len(authorityPath.NodeIDs)-1]
 		decision, ok := s.mustGetAuthorityDecision(decisionID)
 		if !ok {
-			return capabilityPromotionAuthority{}, fmt.Errorf("%w: AuthorityDecision %s", ErrNotFound, decisionID)
+			remember(fmt.Errorf("%w: AuthorityDecision %s", ErrNotFound, decisionID))
+			continue
 		}
 		receipt, ok := s.mustGetExecutionReceipt(receiptID)
 		if !ok {
-			return capabilityPromotionAuthority{}, fmt.Errorf("%w: ExecutionReceipt %s", ErrNotFound, receiptID)
+			remember(fmt.Errorf("%w: ExecutionReceipt %s", ErrNotFound, receiptID))
+			continue
 		}
 		if !capabilityPromotionDecisionAuthorizes(decision, version) {
-			return capabilityPromotionAuthority{}, fieldError(TypeAuthorityDecision, "decision", "must approve capability.promote for CapabilityRelease")
+			remember(fieldError(TypeAuthorityDecision, "decision", "must approve capability.promote for CapabilityRelease"))
+			continue
 		}
 		if !capabilityPromotionReceiptMatches(receipt, version) {
-			return capabilityPromotionAuthority{}, fieldError(TypeExecutionReceipt, "result", "succeeded capability.promote receipt required")
+			remember(fieldError(TypeExecutionReceipt, "result", "succeeded capability.promote receipt required"))
+			continue
 		}
 		return capabilityPromotionAuthority{identity: identity, request: request, decision: decision, receipt: receipt}, nil
+	}
+	if firstErr != nil {
+		return capabilityPromotionAuthority{}, firstErr
 	}
 	return capabilityPromotionAuthority{}, fmt.Errorf("%w: AuthorityRequest for %s %s on CapabilityVersion %s", ErrRequiredPathMissing, CapabilityReleaseRole, CapabilityPromotionAction, version.CommonNode.ID)
 }
@@ -398,7 +417,10 @@ func capabilityPromotionDecisionAuthorizes(decision *AuthorityDecision, version 
 	if decision == nil || decision.CommonNode.Status == nil || *decision.CommonNode.Status != "approved" {
 		return false
 	}
-	if decision.Decision != "Autonomous" && decision.Decision != "ApprovalRequired" {
+	if decision.Decision != "ApprovalRequired" {
+		return false
+	}
+	if decision.DeciderActorID == version.PromoterActorID {
 		return false
 	}
 	return containsString(decision.Scope, CapabilityPromotionAction) || containsString(decision.Scope, version.CommonNode.ID)
@@ -412,15 +434,16 @@ func capabilityPromotionReceiptMatches(receipt *ExecutionReceipt, version *Capab
 }
 
 // Benchmark freshness policy: CapabilityVersion.BenchmarkResultID is the
-// reviewed benchmark, but it stops being authoritative if a later fail/error
-// BenchmarkResult exists for the same CandidateVariant before promotion.
+// reviewed benchmark, but it stops being authoritative if a same-time or later
+// fail/error BenchmarkResult exists for the same CandidateVariant before
+// promotion.
 func (s *InMemoryStore) laterBlockingBenchmarkForCandidate(benchmark *BenchmarkResult) (*BenchmarkResult, bool) {
 	for _, record := range s.ByType(TypeBenchmarkResult) {
 		candidate := record.(*BenchmarkResult)
 		if candidate.CommonNode.ID == benchmark.CommonNode.ID || candidate.CandidateVariantID != benchmark.CandidateVariantID {
 			continue
 		}
-		if !candidate.CommonNode.CreatedAt.After(benchmark.CommonNode.CreatedAt) || candidate.CommonNode.Status == nil {
+		if candidate.CommonNode.CreatedAt.Before(benchmark.CommonNode.CreatedAt) || candidate.CommonNode.Status == nil {
 			continue
 		}
 		if *candidate.CommonNode.Status == "fail" || *candidate.CommonNode.Status == "error" {
