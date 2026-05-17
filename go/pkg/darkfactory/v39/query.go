@@ -874,24 +874,6 @@ func (s *InMemoryStore) mustGetCapabilityVersion(id string) (*CapabilityVersion,
 	return version, ok
 }
 
-func (s *InMemoryStore) mustGetActivationPolicy(id string) (*ActivationPolicy, bool) {
-	r, err := s.Get(id)
-	if err != nil {
-		return nil, false
-	}
-	policy, ok := r.(*ActivationPolicy)
-	return policy, ok
-}
-
-func (s *InMemoryStore) mustGetRollbackRecord(id string) (*RollbackRecord, bool) {
-	r, err := s.Get(id)
-	if err != nil {
-		return nil, false
-	}
-	rollback, ok := r.(*RollbackRecord)
-	return rollback, ok
-}
-
 func (r *TraceCompletenessGateResult) addRequiredPath(path RequiredPath) {
 	r.RequiredPaths = append(r.RequiredPaths, path)
 	r.Missing = append(r.Missing, path.Missing...)
