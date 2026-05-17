@@ -30,6 +30,9 @@ func TestPromoteCapabilityVersionRecordsRequiredEvidenceEdges(t *testing.T) {
 			t.Fatalf("promotion missing %s -> %s edge: %+v", want.typ, want.to, edges)
 		}
 	}
+	if promotedEdge, ok := edgeTo(edges, EdgePromotedTo, "cap_art_e2"); !ok || !containsString(promotedEdge.EvidenceRefs, "auth_dec_capability_release") || !containsString(promotedEdge.EvidenceRefs, "exec_capability_release") {
+		t.Fatalf("promotion edge missing authority evidence refs: %+v", promotedEdge)
+	}
 }
 
 func TestPromoteCapabilityVersionRequiresHumanReview(t *testing.T) {
@@ -56,6 +59,21 @@ func TestPromoteCapabilityVersionBlocksBenchmarkRegression(t *testing.T) {
 	}
 }
 
+func TestPromoteCapabilityVersionRejectsStalePassingBenchmarkAfterLaterFailure(t *testing.T) {
+	store, version := capabilityEvolutionStore(t, capabilityEvolutionOptions{})
+	laterBenchmarkCommon := common("bench_e2_later_fail", TypeBenchmarkResult, "fail")
+	laterBenchmarkCommon.CreatedAt = fixedTime.AddDate(0, 0, 1)
+	appendRecord(t, store, &BenchmarkResult{CommonNode: laterBenchmarkCommon, CandidateVariantID: "cand_e2", BaselineRef: "cap_version_base", MetricDeltas: map[string]float64{"regression_count": 1}})
+
+	_, err := store.PromoteCapabilityVersion(version)
+	if !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("expected stale passing benchmark to block promotion, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "stale benchmark") {
+		t.Fatalf("expected stale benchmark in error, got %v", err)
+	}
+}
+
 func TestPromoteCapabilityVersionUsesExplicitCandidateAndBenchmarkRefs(t *testing.T) {
 	store, _ := capabilityEvolutionStore(t, capabilityEvolutionOptions{})
 	appendRecord(t, store, &CandidateVariant{CommonNode: common("cand_bad", TypeCandidateVariant, "approved"), OptimizationRunID: "opt_e2", CapabilityArtifactID: "cap_art_e2"})
@@ -66,6 +84,7 @@ func TestPromoteCapabilityVersionUsesExplicitCandidateAndBenchmarkRefs(t *testin
 
 	versionCommon := common("cap_version_bad", TypeCapabilityVersion, "approved")
 	version := &CapabilityVersion{CommonNode: versionCommon, CapabilityArtifactID: "cap_art_e2", EvolutionOrderID: "evo_e2", OptimizationRunID: "opt_e2", CandidateVariantID: "cand_bad", EvalDatasetID: "eval_e2", BenchmarkResultID: "bench_bad", HumanReviewID: "review_bad", PromoterActorID: "act_capability_release", PromoterRole: "CapabilityRelease", CapabilitySemver: "1.2.0", RollbackTo: strPtr("cap_version_base")}
+	appendCapabilityPromotionAuthority(t, store, version.PromoterActorID, version.CommonNode.ID)
 
 	_, err := store.PromoteCapabilityVersion(version)
 	if !errors.Is(err, ErrInvalidRecord) {
@@ -97,6 +116,33 @@ func TestPromoteCapabilityVersionBlocksOptimizerActor(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "optimizer actor") {
 		t.Fatalf("expected optimizer actor in error, got %v", err)
+	}
+}
+
+func TestPromoteCapabilityVersionRequiresAuthorityDecision(t *testing.T) {
+	store, version := capabilityEvolutionStore(t, capabilityEvolutionOptions{omitPromotionAuthority: true})
+	appendRecord(t, store, &ActorIdentity{CommonNode: common("actor_identity_capability_release", TypeActorIdentity, "active"), ActorID: version.PromoterActorID, ActorType: "human", IdentityMode: "fixture"})
+
+	_, err := store.PromoteCapabilityVersion(version)
+	if !errors.Is(err, ErrRequiredPathMissing) {
+		t.Fatalf("expected authority evidence to block promotion, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "AuthorityRequest") {
+		t.Fatalf("expected AuthorityRequest in error, got %v", err)
+	}
+}
+
+func TestPromoteCapabilityVersionBlocksSiblingActorWithoutAuthority(t *testing.T) {
+	store, version := capabilityEvolutionStore(t, capabilityEvolutionOptions{})
+	version.CommonNode.CreatedBy = "act_optimizer_alt"
+	version.PromoterActorID = "act_optimizer_alt"
+
+	_, err := store.PromoteCapabilityVersion(version)
+	if !errors.Is(err, ErrRequiredPathMissing) {
+		t.Fatalf("expected sibling actor without authority to block promotion, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "ActorIdentity") {
+		t.Fatalf("expected ActorIdentity in error, got %v", err)
 	}
 }
 
@@ -281,11 +327,27 @@ func TestCertificationCapabilityInfluenceRecognizesBareAndCaseInsensitiveSourceR
 	}
 }
 
+func TestCapabilityArtifactUsageLoggingFindingsInventoryLegacyRecords(t *testing.T) {
+	store := NewInMemoryStore()
+	legacy := &CapabilityArtifact{CommonNode: common("cap_art_legacy", TypeCapabilityArtifact, "recorded"), ArtifactID: "capability_artifact_legacy", ArtifactType: "tool_description", Name: "legacy tool description", ArtifactVersion: "1.0.0", SourceRepoOrOrigin: "eventgraph", ContentHash: "sha256:legacy", Owner: "eventgraph", RiskClass: "medium", ActivationScope: "project", EvalRefs: []string{"bench_legacy"}, HumanReviewRef: "review_legacy", RollbackRef: "cap_version_base"}
+	store.records[legacy.CommonNode.ID] = legacy
+	store.byType[TypeCapabilityArtifact] = []string{legacy.CommonNode.ID}
+
+	findings := store.CapabilityArtifactUsageLoggingFindings()
+	if len(findings) != 1 {
+		t.Fatalf("expected one usage logging finding, got %+v", findings)
+	}
+	if findings[0].CapabilityArtifactRecordID != "cap_art_legacy" || !strings.Contains(findings[0].Reason, "usage_logging_required") {
+		t.Fatalf("unexpected usage logging finding: %+v", findings[0])
+	}
+}
+
 type capabilityEvolutionOptions struct {
-	omitReview          bool
-	benchmarkStatus     string
-	omitRollback        bool
-	promoterIsOptimizer bool
+	omitReview             bool
+	benchmarkStatus        string
+	omitRollback           bool
+	promoterIsOptimizer    bool
+	omitPromotionAuthority bool
 }
 
 func capabilityEvolutionStore(t *testing.T, opts capabilityEvolutionOptions) (*InMemoryStore, *CapabilityVersion) {
@@ -322,7 +384,35 @@ func capabilityEvolutionStore(t *testing.T, opts capabilityEvolutionOptions) (*I
 	if !opts.omitRollback {
 		version.RollbackTo = strPtr("cap_version_base")
 	}
+	if !opts.omitPromotionAuthority {
+		appendCapabilityPromotionAuthority(t, store, version.PromoterActorID, version.CommonNode.ID)
+	}
 	return store, version
+}
+
+func appendCapabilityPromotionAuthority(t *testing.T, store *InMemoryStore, actorID, targetID string) {
+	t.Helper()
+	actorSuffix := strings.TrimPrefix(actorID, "act_")
+	suffix := actorSuffix
+	if targetID != "cap_version_e2" {
+		suffix += "_" + strings.TrimPrefix(targetID, "cap_version_")
+	}
+	identityID := "actor_identity_" + actorSuffix
+	requestID := "auth_req_" + suffix
+	decisionID := "auth_dec_" + suffix
+	receiptID := "exec_" + suffix
+
+	if identity, ok := store.actorIdentityForActor(actorID); ok {
+		identityID = identity.CommonNode.ID
+	} else {
+		appendRecord(t, store, &ActorIdentity{CommonNode: common(identityID, TypeActorIdentity, "active"), ActorID: actorID, ActorType: "human", IdentityMode: "fixture"})
+	}
+	appendRecord(t, store, &AuthorityRequest{CommonNode: common(requestID, TypeAuthorityRequest, "open"), ActorID: actorID, ActorRole: CapabilityReleaseRole, Action: CapabilityPromotionAction, TargetType: TypeCapabilityVersion, TargetID: targetID, RiskClass: "medium", Reason: "authorize capability promotion"})
+	appendEdge(t, store, edge("edge_"+identityID+"_requested_"+requestID, EdgeRequestedAuthority, identityID, requestID))
+	appendRecord(t, store, &AuthorityDecision{CommonNode: common(decisionID, TypeAuthorityDecision, "approved"), AuthorityRequestID: requestID, DeciderActorID: "act_human", DeciderRole: "maintainer", Decision: "ApprovalRequired", Reason: "release actor is approved for capability promotion", Scope: []string{CapabilityPromotionAction}})
+	appendEdge(t, store, edge("edge_"+requestID+"_decided_"+decisionID, EdgeDecidedBy, requestID, decisionID))
+	appendRecord(t, store, &ExecutionReceipt{CommonNode: common(receiptID, TypeExecutionReceipt, "recorded"), AuthorityDecisionID: decisionID, Action: CapabilityPromotionAction, TargetID: targetID, Result: "succeeded", EvidenceRefs: []string{decisionID}})
+	appendEdge(t, store, edge("edge_"+decisionID+"_receipted_"+receiptID, EdgeReceiptedBy, decisionID, receiptID))
 }
 
 func activationPolicy(id, capabilityVersionID, scope string) *ActivationPolicy {
@@ -340,4 +430,13 @@ func hasEdge(edges []CommonEdge, edgeType, toID string) bool {
 		}
 	}
 	return false
+}
+
+func edgeTo(edges []CommonEdge, edgeType, toID string) (CommonEdge, bool) {
+	for _, edge := range edges {
+		if edge.Type == edgeType && edge.ToID == toID {
+			return edge, true
+		}
+	}
+	return CommonEdge{}, false
 }

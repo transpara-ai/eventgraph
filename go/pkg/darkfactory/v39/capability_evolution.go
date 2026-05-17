@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+const (
+	CapabilityPromotionAction = "capability.promote"
+	CapabilityReleaseRole     = "CapabilityRelease"
+)
+
 type capabilityPromotionEvidence struct {
 	artifact  *CapabilityArtifact
 	candidate *CandidateVariant
@@ -14,6 +19,22 @@ type capabilityPromotionEvidence struct {
 	benchmark *BenchmarkResult
 	review    *HumanReview
 	rollback  *CapabilityVersion
+	authority capabilityPromotionAuthority
+}
+
+type capabilityPromotionAuthority struct {
+	identity *ActorIdentity
+	request  *AuthorityRequest
+	decision *AuthorityDecision
+	receipt  *ExecutionReceipt
+}
+
+type CapabilityArtifactUsageLoggingFinding struct {
+	CapabilityArtifactRecordID string `json:"capability_artifact_record_id"`
+	ArtifactID                 string `json:"artifact_id"`
+	ArtifactType               string `json:"artifact_type"`
+	Name                       string `json:"name"`
+	Reason                     string `json:"reason"`
 }
 
 type capabilitySourceRef struct {
@@ -45,24 +66,24 @@ func (s *InMemoryStore) CapabilityUsageEvidencePath(releaseCandidateID string) (
 	}
 	orderPath, _ := s.FactoryOrderRequirementAcceptanceTask(rc.FactoryOrderID)
 	path.EdgeIDs = append(path.EdgeIDs, orderPath.EdgeIDs...)
-	path.Missing = append(path.Missing, orderPath.Missing...)
+	path.Missing = appendUniqueStrings(path.Missing, orderPath.Missing...)
 
 	for _, taskID := range taskIDsFromPath(s, orderPath) {
 		task, ok := s.mustGetTask(taskID)
 		if !ok {
-			path.Missing = append(path.Missing, "Task "+taskID)
+			path.Missing = appendUniqueStrings(path.Missing, "Task "+taskID)
 			continue
 		}
 		for _, sourceRef := range s.capabilitySourceRefs(task.SourceRefs) {
 			artifact, ok := s.findCapabilityArtifactForSourceRef(sourceRef)
 			if !ok {
-				path.Missing = append(path.Missing, "CapabilityArtifact for "+sourceRef.raw+" used in Task "+taskID)
+				path.Missing = appendUniqueStrings(path.Missing, "CapabilityArtifact for "+sourceRef.raw+" used in Task "+taskID)
 				continue
 			}
 			path.NodeIDs = appendUniqueStrings(path.NodeIDs, taskID, artifact.CommonNode.ID)
 			edgeIDs := edgeIDsBetween(s, taskID, artifact.CommonNode.ID, EdgeUsedCapability)
 			if len(edgeIDs) == 0 {
-				path.Missing = append(path.Missing, "USED_CAPABILITY from Task "+taskID+" to CapabilityArtifact "+artifact.CommonNode.ID)
+				path.Missing = appendUniqueStrings(path.Missing, "USED_CAPABILITY from Task "+taskID+" to CapabilityArtifact "+artifact.CommonNode.ID)
 				continue
 			}
 			path.EdgeIDs = appendUniqueStrings(path.EdgeIDs, edgeIDs...)
@@ -101,7 +122,11 @@ func (s *InMemoryStore) PromoteCapabilityVersion(version *CapabilityVersion) (*C
 		{EdgeRolledBackTo, evidence.rollback.CommonNode.ID},
 	}
 	for _, edgeSpec := range edges {
-		if _, err := s.appendTrustedEdge(derivedEdge(edgeSpec.typ, capabilityVersion.CommonNode.ID, edgeSpec.to, capabilityVersion.CommonNode)); err != nil {
+		edge := derivedEdge(edgeSpec.typ, capabilityVersion.CommonNode.ID, edgeSpec.to, capabilityVersion.CommonNode)
+		if edgeSpec.typ == EdgePromotedTo {
+			edge.EvidenceRefs = appendUniqueStrings(edge.EvidenceRefs, evidence.authority.identity.CommonNode.ID, evidence.authority.request.CommonNode.ID, evidence.authority.decision.CommonNode.ID, evidence.authority.receipt.CommonNode.ID)
+		}
+		if _, err := s.appendTrustedEdge(edge); err != nil {
 			return nil, err
 		}
 	}
@@ -210,9 +235,14 @@ func (s *InMemoryStore) resolveCapabilityPromotionEvidence(version *CapabilityVe
 			return evidence, err
 		}
 	}
-	if version.PromoterRole != "CapabilityRelease" {
+	if version.PromoterRole != CapabilityReleaseRole {
 		return evidence, fieldError(TypeCapabilityVersion, "promoter_role", "must be CapabilityRelease")
 	}
+	authority, err := s.resolveCapabilityPromotionAuthority(version)
+	if err != nil {
+		return evidence, err
+	}
+	evidence.authority = authority
 	if !s.capabilityVersionHasRollbackTarget(version) {
 		return evidence, fieldError(TypeCapabilityVersion, "rollback_to", "required before promotion")
 	}
@@ -292,6 +322,9 @@ func (s *InMemoryStore) resolveCapabilityPromotionEvidence(version *CapabilityVe
 	if benchmark.CommonNode.Status == nil || *benchmark.CommonNode.Status != "pass" {
 		return evidence, fieldError(TypeBenchmarkResult, "status", "benchmark regression blocks capability promotion")
 	}
+	if stale, ok := s.laterBlockingBenchmarkForCandidate(benchmark); ok {
+		return evidence, fieldError(TypeBenchmarkResult, "created_at", "stale benchmark result "+benchmark.CommonNode.ID+" is superseded by later "+*stale.CommonNode.Status+" result "+stale.CommonNode.ID)
+	}
 	evidence.benchmark = benchmark
 
 	review, ok := s.mustGetHumanReview(version.HumanReviewID)
@@ -309,6 +342,92 @@ func (s *InMemoryStore) resolveCapabilityPromotionEvidence(version *CapabilityVe
 	}
 	evidence.review = review
 	return evidence, nil
+}
+
+func (s *InMemoryStore) resolveCapabilityPromotionAuthority(version *CapabilityVersion) (capabilityPromotionAuthority, error) {
+	identity, ok := s.actorIdentityForActor(version.PromoterActorID)
+	if !ok {
+		return capabilityPromotionAuthority{}, fmt.Errorf("%w: ActorIdentity for promoter actor %s", ErrRequiredPathMissing, version.PromoterActorID)
+	}
+	if identity.CommonNode.Status == nil || *identity.CommonNode.Status != "active" {
+		return capabilityPromotionAuthority{}, fieldError(TypeActorIdentity, "status", "active promoter identity required")
+	}
+
+	for _, record := range s.ByType(TypeAuthorityRequest) {
+		request := record.(*AuthorityRequest)
+		if !capabilityPromotionRequestMatches(request, version) {
+			continue
+		}
+		authorityPath, err := s.ActorAuthorityRequestDecisionReceipt(request.CommonNode.ID)
+		if err != nil {
+			return capabilityPromotionAuthority{}, err
+		}
+		if !authorityPath.Completed {
+			return capabilityPromotionAuthority{}, fmt.Errorf("%w: capability promotion authority path for %s", ErrRequiredPathMissing, request.CommonNode.ID)
+		}
+		decisionID := authorityPath.NodeIDs[len(authorityPath.NodeIDs)-2]
+		receiptID := authorityPath.NodeIDs[len(authorityPath.NodeIDs)-1]
+		decision, ok := s.mustGetAuthorityDecision(decisionID)
+		if !ok {
+			return capabilityPromotionAuthority{}, fmt.Errorf("%w: AuthorityDecision %s", ErrNotFound, decisionID)
+		}
+		receipt, ok := s.mustGetExecutionReceipt(receiptID)
+		if !ok {
+			return capabilityPromotionAuthority{}, fmt.Errorf("%w: ExecutionReceipt %s", ErrNotFound, receiptID)
+		}
+		if !capabilityPromotionDecisionAuthorizes(decision, version) {
+			return capabilityPromotionAuthority{}, fieldError(TypeAuthorityDecision, "decision", "must approve capability.promote for CapabilityRelease")
+		}
+		if !capabilityPromotionReceiptMatches(receipt, version) {
+			return capabilityPromotionAuthority{}, fieldError(TypeExecutionReceipt, "result", "succeeded capability.promote receipt required")
+		}
+		return capabilityPromotionAuthority{identity: identity, request: request, decision: decision, receipt: receipt}, nil
+	}
+	return capabilityPromotionAuthority{}, fmt.Errorf("%w: AuthorityRequest for %s %s on CapabilityVersion %s", ErrRequiredPathMissing, CapabilityReleaseRole, CapabilityPromotionAction, version.CommonNode.ID)
+}
+
+func capabilityPromotionRequestMatches(request *AuthorityRequest, version *CapabilityVersion) bool {
+	return request.ActorID == version.PromoterActorID &&
+		request.ActorRole == CapabilityReleaseRole &&
+		request.Action == CapabilityPromotionAction &&
+		request.TargetType == TypeCapabilityVersion &&
+		request.TargetID == version.CommonNode.ID
+}
+
+func capabilityPromotionDecisionAuthorizes(decision *AuthorityDecision, version *CapabilityVersion) bool {
+	if decision == nil || decision.CommonNode.Status == nil || *decision.CommonNode.Status != "approved" {
+		return false
+	}
+	if decision.Decision != "Autonomous" && decision.Decision != "ApprovalRequired" {
+		return false
+	}
+	return containsString(decision.Scope, CapabilityPromotionAction) || containsString(decision.Scope, version.CommonNode.ID)
+}
+
+func capabilityPromotionReceiptMatches(receipt *ExecutionReceipt, version *CapabilityVersion) bool {
+	return receipt != nil &&
+		receipt.Action == CapabilityPromotionAction &&
+		receipt.TargetID == version.CommonNode.ID &&
+		receipt.Result == "succeeded"
+}
+
+// Benchmark freshness policy: CapabilityVersion.BenchmarkResultID is the
+// reviewed benchmark, but it stops being authoritative if a later fail/error
+// BenchmarkResult exists for the same CandidateVariant before promotion.
+func (s *InMemoryStore) laterBlockingBenchmarkForCandidate(benchmark *BenchmarkResult) (*BenchmarkResult, bool) {
+	for _, record := range s.ByType(TypeBenchmarkResult) {
+		candidate := record.(*BenchmarkResult)
+		if candidate.CommonNode.ID == benchmark.CommonNode.ID || candidate.CandidateVariantID != benchmark.CandidateVariantID {
+			continue
+		}
+		if !candidate.CommonNode.CreatedAt.After(benchmark.CommonNode.CreatedAt) || candidate.CommonNode.Status == nil {
+			continue
+		}
+		if *candidate.CommonNode.Status == "fail" || *candidate.CommonNode.Status == "error" {
+			return candidate, true
+		}
+	}
+	return nil, false
 }
 
 func (s *InMemoryStore) capabilityVersionHasPromotionEvidence(version *CapabilityVersion) bool {
@@ -332,6 +451,29 @@ func (s *InMemoryStore) capabilityVersionHasPromotionEvidence(version *Capabilit
 		}
 	}
 	return true
+}
+
+// CapabilityArtifactUsageLoggingFindings inventories legacy or externally
+// loaded CapabilityArtifact records that predate the v3.9 usage logging
+// invariant. The append-only v3.9 store does not mutate those records in
+// place; callers must backfill by re-emitting compliant artifact records before
+// material capability use.
+func (s *InMemoryStore) CapabilityArtifactUsageLoggingFindings() []CapabilityArtifactUsageLoggingFinding {
+	var findings []CapabilityArtifactUsageLoggingFinding
+	for _, record := range s.ByType(TypeCapabilityArtifact) {
+		artifact := record.(*CapabilityArtifact)
+		if artifact.UsageLoggingRequired {
+			continue
+		}
+		findings = append(findings, CapabilityArtifactUsageLoggingFinding{
+			CapabilityArtifactRecordID: artifact.CommonNode.ID,
+			ArtifactID:                 artifact.ArtifactID,
+			ArtifactType:               artifact.ArtifactType,
+			Name:                       artifact.Name,
+			Reason:                     "usage_logging_required is false or missing; material capability artifacts must set usage_logging_required=true before use",
+		})
+	}
+	return findings
 }
 
 func (s *InMemoryStore) capabilityVersionHasRollbackTarget(version *CapabilityVersion) bool {

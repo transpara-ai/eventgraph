@@ -471,7 +471,7 @@ func (s *InMemoryStore) releaseCandidateArtifactEvidencePath(candidate *ReleaseC
 
 	orderPath, _ := s.FactoryOrderRequirementAcceptanceTask(candidate.FactoryOrderID)
 	path.EdgeIDs = append(path.EdgeIDs, orderPath.EdgeIDs...)
-	path.Missing = append(path.Missing, orderPath.Missing...)
+	path.Missing = appendUniqueStrings(path.Missing, orderPath.Missing...)
 	taskIDs := taskIDsFromPath(s, orderPath)
 
 	for _, artifactID := range candidate.ArtifactRefs {
@@ -486,6 +486,15 @@ func (s *InMemoryStore) releaseCandidateArtifactEvidencePath(candidate *ReleaseC
 		}
 		if artifact.TaskID == nil || *artifact.TaskID == "" {
 			path.Missing = append(path.Missing, "Task for packaged Artifact "+artifactID)
+			continue
+		}
+		task, ok := s.mustGetTask(*artifact.TaskID)
+		if !ok {
+			path.Missing = append(path.Missing, "Task "+*artifact.TaskID+" for packaged Artifact "+artifactID)
+			continue
+		}
+		if task.FactoryOrderID == nil && task.EvolutionOrderID != nil {
+			path.Missing = append(path.Missing, "EvolutionOrder-only Task "+task.CommonNode.ID+" cannot contribute packaged Artifact "+artifactID+" to ReleaseCandidate "+candidate.CommonNode.ID)
 			continue
 		}
 		if !containsString(taskIDs, *artifact.TaskID) {
@@ -552,8 +561,16 @@ func (s *InMemoryStore) ActorAuthorityRequestDecisionReceipt(authorityRequestID 
 		return path, path.Err()
 	}
 	identity, _ := s.actorIdentityForActor(request.ActorID)
-	requestEdge, ok := s.firstOutgoingEdge(identity.CommonNode.ID, EdgeRequestedAuthority)
-	if !ok || requestEdge.ToID != authorityRequestID {
+	var requestEdge CommonEdge
+	var foundRequestEdge bool
+	for _, edge := range s.outgoingEdges(identity.CommonNode.ID, EdgeRequestedAuthority) {
+		if edge.ToID == authorityRequestID {
+			requestEdge = edge
+			foundRequestEdge = true
+			break
+		}
+	}
+	if !foundRequestEdge {
 		path.Missing = append(path.Missing, "REQUESTED_AUTHORITY from ActorIdentity "+identity.CommonNode.ID)
 		return path, path.Err()
 	}
@@ -876,7 +893,7 @@ func (s *InMemoryStore) mustGetCapabilityVersion(id string) (*CapabilityVersion,
 
 func (r *TraceCompletenessGateResult) addRequiredPath(path RequiredPath) {
 	r.RequiredPaths = append(r.RequiredPaths, path)
-	r.Missing = append(r.Missing, path.Missing...)
+	r.Missing = appendUniqueStrings(r.Missing, path.Missing...)
 	r.EvidenceRefs = appendUniqueStrings(r.EvidenceRefs, pathEvidenceRefs(path)...)
 }
 
