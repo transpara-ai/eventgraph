@@ -315,14 +315,36 @@ func (s *InMemoryStore) validateRecordRelations(r Record) error {
 		if _, ok := s.findCapabilityArtifact(typed.CapabilityArtifactID); !ok {
 			return fmt.Errorf("%w: CapabilityArtifact %s", ErrNotFound, typed.CapabilityArtifactID)
 		}
+		for field, ref := range map[string]string{
+			"evolution_order_id":   typed.EvolutionOrderID,
+			"optimization_run_id":  typed.OptimizationRunID,
+			"candidate_variant_id": typed.CandidateVariantID,
+			"eval_dataset_id":      typed.EvalDatasetID,
+			"benchmark_result_id":  typed.BenchmarkResultID,
+			"human_review_id":      typed.HumanReviewID,
+		} {
+			if ref == "" {
+				continue
+			}
+			if !s.recordExistsForCapabilityVersionEvidence(field, ref) {
+				return fmt.Errorf("%w: %s %s", ErrNotFound, field, ref)
+			}
+		}
 		if typed.RollbackTo != nil && *typed.RollbackTo != "" {
 			if _, ok := s.mustGetCapabilityVersion(*typed.RollbackTo); !ok {
 				return fmt.Errorf("%w: rollback CapabilityVersion %s", ErrNotFound, *typed.RollbackTo)
 			}
 		}
 	case *ActivationPolicy:
-		if _, ok := s.mustGetCapabilityVersion(typed.CapabilityVersionID); !ok {
+		version, ok := s.mustGetCapabilityVersion(typed.CapabilityVersionID)
+		if !ok {
 			return fmt.Errorf("%w: CapabilityVersion %s", ErrNotFound, typed.CapabilityVersionID)
+		}
+		if typed.Scope != "disabled" && !s.capabilityVersionHasRollbackTarget(version) {
+			return fieldError(TypeCapabilityVersion, "rollback_to", "required before activation policy")
+		}
+		if s.capabilityVersionHasActiveRollback(version.CommonNode.ID) {
+			return fieldError(TypeCapabilityVersion, "status", "rolled back capability version cannot be activated")
 		}
 	case *RollbackRecord:
 		if _, ok := s.mustGetCapabilityVersion(typed.CapabilityVersionID); !ok {
@@ -336,12 +358,53 @@ func (s *InMemoryStore) validateRecordRelations(r Record) error {
 		}
 	case *FactoryRuntimeVersion:
 		for _, capabilityVersionRef := range typed.CapabilityVersionRefs {
-			if _, ok := s.mustGetCapabilityVersion(capabilityVersionRef); !ok {
+			version, ok := s.mustGetCapabilityVersion(capabilityVersionRef)
+			if !ok {
 				return fmt.Errorf("%w: CapabilityVersion %s", ErrNotFound, capabilityVersionRef)
+			}
+			if version.CommonNode.Status != nil {
+				switch *version.CommonNode.Status {
+				case "rolled_back", "rejected", "superseded":
+					return fieldError(TypeFactoryRuntimeVersion, "capability_version_refs", "must not reference inactive capability version "+capabilityVersionRef)
+				}
+			}
+			if !s.capabilityVersionHasRollbackTarget(version) {
+				return fieldError(TypeCapabilityVersion, "rollback_to", "required before runtime packaging")
+			}
+			if s.capabilityVersionHasActiveRollback(version.CommonNode.ID) {
+				return fieldError(TypeFactoryRuntimeVersion, "capability_version_refs", "rolled back capability version cannot be packaged")
+			}
+			if !s.capabilityVersionHasPromotionEvidence(version) {
+				return fmt.Errorf("%w: promotion evidence for CapabilityVersion %s", ErrRequiredPathMissing, capabilityVersionRef)
 			}
 		}
 	}
 	return nil
+}
+
+func (s *InMemoryStore) recordExistsForCapabilityVersionEvidence(field, ref string) bool {
+	switch field {
+	case "evolution_order_id":
+		_, ok := s.mustGetEvolutionOrder(ref)
+		return ok
+	case "optimization_run_id":
+		_, ok := s.mustGetOptimizationRun(ref)
+		return ok
+	case "candidate_variant_id":
+		_, ok := s.mustGetCandidateVariant(ref)
+		return ok
+	case "eval_dataset_id":
+		_, ok := s.mustGetEvalDataset(ref)
+		return ok
+	case "benchmark_result_id":
+		_, ok := s.mustGetBenchmarkResult(ref)
+		return ok
+	case "human_review_id":
+		_, ok := s.mustGetHumanReview(ref)
+		return ok
+	default:
+		return false
+	}
 }
 
 func (s *InMemoryStore) memoryIngestedByMemoryID(memoryID string) (*MemoryIngested, bool) {

@@ -522,9 +522,9 @@ func completeTier0Records() []Record {
 		&OptimizationRun{CommonNode: common("opt_001", TypeOptimizationRun, "succeeded"), EvolutionOrderID: "evo_001", EvalDatasetID: "eval_001", Engine: "manual"},
 		&CandidateVariant{CommonNode: common("cand_001", TypeCandidateVariant, "approved"), OptimizationRunID: "opt_001", CapabilityArtifactID: "cap_art_tool_001"},
 		&BenchmarkResult{CommonNode: common("bench_001", TypeBenchmarkResult, "pass"), CandidateVariantID: "cand_001", BaselineRef: "cap_version_baseline", MetricDeltas: map[string]float64{"success_rate": 0.05, "regression_count": 0}},
-		&HumanReview{CommonNode: common("human_review_001", TypeHumanReview, "approved"), ReviewerActorID: "act_human", ReviewerRole: "CapabilityReviewer", Rationale: "fixture review approves non-regressing text-only candidate"},
-		&CapabilityVersion{CommonNode: common("cap_version_baseline", TypeCapabilityVersion, "active"), CapabilityArtifactID: "cap_art_tool_001", CapabilitySemver: "1.0.0"},
-		&CapabilityVersion{CommonNode: common("cap_version_candidate", TypeCapabilityVersion, "approved"), CapabilityArtifactID: "cap_art_tool_001", CapabilitySemver: "1.1.0", RollbackTo: strPtr("cap_version_baseline")},
+		&HumanReview{CommonNode: commonWithSourceRefs("human_review_001", TypeHumanReview, "approved", []string{"cand_001", "bench_001"}), ReviewerActorID: "act_human", ReviewerRole: "CapabilityReviewer", Rationale: "fixture review approves non-regressing text-only candidate"},
+		&CapabilityVersion{CommonNode: common("cap_version_baseline", TypeCapabilityVersion, "approved"), CapabilityArtifactID: "cap_art_tool_001", CapabilitySemver: "1.0.0"},
+		&CapabilityVersion{CommonNode: common("cap_version_candidate", TypeCapabilityVersion, "approved"), CapabilityArtifactID: "cap_art_tool_001", EvolutionOrderID: "evo_001", OptimizationRunID: "opt_001", CandidateVariantID: "cand_001", EvalDatasetID: "eval_001", BenchmarkResultID: "bench_001", HumanReviewID: "human_review_001", PromoterActorID: "act_capability_release", PromoterRole: "CapabilityRelease", CapabilitySemver: "1.1.0", RollbackTo: strPtr("cap_version_baseline")},
 		&ActivationPolicy{CommonNode: common("activation_policy_001", TypeActivationPolicy, "approved"), ActivationPolicyID: "activation_policy_001", CapabilityVersionID: "cap_version_candidate", Scope: "project", AllowedProjects: []string{"dark-factory"}, MonitoringWindowRuns: 5, RollbackTriggers: []string{"benchmark_regression"}, ApprovedBy: []string{"act_human"}},
 		&RollbackRecord{CommonNode: common("rollback_001", TypeRollbackRecord, "planned"), CapabilityVersionID: "cap_version_candidate", RollbackTo: "cap_version_baseline", Trigger: "operator_decision", ActorID: "act_human", FactoryRuntimeVersionID: frvID},
 	}
@@ -544,6 +544,12 @@ func common(id, typ, status string) CommonNode {
 		IdempotencyKey: "idem_" + id,
 		CorrelationID:  "corr_001",
 	}
+}
+
+func commonWithSourceRefs(id, typ, status string, sourceRefs []string) CommonNode {
+	common := common(id, typ, status)
+	common.SourceRefs = sourceRefs
+	return common
 }
 
 func edge(id, typ, from, to string) CommonEdge {

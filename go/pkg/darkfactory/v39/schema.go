@@ -623,6 +623,14 @@ type CapabilityArtifact struct {
 type CapabilityVersion struct {
 	CommonNode
 	CapabilityArtifactID string  `json:"capability_artifact_id"`
+	EvolutionOrderID     string  `json:"evolution_order_id,omitempty"`
+	OptimizationRunID    string  `json:"optimization_run_id,omitempty"`
+	CandidateVariantID   string  `json:"candidate_variant_id,omitempty"`
+	EvalDatasetID        string  `json:"eval_dataset_id,omitempty"`
+	BenchmarkResultID    string  `json:"benchmark_result_id,omitempty"`
+	HumanReviewID        string  `json:"human_review_id,omitempty"`
+	PromoterActorID      string  `json:"promoter_actor_id,omitempty"`
+	PromoterRole         string  `json:"promoter_role,omitempty"`
 	CapabilitySemver     string  `json:"version"`
 	RollbackTo           *string `json:"rollback_to,omitempty"`
 }

@@ -836,7 +836,7 @@ func (r *CapabilityArtifact) Validate() error {
 	if err := requireOneOf(TypeCapabilityArtifact, "risk_class", r.RiskClass, "low", "medium", "high", "critical"); err != nil {
 		return err
 	}
-	if r.UsageLoggingRequired != true {
+	if !r.UsageLoggingRequired {
 		return fieldError(TypeCapabilityArtifact, "usage_logging_required", "must be true")
 	}
 	return nil
@@ -851,7 +851,7 @@ func (r *CapabilityVersion) Validate() error {
 			return err
 		}
 	}
-	return requireStatus(r.CommonNode, "approved", "staged", "canary", "active", "superseded", "rolled_back", "rejected")
+	return requireStatus(r.CommonNode, "approved", "staged", "canary", "superseded", "rolled_back", "rejected")
 }
 
 func (r *ActivationPolicy) Validate() error {
@@ -863,11 +863,29 @@ func (r *ActivationPolicy) Validate() error {
 			return err
 		}
 	}
-	if err := requireOneOf(TypeActivationPolicy, "scope", r.Scope, "disabled", "order", "project", "canary", "global"); err != nil {
+	if err := requireOneOf(TypeActivationPolicy, "scope", r.Scope, "disabled", "order", "project", "canary"); err != nil {
 		return err
 	}
-	if r.CanaryPercent != nil && (*r.CanaryPercent < 0 || *r.CanaryPercent > 100) {
-		return fieldError(TypeActivationPolicy, "canary_percent", "must be between 0 and 100")
+	switch r.Scope {
+	case "order":
+		if len(r.AllowedFactoryOrders) == 0 {
+			return fieldError(TypeActivationPolicy, "allowed_factory_orders", "required for order-scoped activation")
+		}
+	case "project":
+		if len(r.AllowedProjects) == 0 {
+			return fieldError(TypeActivationPolicy, "allowed_projects", "required for project-scoped activation")
+		}
+	case "canary":
+		if r.CanaryPercent == nil || *r.CanaryPercent <= 0 || *r.CanaryPercent >= 100 {
+			return fieldError(TypeActivationPolicy, "canary_percent", "must be > 0 and < 100")
+		}
+	case "disabled":
+		if r.CanaryPercent != nil {
+			return fieldError(TypeActivationPolicy, "canary_percent", "must be empty when disabled")
+		}
+	}
+	if r.CanaryPercent != nil && (*r.CanaryPercent <= 0 || *r.CanaryPercent >= 100) {
+		return fieldError(TypeActivationPolicy, "canary_percent", "must be > 0 and < 100")
 	}
 	if r.MonitoringWindowRuns < 0 {
 		return fieldError(TypeActivationPolicy, "monitoring_window_runs", "must be >= 0")
