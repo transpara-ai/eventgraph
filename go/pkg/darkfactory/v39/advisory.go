@@ -84,22 +84,22 @@ func (s *InMemoryStore) AdvisoryReferenceEvidencePath(releaseCandidateID string)
 	}
 	orderPath, _ := s.FactoryOrderRequirementAcceptanceTask(rc.FactoryOrderID)
 	path.EdgeIDs = append(path.EdgeIDs, orderPath.EdgeIDs...)
-	path.Missing = append(path.Missing, orderPath.Missing...)
+	path.Missing = appendUniqueStrings(path.Missing, orderPath.Missing...)
 
 	for _, taskID := range taskIDsFromPath(s, orderPath) {
 		task, ok := s.mustGetTask(taskID)
 		if !ok {
-			path.Missing = append(path.Missing, "Task "+taskID)
+			path.Missing = appendUniqueStrings(path.Missing, "Task "+taskID)
 			continue
 		}
 		for _, sourceRef := range advisorySourceRefs(task.SourceRefs, advisoryReferenceMemory) {
 			if !s.addMatchingAdvisoryReference(&path, taskID, sourceRef, advisoryReferenceMemory) {
-				path.Missing = append(path.Missing, "MemoryReference for "+sourceRef+" used in Task "+taskID)
+				path.Missing = appendUniqueStrings(path.Missing, "MemoryReference for "+sourceRef+" used in Task "+taskID)
 			}
 		}
 		for _, sourceRef := range advisorySourceRefs(task.SourceRefs, advisoryReferenceKnowledge) {
 			if !s.addMatchingAdvisoryReference(&path, taskID, sourceRef, advisoryReferenceKnowledge) {
-				path.Missing = append(path.Missing, "KnowledgeReference for "+sourceRef+" used in Task "+taskID)
+				path.Missing = appendUniqueStrings(path.Missing, "KnowledgeReference for "+sourceRef+" used in Task "+taskID)
 			}
 		}
 		s.addLinkedAdvisoryReferences(&path, taskID, advisoryReferenceMemory)

@@ -100,6 +100,62 @@ func TestCertifyReleaseCandidateFailsForUnrelatedPackagedArtifact(t *testing.T) 
 	}
 }
 
+func TestRecordReleaseCandidateRejectsEvolutionOrderOnlyTaskArtifacts(t *testing.T) {
+	store := stage6BaseStore(t)
+	evolutionOrderID := "evo_release_boundary"
+	evolutionTaskID := "tsk_evolution_only"
+	evolutionArtifactID := "art_evolution_only"
+	frvID := "frv_001"
+
+	appendRecord(t, store, &EvolutionOrder{CommonNode: common(evolutionOrderID, TypeEvolutionOrder, "accepted"), EvolutionOrderVersion: 1, TargetCapabilityType: "tool_description", TargetRepo: "eventgraph", TargetPath: "go/pkg/darkfactory/v39", RiskClass: "medium", Motivation: "test release boundary", EvalSource: "golden benchmark", Constraints: []string{"text_only"}, ReviewRequirements: []string{"CapabilityReviewer approval"}})
+	appendRecord(t, store, &Task{CommonNode: common(evolutionTaskID, TypeTask, "created"), EvolutionOrderID: &evolutionOrderID, Cell: "cell_schema", State: "created", RiskClass: "medium"})
+	appendRecord(t, store, &Artifact{CommonNode: common(evolutionArtifactID, TypeArtifact, "verified"), TaskID: &evolutionTaskID, ArtifactType: "code", Path: strPtr("go/pkg/darkfactory/v39/evolution.go"), ContentHash: strPtr("sha256:evolution")})
+	appendEdge(t, store, edge("stage6_edge_evolution_task_art", EdgeProduced, evolutionTaskID, evolutionArtifactID))
+
+	_, err := store.RecordReleaseCandidate(&ReleaseCandidate{CommonNode: common("rc_evolution_only_artifact", TypeReleaseCandidate, "verification"), FactoryOrderID: "fo_001", FactoryRuntimeVersionID: &frvID, ArtifactRefs: []string{evolutionArtifactID}})
+	if !errors.Is(err, ErrRequiredPathMissing) {
+		t.Fatalf("expected EvolutionOrder-only artifact to be rejected, got %v", err)
+	}
+	if !strings.Contains(err.Error(), "EvolutionOrder-only Task") {
+		t.Fatalf("expected EvolutionOrder-only task boundary in error, got %v", err)
+	}
+}
+
+func TestRecordReleaseCandidateAllowsDualTaggedFactoryOrderTaskArtifacts(t *testing.T) {
+	store := stage6BaseStore(t)
+	evolutionOrderID := "evo_dual_tagged_boundary"
+	appendRecord(t, store, &EvolutionOrder{CommonNode: common(evolutionOrderID, TypeEvolutionOrder, "accepted"), EvolutionOrderVersion: 1, TargetCapabilityType: "tool_description", TargetRepo: "eventgraph", TargetPath: "go/pkg/darkfactory/v39", RiskClass: "medium", Motivation: "test dual-tagged release boundary", EvalSource: "golden benchmark", Constraints: []string{"text_only"}, ReviewRequirements: []string{"CapabilityReviewer approval"}})
+	task, ok := store.mustGetTask("tsk_001")
+	if !ok {
+		t.Fatal("missing stage 6 task fixture")
+	}
+	task.EvolutionOrderID = &evolutionOrderID
+
+	if _, err := store.RecordReleaseCandidate(stage6ReleaseCandidate("rc_dual_tagged_artifact")); err != nil {
+		t.Fatalf("expected dual-tagged FactoryOrder task artifact to remain release-eligible, got %v", err)
+	}
+}
+
+func TestEvaluateCertificationEligibilityDeduplicatesMissingOutput(t *testing.T) {
+	store := NewInMemoryStore()
+	frvID := "frv_dedup"
+	rcID := "rc_dedup"
+	appendRecord(t, store, factoryOrder("fo_dedup"))
+	appendRecord(t, store, &FactoryRuntimeVersion{CommonNode: common(frvID, TypeFactoryRuntimeVersion, "active"), RuntimeVersion: "3.9.0", RuntimeRefs: []string{"local@0.1.0"}})
+	appendRecord(t, store, &ReleaseCandidate{CommonNode: common(rcID, TypeReleaseCandidate, "verification"), FactoryOrderID: "fo_dedup", FactoryRuntimeVersionID: &frvID})
+	appendEdge(t, store, derivedEdge(EdgePackagedAs, "fo_dedup", rcID, common("rc_dedup_edge", TypeReleaseCandidate, "verification")))
+	appendEdge(t, store, derivedEdge(EdgePackagedAs, rcID, frvID, common("frv_dedup_edge", TypeReleaseCandidate, "verification")))
+
+	result, err := store.EvaluateCertificationEligibility(rcID)
+	if !errors.Is(err, ErrRequiredPathMissing) {
+		t.Fatalf("expected missing trace to block eligibility, got %v", err)
+	}
+	missing := "REQUIRES from FactoryOrder fo_dedup"
+	if countString(result.Missing, missing) != 1 {
+		t.Fatalf("expected one deduplicated missing entry for %q, got %+v", missing, result.Missing)
+	}
+}
+
 func TestRejectReleaseCandidateRecordsFailureReasonAndMissingEvidence(t *testing.T) {
 	store := stage6StoreWithReleaseCandidate(t, "rc_stage6_reject")
 	rejection := stage6Rejection("rej_stage6", "rc_stage6_reject", []string{"RuntimeResult rr_001"})
@@ -249,4 +305,14 @@ func stage6Rejection(id, rcID string, evidenceRefs []string) *Rejection {
 
 func stage6AuditReport(id string) *AuditReport {
 	return &AuditReport{CommonNode: common(id, TypeAuditReport, "incomplete")}
+}
+
+func countString(values []string, want string) int {
+	var count int
+	for _, value := range values {
+		if value == want {
+			count++
+		}
+	}
+	return count
 }
