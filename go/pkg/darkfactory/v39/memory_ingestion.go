@@ -293,6 +293,53 @@ func (s *InMemoryStore) validateRecordRelations(r Record) error {
 		if _, ok := s.memoryIngestedByMemoryID(typed.MemoryID); !ok {
 			return fmt.Errorf("%w: MemoryIngested %s", ErrNotFound, typed.MemoryID)
 		}
+	case *OptimizationRun:
+		if _, ok := s.mustGetEvolutionOrder(typed.EvolutionOrderID); !ok {
+			return fmt.Errorf("%w: EvolutionOrder %s", ErrNotFound, typed.EvolutionOrderID)
+		}
+		if _, ok := s.mustGetEvalDataset(typed.EvalDatasetID); !ok {
+			return fmt.Errorf("%w: EvalDataset %s", ErrNotFound, typed.EvalDatasetID)
+		}
+	case *CandidateVariant:
+		if _, ok := s.mustGetOptimizationRun(typed.OptimizationRunID); !ok {
+			return fmt.Errorf("%w: OptimizationRun %s", ErrNotFound, typed.OptimizationRunID)
+		}
+		if _, ok := s.findCapabilityArtifact(typed.CapabilityArtifactID); !ok {
+			return fmt.Errorf("%w: CapabilityArtifact %s", ErrNotFound, typed.CapabilityArtifactID)
+		}
+	case *BenchmarkResult:
+		if _, ok := s.mustGetCandidateVariant(typed.CandidateVariantID); !ok {
+			return fmt.Errorf("%w: CandidateVariant %s", ErrNotFound, typed.CandidateVariantID)
+		}
+	case *CapabilityVersion:
+		if _, ok := s.findCapabilityArtifact(typed.CapabilityArtifactID); !ok {
+			return fmt.Errorf("%w: CapabilityArtifact %s", ErrNotFound, typed.CapabilityArtifactID)
+		}
+		if typed.RollbackTo != nil && *typed.RollbackTo != "" {
+			if _, ok := s.mustGetCapabilityVersion(*typed.RollbackTo); !ok {
+				return fmt.Errorf("%w: rollback CapabilityVersion %s", ErrNotFound, *typed.RollbackTo)
+			}
+		}
+	case *ActivationPolicy:
+		if _, ok := s.mustGetCapabilityVersion(typed.CapabilityVersionID); !ok {
+			return fmt.Errorf("%w: CapabilityVersion %s", ErrNotFound, typed.CapabilityVersionID)
+		}
+	case *RollbackRecord:
+		if _, ok := s.mustGetCapabilityVersion(typed.CapabilityVersionID); !ok {
+			return fmt.Errorf("%w: CapabilityVersion %s", ErrNotFound, typed.CapabilityVersionID)
+		}
+		if _, ok := s.mustGetCapabilityVersion(typed.RollbackTo); !ok {
+			return fmt.Errorf("%w: rollback CapabilityVersion %s", ErrNotFound, typed.RollbackTo)
+		}
+		if _, ok := s.mustGetFactoryRuntimeVersion(typed.FactoryRuntimeVersionID); !ok {
+			return fmt.Errorf("%w: FactoryRuntimeVersion %s", ErrNotFound, typed.FactoryRuntimeVersionID)
+		}
+	case *FactoryRuntimeVersion:
+		for _, capabilityVersionRef := range typed.CapabilityVersionRefs {
+			if _, ok := s.mustGetCapabilityVersion(capabilityVersionRef); !ok {
+				return fmt.Errorf("%w: CapabilityVersion %s", ErrNotFound, capabilityVersionRef)
+			}
+		}
 	}
 	return nil
 }

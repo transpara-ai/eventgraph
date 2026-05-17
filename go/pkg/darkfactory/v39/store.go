@@ -271,8 +271,26 @@ func newRecordForType(typ string) (Record, error) {
 		return &MemoryRedactionApplied{}, nil
 	case TypeDocumentEvidenceRetrieval:
 		return &DocumentEvidenceRetrieval{}, nil
+	case TypeEvolutionOrder:
+		return &EvolutionOrder{}, nil
+	case TypeEvalDataset:
+		return &EvalDataset{}, nil
+	case TypeOptimizationRun:
+		return &OptimizationRun{}, nil
+	case TypeCandidateVariant:
+		return &CandidateVariant{}, nil
+	case TypeBenchmarkResult:
+		return &BenchmarkResult{}, nil
+	case TypeHumanReview:
+		return &HumanReview{}, nil
 	case TypeCapabilityArtifact:
 		return &CapabilityArtifact{}, nil
+	case TypeCapabilityVersion:
+		return &CapabilityVersion{}, nil
+	case TypeActivationPolicy:
+		return &ActivationPolicy{}, nil
+	case TypeRollbackRecord:
+		return &RollbackRecord{}, nil
 	case TypePolicyEngineAdapterDecision:
 		return &PolicyEngineAdapterDecision{}, nil
 	default:

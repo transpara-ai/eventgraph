@@ -45,7 +45,16 @@ const (
 	TypeMemoryScopeAssigned         = "MemoryScopeAssigned"
 	TypeMemoryRedactionApplied      = "MemoryRedactionApplied"
 	TypeDocumentEvidenceRetrieval   = "DocumentEvidenceRetrieval"
+	TypeEvolutionOrder              = "EvolutionOrder"
+	TypeEvalDataset                 = "EvalDataset"
+	TypeOptimizationRun             = "OptimizationRun"
+	TypeCandidateVariant            = "CandidateVariant"
+	TypeBenchmarkResult             = "BenchmarkResult"
+	TypeHumanReview                 = "HumanReview"
 	TypeCapabilityArtifact          = "CapabilityArtifact"
+	TypeCapabilityVersion           = "CapabilityVersion"
+	TypeActivationPolicy            = "ActivationPolicy"
+	TypeRollbackRecord              = "RollbackRecord"
 	TypePolicyEngineAdapterDecision = "PolicyEngineAdapterDecision"
 )
 
@@ -284,6 +293,7 @@ type CertificationEligibilityResult struct {
 	TraceCompleteness         TraceCompletenessGateResult `json:"trace_completeness"`
 	RuntimeBOMPath            RequiredPath                `json:"runtime_bom_path"`
 	AdvisoryReferencePath     RequiredPath                `json:"advisory_reference_path"`
+	CapabilityUsagePath       RequiredPath                `json:"capability_usage_path"`
 	Missing                   []string                    `json:"missing,omitempty"`
 	EvidenceRefs              []string                    `json:"evidence_refs"`
 	FactoryRuntimeVersionID   *string                     `json:"factory_runtime_version_id,omitempty"`
@@ -543,6 +553,55 @@ type PolicyEngineAdapterDecision struct {
 	ExecutionReceiptRef  *string        `json:"execution_receipt_ref,omitempty"`
 }
 
+type EvolutionOrder struct {
+	CommonNode
+	EvolutionOrderVersion int      `json:"version"`
+	TargetCapabilityType  string   `json:"target_capability_type"`
+	TargetRepo            string   `json:"target_repo"`
+	TargetPath            string   `json:"target_path"`
+	RiskClass             string   `json:"risk_class"`
+	Motivation            string   `json:"motivation"`
+	EvalSource            string   `json:"eval_source"`
+	Constraints           []string `json:"constraints"`
+	ReviewRequirements    []string `json:"review_requirements"`
+}
+
+type EvalDataset struct {
+	CommonNode
+	SourceType      string `json:"source_type"`
+	TrustLevel      string `json:"trust_level"`
+	TrainCount      int    `json:"train_count"`
+	ValidationCount int    `json:"validation_count"`
+	HoldoutCount    int    `json:"holdout_count"`
+}
+
+type OptimizationRun struct {
+	CommonNode
+	EvolutionOrderID string `json:"evolution_order_id"`
+	EvalDatasetID    string `json:"eval_dataset_id"`
+	Engine           string `json:"engine"`
+}
+
+type CandidateVariant struct {
+	CommonNode
+	OptimizationRunID    string `json:"optimization_run_id"`
+	CapabilityArtifactID string `json:"capability_artifact_id"`
+}
+
+type BenchmarkResult struct {
+	CommonNode
+	CandidateVariantID string             `json:"candidate_variant_id"`
+	BaselineRef        string             `json:"baseline_ref"`
+	MetricDeltas       map[string]float64 `json:"metric_deltas"`
+}
+
+type HumanReview struct {
+	CommonNode
+	ReviewerActorID string `json:"reviewer_actor_id"`
+	ReviewerRole    string `json:"reviewer_role"`
+	Rationale       string `json:"rationale"`
+}
+
 type CapabilityArtifact struct {
 	CommonNode
 	ArtifactID           string   `json:"artifact_id"`
@@ -559,4 +618,33 @@ type CapabilityArtifact struct {
 	RollbackRef          string   `json:"rollback_ref"`
 	UsageLoggingRequired bool     `json:"usage_logging_required"`
 	ErrorSummary         *string  `json:"error_summary,omitempty"`
+}
+
+type CapabilityVersion struct {
+	CommonNode
+	CapabilityArtifactID string  `json:"capability_artifact_id"`
+	CapabilitySemver     string  `json:"version"`
+	RollbackTo           *string `json:"rollback_to,omitempty"`
+}
+
+type ActivationPolicy struct {
+	CommonNode
+	ActivationPolicyID   string   `json:"activation_policy_id"`
+	CapabilityVersionID  string   `json:"capability_version_id"`
+	Scope                string   `json:"scope"`
+	AllowedProjects      []string `json:"allowed_projects"`
+	AllowedFactoryOrders []string `json:"allowed_factory_orders"`
+	CanaryPercent        *float64 `json:"canary_percent,omitempty"`
+	MonitoringWindowRuns int      `json:"monitoring_window_runs"`
+	RollbackTriggers     []string `json:"rollback_triggers"`
+	ApprovedBy           []string `json:"approved_by"`
+}
+
+type RollbackRecord struct {
+	CommonNode
+	CapabilityVersionID     string `json:"capability_version_id"`
+	RollbackTo              string `json:"rollback_to"`
+	Trigger                 string `json:"trigger"`
+	ActorID                 string `json:"actor_id"`
+	FactoryRuntimeVersionID string `json:"factory_runtime_version_id"`
 }

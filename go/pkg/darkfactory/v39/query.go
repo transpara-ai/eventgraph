@@ -27,6 +27,13 @@ const (
 	EdgeReceiptedBy         = "RECEIPTED_BY"
 	EdgeTransitionedBy      = "TRANSITIONED_BY"
 	EdgeObservedFailure     = "OBSERVED_FAILURE"
+	EdgeOptimizedBy         = "OPTIMIZED_BY"
+	EdgeEvaluatedBy         = "EVALUATED_BY"
+	EdgeCandidateFor        = "CANDIDATE_FOR"
+	EdgeReviewedBy          = "REVIEWED_BY"
+	EdgePromotedTo          = "PROMOTED_TO"
+	EdgeActivatedBy         = "ACTIVATED_BY"
+	EdgeRolledBackTo        = "ROLLED_BACK_TO"
 	EdgeSupersedes          = "SUPERSEDES"
 	EdgeUsedCapability      = "USED_CAPABILITY"
 	EdgeReferencedMemory    = "REFERENCED_MEMORY"
@@ -394,7 +401,12 @@ func (s *InMemoryStore) EvaluateCertificationEligibility(releaseCandidateID stri
 	result.EvidenceRefs = appendUniqueStrings(result.EvidenceRefs, pathEvidenceRefs(advisoryReferencePath)...)
 	result.Missing = appendUniqueStrings(result.Missing, advisoryReferencePath.Missing...)
 
-	result.Completed = trace.Completed && runtimeBOMPath.Completed && advisoryReferencePath.Completed && len(result.Missing) == 0
+	capabilityUsagePath, _ := s.CapabilityUsageEvidencePath(releaseCandidateID)
+	result.CapabilityUsagePath = capabilityUsagePath
+	result.EvidenceRefs = appendUniqueStrings(result.EvidenceRefs, pathEvidenceRefs(capabilityUsagePath)...)
+	result.Missing = appendUniqueStrings(result.Missing, capabilityUsagePath.Missing...)
+
+	result.Completed = trace.Completed && runtimeBOMPath.Completed && advisoryReferencePath.Completed && capabilityUsagePath.Completed && len(result.Missing) == 0
 	if result.Completed {
 		return result, nil
 	}
@@ -788,6 +800,96 @@ func (s *InMemoryStore) mustGetContradictionLog(id string) (*ContradictionLog, b
 	}
 	contradiction, ok := r.(*ContradictionLog)
 	return contradiction, ok
+}
+
+func (s *InMemoryStore) mustGetEvolutionOrder(id string) (*EvolutionOrder, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	order, ok := r.(*EvolutionOrder)
+	return order, ok
+}
+
+func (s *InMemoryStore) mustGetEvalDataset(id string) (*EvalDataset, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	dataset, ok := r.(*EvalDataset)
+	return dataset, ok
+}
+
+func (s *InMemoryStore) mustGetOptimizationRun(id string) (*OptimizationRun, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	run, ok := r.(*OptimizationRun)
+	return run, ok
+}
+
+func (s *InMemoryStore) mustGetCandidateVariant(id string) (*CandidateVariant, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	candidate, ok := r.(*CandidateVariant)
+	return candidate, ok
+}
+
+func (s *InMemoryStore) mustGetBenchmarkResult(id string) (*BenchmarkResult, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	benchmark, ok := r.(*BenchmarkResult)
+	return benchmark, ok
+}
+
+func (s *InMemoryStore) mustGetHumanReview(id string) (*HumanReview, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	review, ok := r.(*HumanReview)
+	return review, ok
+}
+
+func (s *InMemoryStore) mustGetCapabilityArtifact(id string) (*CapabilityArtifact, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	artifact, ok := r.(*CapabilityArtifact)
+	return artifact, ok
+}
+
+func (s *InMemoryStore) mustGetCapabilityVersion(id string) (*CapabilityVersion, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	version, ok := r.(*CapabilityVersion)
+	return version, ok
+}
+
+func (s *InMemoryStore) mustGetActivationPolicy(id string) (*ActivationPolicy, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	policy, ok := r.(*ActivationPolicy)
+	return policy, ok
+}
+
+func (s *InMemoryStore) mustGetRollbackRecord(id string) (*RollbackRecord, bool) {
+	r, err := s.Get(id)
+	if err != nil {
+		return nil, false
+	}
+	rollback, ok := r.(*RollbackRecord)
+	return rollback, ok
 }
 
 func (r *TraceCompletenessGateResult) addRequiredPath(path RequiredPath) {
