@@ -75,7 +75,7 @@ Before material capability use, operators should run or use `InMemoryStore.Capab
 
 Treat any `CapabilityArtifact` with missing or false `usage_logging_required` as requiring operator review and backfill before material capability influence.
 
-Backfill should set `usage_logging_required=true` according to v3.9 invariants before capability use. The backfilled record must still preserve the artifact identity, source, content hash or immutable locator, owner, risk class, activation scope, review reference, rollback reference, and any evidence references required by the current v3.9 schema.
+The v3.9 store is append-only. Backfill must re-emit a new compliant `CapabilityArtifact` record with `usage_logging_required=true` according to v3.9 invariants before capability use; existing records are not mutated in place. The re-emitted record must still preserve the artifact identity, source, content hash or immutable locator, owner, risk class, activation scope, review reference, rollback reference, and any evidence references required by the current v3.9 schema.
 
 Material capability influence remains invalid without both:
 
@@ -100,17 +100,17 @@ This decision does not close Gate B globally unless `transpara-ai/eventgraph#46`
 
 ## Validation
 
-Intended validation for the decision PR:
+Validation results for this decision PR:
 
 ```text
 cd go
-go test ./pkg/darkfactory/v39
-go test ./...
-go build ./...
-go vet ./...
-go run honnef.co/go/tools/cmd/staticcheck@latest ./pkg/darkfactory/v39/...
+go test ./pkg/darkfactory/v39 -- PASS
+go test ./... -- PASS
+go build ./... -- PASS
+go vet ./... -- PASS
+go run honnef.co/go/tools/cmd/staticcheck@latest ./pkg/darkfactory/v39/... -- PASS
 cd ..
-git diff --check
+git diff --check -- PASS
 ```
 
 ## Closure Condition
