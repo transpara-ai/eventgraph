@@ -34,7 +34,7 @@ type claudeCliResult struct {
 	Subtype string `json:"subtype"`
 	IsError bool   `json:"is_error"`
 	Result  string `json:"result"`
-	Usage struct {
+	Usage   struct {
 		InputTokens              int `json:"input_tokens"`
 		OutputTokens             int `json:"output_tokens"`
 		CacheReadInputTokens     int `json:"cache_read_input_tokens"`
@@ -169,6 +169,13 @@ func (p *claudeCliProvider) Reason(ctx context.Context, prompt string, history [
 			var result claudeCliResult
 			if jsonErr := json.Unmarshal(stdout.Bytes(), &result); jsonErr == nil {
 				if result.Result != "" {
+					// A non-empty result on a non-zero exit is NOT automatically a
+					// success: an is_error:true payload (e.g. error_during_execution)
+					// carries an explanatory result string. Mirror Operate's guard so
+					// the error is surfaced, not masked as a successful decision.
+					if result.IsError {
+						return decision.Response{}, fmt.Errorf("claude CLI reason returned error: %s (subtype: %s)", result.Result, result.Subtype)
+					}
 					return p.resultToResponse(result)
 				}
 				// Non-zero exit with a parseable but EMPTY result (budget/max-turns):
@@ -420,4 +427,3 @@ func NewClaudeCliConfig(model string) Config {
 		Model:    model,
 	}
 }
-

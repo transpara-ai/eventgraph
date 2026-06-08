@@ -78,6 +78,37 @@ func TestOperateIsErrorReturnsError(t *testing.T) {
 	}
 }
 
+// TestReasonIsErrorReturnsError verifies that Reason returns an error when the JSON
+// result has is_error:true with a non-empty result on a non-zero exit — mirroring the
+// Operate guard. Without the IsError check in the Reason non-zero-exit branch, an
+// error_during_execution payload with an explanatory result is masked as a successful
+// decision response.
+func TestReasonIsErrorReturnsError(t *testing.T) {
+	testBin, err := os.Executable()
+	if err != nil {
+		t.Fatalf("could not get test binary path: %v", err)
+	}
+
+	t.Setenv("GO_FAKE_CLAUDE_MODE", "is_error_exit1")
+
+	p, err := intelligence.New(intelligence.Config{
+		Provider: "claude-cli",
+		Model:    "sonnet",
+		BaseURL:  testBin,
+	})
+	if err != nil {
+		t.Fatalf("failed to create provider: %v", err)
+	}
+
+	_, err = p.Reason(context.Background(), "do something", nil)
+	if err == nil {
+		t.Fatal("Reason should return an error when is_error:true and exit status 1, but got nil")
+	}
+	if !strings.Contains(err.Error(), "task failed") {
+		t.Errorf("error should contain the result message, got: %v", err)
+	}
+}
+
 // TestOperateIsErrorZeroExitReturnsError verifies that Operate returns an error when
 // the JSON result has is_error:true even when claude exits with code 0.
 func TestOperateIsErrorZeroExitReturnsError(t *testing.T) {
