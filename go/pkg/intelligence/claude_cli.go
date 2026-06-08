@@ -167,8 +167,15 @@ func (p *claudeCliProvider) Reason(ctx context.Context, prompt string, history [
 		// Check if we got JSON output despite non-zero exit.
 		if stdout.Len() > 0 {
 			var result claudeCliResult
-			if jsonErr := json.Unmarshal(stdout.Bytes(), &result); jsonErr == nil && result.Result != "" {
-				return p.resultToResponse(result)
+			if jsonErr := json.Unmarshal(stdout.Bytes(), &result); jsonErr == nil {
+				if result.Result != "" {
+					return p.resultToResponse(result)
+				}
+				// Non-zero exit with a parseable but EMPTY result (budget/max-turns):
+				// surface the subtype/stop_reason from stdout, not an opaque exit.
+				return decision.Response{}, fmt.Errorf(
+					"claude CLI error: %w (subtype=%q stop_reason=%q is_error=%t)\nstderr: %s",
+					err, result.Subtype, result.StopReason, result.IsError, stderr.String())
 			}
 		}
 		// Session collision — retry without session ID (cold start fallback).
@@ -194,7 +201,7 @@ func (p *claudeCliProvider) Reason(ctx context.Context, prompt string, history [
 			}
 			stdout = out2
 		} else {
-			return decision.Response{}, fmt.Errorf("claude CLI error: %w\nstderr: %s", err, stderr.String())
+			return decision.Response{}, fmt.Errorf("claude CLI error: %w\nstdout: %s\nstderr: %s", err, stdout.String(), stderr.String())
 		}
 	}
 
@@ -284,11 +291,20 @@ func (p *claudeCliProvider) Operate(ctx context.Context, task decision.OperateTa
 	if err := runWithProgress(cmd, "  ⏳ working"); err != nil {
 		if stdout.Len() > 0 {
 			var result claudeCliResult
-			if jsonErr := json.Unmarshal(stdout.Bytes(), &result); jsonErr == nil && result.Result != "" {
-				if result.IsError {
-					return decision.OperateResult{}, fmt.Errorf("claude CLI operate returned error: %s (subtype: %s)", result.Result, result.Subtype)
+			if jsonErr := json.Unmarshal(stdout.Bytes(), &result); jsonErr == nil {
+				if result.Result != "" {
+					if result.IsError {
+						return decision.OperateResult{}, fmt.Errorf("claude CLI operate returned error: %s (subtype: %s)", result.Result, result.Subtype)
+					}
+					return p.resultToOperateResult(result), nil
 				}
-				return p.resultToOperateResult(result), nil
+				// Non-zero exit with a parseable result but an EMPTY result string
+				// (e.g. --max-budget-usd exhausted or max turns reached). claude
+				// records the real reason as subtype/stop_reason on stdout; surface
+				// it instead of the opaque "exit status 1, stderr empty".
+				return decision.OperateResult{}, fmt.Errorf(
+					"claude CLI operate error: %w (subtype=%q stop_reason=%q is_error=%t)\nstderr: %s",
+					err, result.Subtype, result.StopReason, result.IsError, stderr.String())
 			}
 		}
 		// Session collision — retry cold.
@@ -315,7 +331,9 @@ func (p *claudeCliProvider) Operate(ctx context.Context, task decision.OperateTa
 			}
 			stdout = out2
 		} else {
-			return decision.OperateResult{}, fmt.Errorf("claude CLI operate error: %w\nstderr: %s", err, stderr.String())
+			// No parseable JSON on stdout either: include raw stdout so a non-zero
+			// exit is never silent (stderr is often empty for headless claude).
+			return decision.OperateResult{}, fmt.Errorf("claude CLI operate error: %w\nstdout: %s\nstderr: %s", err, stdout.String(), stderr.String())
 		}
 	}
 
