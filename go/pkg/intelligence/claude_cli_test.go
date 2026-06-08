@@ -26,6 +26,13 @@ func TestMain(m *testing.M) {
 		// Claude can do this when it encounters a logic error without crashing.
 		fmt.Print(`{"type":"result","subtype":"error_during_execution","is_error":true,"result":"tool call rejected","usage":{"input_tokens":0,"output_tokens":0},"total_cost_usd":0}`)
 		os.Exit(0)
+	case "empty_result_exit1":
+		// Simulate claude terminating mid-task (e.g. --max-budget-usd exhausted or
+		// max turns) — it writes a result JSON with an EMPTY result string but a
+		// meaningful subtype, and exits non-zero. The real reason lives in stdout
+		// (subtype), NOT stderr. The error paths must surface it, not discard it.
+		fmt.Print(`{"type":"result","subtype":"error_max_budget","is_error":true,"result":"","stop_reason":"max_budget","usage":{"input_tokens":10,"output_tokens":20},"total_cost_usd":1.0}`)
+		os.Exit(1)
 	}
 	os.Exit(m.Run())
 }
@@ -71,6 +78,37 @@ func TestOperateIsErrorReturnsError(t *testing.T) {
 	}
 }
 
+// TestReasonIsErrorReturnsError verifies that Reason returns an error when the JSON
+// result has is_error:true with a non-empty result on a non-zero exit — mirroring the
+// Operate guard. Without the IsError check in the Reason non-zero-exit branch, an
+// error_during_execution payload with an explanatory result is masked as a successful
+// decision response.
+func TestReasonIsErrorReturnsError(t *testing.T) {
+	testBin, err := os.Executable()
+	if err != nil {
+		t.Fatalf("could not get test binary path: %v", err)
+	}
+
+	t.Setenv("GO_FAKE_CLAUDE_MODE", "is_error_exit1")
+
+	p, err := intelligence.New(intelligence.Config{
+		Provider: "claude-cli",
+		Model:    "sonnet",
+		BaseURL:  testBin,
+	})
+	if err != nil {
+		t.Fatalf("failed to create provider: %v", err)
+	}
+
+	_, err = p.Reason(context.Background(), "do something", nil)
+	if err == nil {
+		t.Fatal("Reason should return an error when is_error:true and exit status 1, but got nil")
+	}
+	if !strings.Contains(err.Error(), "task failed") {
+		t.Errorf("error should contain the result message, got: %v", err)
+	}
+}
+
 // TestOperateIsErrorZeroExitReturnsError verifies that Operate returns an error when
 // the JSON result has is_error:true even when claude exits with code 0.
 func TestOperateIsErrorZeroExitReturnsError(t *testing.T) {
@@ -105,5 +143,75 @@ func TestOperateIsErrorZeroExitReturnsError(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "tool call rejected") {
 		t.Errorf("error should contain the result message, got: %v", err)
+	}
+}
+
+// TestOperateEmptyResultExitSurfacesSubtype verifies that when claude exits
+// non-zero with a result JSON whose result string is EMPTY (e.g. budget/max-turns
+// termination), Operate's error surfaces the subtype from stdout instead of
+// discarding it. Without the fix, the error is only "exit status 1, stderr empty"
+// — the actual reason (in stdout) is lost, which is the Finding-4 diagnostic blind
+// spot.
+func TestOperateEmptyResultExitSurfacesSubtype(t *testing.T) {
+	testBin, err := os.Executable()
+	if err != nil {
+		t.Fatalf("could not get test binary path: %v", err)
+	}
+
+	t.Setenv("GO_FAKE_CLAUDE_MODE", "empty_result_exit1")
+
+	p, err := intelligence.New(intelligence.Config{
+		Provider: "claude-cli",
+		Model:    "sonnet",
+		BaseURL:  testBin,
+	})
+	if err != nil {
+		t.Fatalf("failed to create provider: %v", err)
+	}
+
+	op, ok := p.(decision.IOperator)
+	if !ok {
+		t.Fatal("claude-cli provider does not implement IOperator")
+	}
+
+	workDir := t.TempDir()
+	_, err = op.Operate(context.Background(), decision.OperateTask{
+		WorkDir:     workDir,
+		Instruction: "do something",
+	})
+	if err == nil {
+		t.Fatal("Operate should return an error on non-zero exit, but got nil")
+	}
+	if !strings.Contains(err.Error(), "error_max_budget") {
+		t.Errorf("error should surface the claude subtype from stdout (error_max_budget), got: %v", err)
+	}
+}
+
+// TestReasonEmptyResultExitSurfacesSubtype is the Reason-path counterpart: the
+// same blind spot exists in Reason's non-zero-exit error path. Fix the class, not
+// just the Operate instance.
+func TestReasonEmptyResultExitSurfacesSubtype(t *testing.T) {
+	testBin, err := os.Executable()
+	if err != nil {
+		t.Fatalf("could not get test binary path: %v", err)
+	}
+
+	t.Setenv("GO_FAKE_CLAUDE_MODE", "empty_result_exit1")
+
+	p, err := intelligence.New(intelligence.Config{
+		Provider: "claude-cli",
+		Model:    "sonnet",
+		BaseURL:  testBin,
+	})
+	if err != nil {
+		t.Fatalf("failed to create provider: %v", err)
+	}
+
+	_, err = p.Reason(context.Background(), "do something", nil)
+	if err == nil {
+		t.Fatal("Reason should return an error on non-zero exit, but got nil")
+	}
+	if !strings.Contains(err.Error(), "error_max_budget") {
+		t.Errorf("error should surface the claude subtype from stdout (error_max_budget), got: %v", err)
 	}
 }
