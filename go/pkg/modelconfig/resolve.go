@@ -37,8 +37,8 @@ type ResolutionInput struct {
 type ResolverDefaults struct {
 	Provider   string               // default provider (e.g. "claude-cli")
 	Model      string               // fallback model ID
-	TierModels map[ModelTier]string  // tier -> default model ID
-	RoleModels map[string]string     // role -> model alias
+	TierModels map[ModelTier]string // tier -> default model ID
+	RoleModels map[string]string    // role -> model alias
 }
 
 // Resolver resolves model configuration through a deterministic precedence chain.
@@ -140,6 +140,9 @@ func (r *Resolver) Resolve(input ResolutionInput) (ResolvedConfig, error) {
 		// Explicit policy/override already set it otherwise.
 		rc.Provider = entry.Provider
 		rc.Trace = append(rc.Trace, fmt.Sprintf("provider: catalog entry → %s", entry.Provider))
+	}
+	if rc.Provider != "" && entry.Provider != "" && rc.Provider != entry.Provider {
+		return ResolvedConfig{}, fmt.Errorf("model %s belongs to provider %q but resolved provider %q", entry.ID, entry.Provider, rc.Provider)
 	}
 
 	// Layer 7: CanOperate constraint — provider must support agentic tool use.

@@ -42,8 +42,8 @@ func testDefaults() ResolverDefaults {
 		},
 		RoleModels: map[string]string{
 			"guardian": "sonnet",
-			"cto":     "opus",
-			"sysmon":  "haiku",
+			"cto":      "opus",
+			"sysmon":   "haiku",
 		},
 	}
 }
@@ -178,6 +178,16 @@ func TestResolve(t *testing.T) {
 				},
 			},
 			wantErr: "missing capabilities",
+		},
+		{
+			name: "task override provider must match resolved model provider",
+			input: ResolutionInput{
+				Role: "worker",
+				TaskOverride: &RoleModelPolicy{
+					Provider: "anthropic",
+				},
+			},
+			wantErr: "belongs to provider",
 		},
 	}
 
