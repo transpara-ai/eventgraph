@@ -76,11 +76,13 @@ func (r *Resolver) Catalog() *ModelCatalog {
 //  4. Named profile (if Policy.Profile is set)
 //  5. Role policy (Policy.Model, Policy.Provider)
 //  6. Task override (TaskOverride fields)
-//  7. CanOperate constraint (forces Provider="claude-cli")
+//  7. Provider/model coherence check
+//  8. CanOperate constraint (requires an Operate-capable provider)
 func (r *Resolver) Resolve(input ResolutionInput) (ResolvedConfig, error) {
 	var rc ResolvedConfig
 	var modelName string
 	modelOverridden := false // tracks whether a prior layer set an explicit model
+	providerOverridden := false
 
 	// Layer 1: System defaults
 	rc.Provider = r.defaults.Provider
@@ -104,12 +106,12 @@ func (r *Resolver) Resolve(input ResolutionInput) (ResolvedConfig, error) {
 
 	// Layer 4+5: Policy (profile, then explicit fields)
 	if input.Policy != nil {
-		r.applyPolicy(&rc, &modelName, &modelOverridden, input.Policy, "policy")
+		r.applyPolicy(&rc, &modelName, &modelOverridden, &providerOverridden, input.Policy, "policy")
 	}
 
 	// Layer 6: Task override
 	if input.TaskOverride != nil {
-		r.applyPolicy(&rc, &modelName, &modelOverridden, input.TaskOverride, "task-override")
+		r.applyPolicy(&rc, &modelName, &modelOverridden, &providerOverridden, input.TaskOverride, "task-override")
 	}
 
 	// Resolve model name to catalog entry
@@ -135,9 +137,10 @@ func (r *Resolver) Resolve(input ResolutionInput) (ResolvedConfig, error) {
 	if rc.BaseURL == "" && entry.BaseURL != "" {
 		rc.BaseURL = entry.BaseURL
 	}
-	if rc.Provider == r.defaults.Provider && entry.Provider != "" {
-		// Override provider from catalog entry when still on system default.
-		// Explicit policy/override already set it otherwise.
+	if !providerOverridden && entry.Provider != "" {
+		// Inherit the catalog provider only while the provider still comes from
+		// defaults. Explicit policy/profile/override providers must be checked
+		// against the resolved model rather than silently replaced.
 		rc.Provider = entry.Provider
 		rc.Trace = append(rc.Trace, fmt.Sprintf("provider: catalog entry → %s", entry.Provider))
 	}
@@ -203,7 +206,7 @@ func (r *Resolver) Resolve(input ResolutionInput) (ResolvedConfig, error) {
 // applyPolicy merges a RoleModelPolicy into the in-progress resolution.
 // modelOverridden tracks whether a prior layer (role default, AgentDef.Model)
 // already set an explicit model — PreferredTier won't override those.
-func (r *Resolver) applyPolicy(rc *ResolvedConfig, modelName *string, modelOverridden *bool, policy *RoleModelPolicy, source string) {
+func (r *Resolver) applyPolicy(rc *ResolvedConfig, modelName *string, modelOverridden *bool, providerOverridden *bool, policy *RoleModelPolicy, source string) {
 	// Profile expansion first (lower precedence than explicit fields)
 	if policy.Profile != "" {
 		if profile, ok := r.profiles[policy.Profile]; ok {
@@ -214,6 +217,7 @@ func (r *Resolver) applyPolicy(rc *ResolvedConfig, modelName *string, modelOverr
 			}
 			if profile.Provider != "" {
 				rc.Provider = profile.Provider
+				*providerOverridden = true
 				rc.Trace = append(rc.Trace, fmt.Sprintf("provider: %s profile %q → %s", source, policy.Profile, profile.Provider))
 			}
 			if profile.BaseURL != "" {
@@ -239,6 +243,7 @@ func (r *Resolver) applyPolicy(rc *ResolvedConfig, modelName *string, modelOverr
 	}
 	if policy.Provider != "" {
 		rc.Provider = policy.Provider
+		*providerOverridden = true
 		rc.Trace = append(rc.Trace, fmt.Sprintf("provider: %s explicit → %s", source, policy.Provider))
 	}
 

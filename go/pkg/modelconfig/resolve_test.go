@@ -53,6 +53,44 @@ func testResolver(t *testing.T) *Resolver {
 	return NewResolver(testCatalog(t), testProfiles(), testDefaults())
 }
 
+func mixedProviderResolver(t *testing.T) *Resolver {
+	t.Helper()
+	cat, err := NewCatalog([]ModelCatalogEntry{
+		{
+			ID:           "test-sonnet",
+			Aliases:      []string{"sonnet"},
+			Provider:     "claude-cli",
+			AuthMode:     AuthSubscription,
+			Tier:         TierExecution,
+			Capabilities: []Capability{CapTools, CapReasoning, CapCoding, CapOperate},
+		},
+		{
+			ID:           "api-sonnet",
+			Aliases:      []string{"api-sonnet-alias"},
+			Provider:     "anthropic",
+			AuthMode:     AuthAPIKey,
+			Tier:         TierExecution,
+			Capabilities: []Capability{CapTools, CapReasoning, CapCoding},
+		},
+	})
+	require.NoError(t, err)
+	return NewResolver(cat, map[string]ModelProfile{
+		"api-with-matching-provider": {
+			Name:     "api-with-matching-provider",
+			Model:    "api-sonnet",
+			Provider: "anthropic",
+		},
+		"api-with-cli-provider": {
+			Name:     "api-with-cli-provider",
+			Model:    "api-sonnet",
+			Provider: "claude-cli",
+		},
+	}, ResolverDefaults{
+		Provider: "claude-cli",
+		Model:    "test-sonnet",
+	})
+}
+
 func TestResolve(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -214,6 +252,75 @@ func TestResolve(t *testing.T) {
 			if tt.checkTrace != nil {
 				tt.checkTrace(t, rc.Trace)
 			}
+		})
+	}
+}
+
+func TestResolve_ProviderModelCoherence(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   ResolutionInput
+		wantErr string
+	}{
+		{
+			name: "task override matching provider succeeds",
+			input: ResolutionInput{
+				Role: "guardian",
+				TaskOverride: &RoleModelPolicy{
+					Model:    "api-sonnet",
+					Provider: "anthropic",
+				},
+			},
+		},
+		{
+			name: "task override explicit default provider mismatch fails",
+			input: ResolutionInput{
+				Role: "guardian",
+				TaskOverride: &RoleModelPolicy{
+					Model:    "api-sonnet",
+					Provider: "claude-cli",
+				},
+			},
+			wantErr: "belongs to provider",
+		},
+		{
+			name: "policy provider mismatch fails",
+			input: ResolutionInput{
+				Role: "guardian",
+				Policy: &RoleModelPolicy{
+					Model:    "api-sonnet",
+					Provider: "claude-cli",
+				},
+			},
+			wantErr: "belongs to provider",
+		},
+		{
+			name: "profile matching provider succeeds",
+			input: ResolutionInput{
+				Role:   "guardian",
+				Policy: &RoleModelPolicy{Profile: "api-with-matching-provider"},
+			},
+		},
+		{
+			name: "profile provider mismatch fails",
+			input: ResolutionInput{
+				Role:   "guardian",
+				Policy: &RoleModelPolicy{Profile: "api-with-cli-provider"},
+			},
+			wantErr: "belongs to provider",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rc, err := mixedProviderResolver(t).Resolve(tt.input)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, "api-sonnet", rc.Model)
+			assert.Equal(t, "anthropic", rc.Provider)
 		})
 	}
 }
