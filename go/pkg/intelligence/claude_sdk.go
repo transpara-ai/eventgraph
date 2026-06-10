@@ -205,8 +205,19 @@ func (p *claudeSDKProvider) run(ctx context.Context, prompt string, args []strin
 	cmd.Stdin = strings.NewReader(prompt)
 	if workDir != "" {
 		cmd.Dir = workDir
+		// An Operate (workDir set) runs a coding agent with file/Bash access, so
+		// it must not inherit the daemon's ambient git/gh credentials and push
+		// or open a PR ungoverned (slice-1 v10-F1). Fail closed. A Reason call
+		// (no workDir) has no such surface and keeps the lighter scrub.
+		env, cleanupEnv, err := operateSubprocessEnv(cmd.Environ())
+		if err != nil {
+			return nil, err
+		}
+		defer cleanupEnv()
+		cmd.Env = env
+	} else {
+		cmd.Env = scrubEnv(cmd.Environ(), "CLAUDECODE", "DATABASE_URL", "HIVE_AGENT_ID", "HIVE_HUMAN_ID")
 	}
-	cmd.Env = scrubEnv(cmd.Environ(), "CLAUDECODE", "DATABASE_URL", "HIVE_AGENT_ID", "HIVE_HUMAN_ID")
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
