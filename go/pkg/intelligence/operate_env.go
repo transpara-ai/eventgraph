@@ -103,6 +103,14 @@ func operateSubprocessEnv(parent []string) (env []string, cleanup func(), err er
 		// safe.directory=* via the env-injection mechanism (independent of the
 		// dropped file config) so `git commit`/`git status` work in a worktree
 		// git would otherwise reject for dubious ownership.
+		//
+		// LOAD-BEARING: COUNT=1 is what makes any inherited GIT_CONFIG_KEY_n /
+		// GIT_CONFIG_VALUE_n at index >= 1 inert — git reads only indices
+		// [0, COUNT). Codex (eventgraph#50) confirmed an inherited
+		// GIT_CONFIG_KEY_1=credential.helper activates at COUNT>=2. If a future
+		// change raises COUNT to inject a second key, it MUST first strip every
+		// inherited GIT_CONFIG_KEY_*/GIT_CONFIG_VALUE_* or it reopens this
+		// ambient config-injection channel (fail-open).
 		"GIT_CONFIG_COUNT":   "1",
 		"GIT_CONFIG_KEY_0":   "safe.directory",
 		"GIT_CONFIG_VALUE_0": "*",
