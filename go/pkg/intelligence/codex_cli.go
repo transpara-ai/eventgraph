@@ -179,10 +179,11 @@ func (p *codexCliProvider) Operate(ctx context.Context, task decision.OperateTas
 	// Credential-isolated environment (slice-1 v10-F1): codex Operate runs with
 	// --dangerously-bypass-approvals-and-sandbox, so it must not inherit the
 	// daemon's ambient git/gh credentials. Fail closed.
-	env, err := operateSubprocessEnv(cmd.Environ())
+	env, cleanupEnv, err := operateSubprocessEnv(cmd.Environ())
 	if err != nil {
 		return decision.OperateResult{}, err
 	}
+	defer cleanupEnv()
 	cmd.Env = env
 
 	var stdout, stderr bytes.Buffer

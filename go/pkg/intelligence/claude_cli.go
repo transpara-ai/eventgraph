@@ -288,12 +288,14 @@ func (p *claudeCliProvider) Operate(ctx context.Context, task decision.OperateTa
 	// daemon's ambient git/gh credentials and push or open a PR ungoverned
 	// (slice-1 v10-F1). The governed create-PR path runs in the daemon and
 	// keeps its credentials; this subprocess can commit locally but cannot
-	// reach a remote. Fail closed — refuse to Operate rather than fall back to
-	// the ambient environment. The session-retry path below reuses this env.
-	env, err := operateSubprocessEnv(cmd.Environ())
+	// reach a remote via the default channels. Fail closed — refuse to Operate
+	// rather than fall back to the ambient environment. The session-retry path
+	// below reuses this env; the deferred cleanup covers both.
+	env, cleanupEnv, err := operateSubprocessEnv(cmd.Environ())
 	if err != nil {
 		return decision.OperateResult{}, err
 	}
+	defer cleanupEnv()
 	cmd.Env = env
 
 	var stdout, stderr bytes.Buffer
