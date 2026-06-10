@@ -19,6 +19,13 @@ var operateCredentialVars = []string{
 	// re-enables SSH key auth despite IdentityAgent=none (codex review of
 	// eventgraph#50, findings 1 + 3).
 	"GIT_ASKPASS", "SSH_ASKPASS", "SSH_AUTH_SOCK", "DISPLAY",
+	// Ambient git config/transport injection: GIT_CONFIG_PARAMETERS is the
+	// serialized `-c` channel git honors even with global/system config dropped
+	// and GIT_CONFIG_COUNT bounded, so it can reintroduce credential.helper or
+	// http.*.extraheader; GIT_SSH is the legacy ssh-wrapper channel. Both are
+	// ambient-env inheritance (in scope, distinct from a workspace-local
+	// .git/config) — strip them (codex review of eventgraph#50, NEW-F1).
+	"GIT_CONFIG_PARAMETERS", "GIT_SSH",
 	// Hive/daemon internals that must never leak into a subprocess.
 	"CLAUDECODE", "DATABASE_URL", "HIVE_AGENT_ID", "HIVE_HUMAN_ID",
 	// Anthropic keys poison the claude CLI's Max-subscription auth.

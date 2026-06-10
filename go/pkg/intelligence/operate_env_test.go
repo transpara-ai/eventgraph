@@ -50,6 +50,8 @@ func TestOperateSubprocessEnv_StripsRemoteCredentials(t *testing.T) {
 		"SSH_ASKPASS=/usr/bin/ssh-askpass",
 		"SSH_AUTH_SOCK=/run/agent.sock",
 		"DISPLAY=:0",
+		"GIT_CONFIG_PARAMETERS='credential.helper=evil'",
+		"GIT_SSH=/usr/bin/evil-ssh",
 		"CLAUDECODE=1",
 		"DATABASE_URL=postgres://x",
 		"HIVE_AGENT_ID=actor_x",
@@ -67,6 +69,7 @@ func TestOperateSubprocessEnv_StripsRemoteCredentials(t *testing.T) {
 	for _, k := range []string{
 		"GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN",
 		"GIT_ASKPASS", "SSH_ASKPASS", "SSH_AUTH_SOCK", "DISPLAY",
+		"GIT_CONFIG_PARAMETERS", "GIT_SSH",
 		"CLAUDECODE", "DATABASE_URL", "HIVE_AGENT_ID", "HIVE_HUMAN_ID",
 		"ANTHROPIC_API_KEY", "HIVE_ANTHROPIC_API_KEY",
 	} {
@@ -249,5 +252,43 @@ func TestOperateSubprocessEnv_LocalCommitSucceeds(t *testing.T) {
 	}
 	if got := strings.TrimSpace(string(out)); got != "hive-factory <factory@hive.local>" {
 		t.Errorf("commit identity = %q; want the env-supplied factory identity", got)
+	}
+}
+
+// TestOperateSubprocessEnv_DefeatsGitConfigParametersInjection is the NEW-F1
+// integration proof (codex re-review of #50): GIT_CONFIG_PARAMETERS is honored
+// by git even with global/system config dropped and GIT_CONFIG_COUNT bounded,
+// so an inherited one can reintroduce credential.helper. The Operate env must
+// strip it — proven by running git under the built env and confirming the
+// injected credential.helper is absent. Skips if git is unavailable.
+func TestOperateSubprocessEnv_DefeatsGitConfigParametersInjection(t *testing.T) {
+	gitPath, err := exec.LookPath("git")
+	if err != nil {
+		t.Skip("git not available")
+	}
+	repo := t.TempDir()
+
+	// Control: a parent carrying a hostile GIT_CONFIG_PARAMETERS would inject
+	// credential.helper into every git invocation.
+	parent := append(os.Environ(), "GIT_CONFIG_PARAMETERS='credential.helper=evilhelper'")
+	env, cleanup, err := operateSubprocessEnv(parent)
+	if err != nil {
+		t.Fatalf("operateSubprocessEnv: %v", err)
+	}
+	t.Cleanup(cleanup)
+
+	initCmd := exec.Command(gitPath, "init")
+	initCmd.Dir = repo
+	initCmd.Env = env
+	if out, e := initCmd.CombinedOutput(); e != nil {
+		t.Fatalf("git init: %v\n%s", e, out)
+	}
+
+	cmd := exec.Command(gitPath, "config", "--get", "credential.helper")
+	cmd.Dir = repo
+	cmd.Env = env
+	out, _ := cmd.CombinedOutput() // exit 1 when unset — that is the pass case
+	if strings.Contains(string(out), "evilhelper") {
+		t.Fatalf("GIT_CONFIG_PARAMETERS injection survived: credential.helper = %q; the ambient config-injection channel is still open", strings.TrimSpace(string(out)))
 	}
 }
