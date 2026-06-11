@@ -90,7 +90,7 @@ func (p *claudeSDKProvider) SessionID() string {
 }
 
 func (p *claudeSDKProvider) Reason(ctx context.Context, prompt string, history []event.Event) (decision.Response, error) {
-	ctx, cancel := context.WithTimeout(ctx, defaultReasonTimeout)
+	ctx, cancel := context.WithTimeout(ctx, reasonTimeout())
 	defer cancel()
 
 	var fullPrompt strings.Builder
@@ -115,7 +115,7 @@ func (p *claudeSDKProvider) Reason(ctx context.Context, prompt string, history [
 }
 
 func (p *claudeSDKProvider) Operate(ctx context.Context, task decision.OperateTask) (decision.OperateResult, error) {
-	ctx, cancel := context.WithTimeout(ctx, defaultOperateTimeout)
+	ctx, cancel := context.WithTimeout(ctx, operateTimeout())
 	defer cancel()
 
 	if task.WorkDir == "" {

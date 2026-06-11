@@ -36,6 +36,26 @@ func TestAgentBudgetAdjustedContentResourceRoundTrip(t *testing.T) {
 	}
 }
 
+// Domain-complete: legacy-empty and explicit "iterations" are the iteration
+// dimension; "duration" and every unknown future value are NOT — iteration
+// consumers must skip them, never misapply (fail closed).
+func TestAdjustsIterationsDomain(t *testing.T) {
+	cases := map[string]bool{
+		"":           true,
+		"iterations": true,
+		"duration":   false,
+		"tokens":     false,
+		"minutes":    false,
+		"Iterations": false,
+	}
+	for resource, want := range cases {
+		c := AgentBudgetAdjustedContent{Resource: resource}
+		if got := c.AdjustsIterations(); got != want {
+			t.Errorf("AdjustsIterations(%q) = %t; want %t", resource, got, want)
+		}
+	}
+}
+
 func TestAgentBudgetAdjustedContentLegacyJSONHasEmptyResource(t *testing.T) {
 	var out AgentBudgetAdjustedContent
 	if err := json.Unmarshal([]byte(`{"AgentName":"cto","Action":"set","NewBudget":100}`), &out); err != nil {

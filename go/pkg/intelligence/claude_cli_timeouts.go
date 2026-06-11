@@ -12,7 +12,9 @@ import (
 // calls to the fixed 10-minute ceiling (SIGKILL at exactly 10m0s, empty
 // output) and the round stalled. The ceiling stays — an unbounded provider
 // call violates the BUDGET invariant — but it becomes operator-tunable via
-// CLAUDE_CLI_REASON_TIMEOUT / CLAUDE_CLI_OPERATE_TIMEOUT. Fail-safe: an
+// CLAUDE_CLI_REASON_TIMEOUT / CLAUDE_CLI_OPERATE_TIMEOUT. The knobs govern
+// EVERY claude provider path (claude-cli and claude-sdk; codex r1 blocker —
+// pinned by TestRawTimeoutConstantsConfinedToHelpers). Fail-safe: an
 // unset, empty, malformed, zero, or negative override falls back to the
 // compiled default — the knob can move the ceiling, never remove it.
 func reasonTimeout() time.Duration {

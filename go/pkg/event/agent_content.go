@@ -152,6 +152,17 @@ type AgentBudgetAdjustedContent struct {
 
 func (c AgentBudgetAdjustedContent) EventTypeName() string { return "agent.budget.adjusted" }
 
+// AdjustsIterations reports whether this adjustment is in the ITERATION
+// dimension: an explicit "iterations" or the empty legacy value (every
+// pre-v14 event). Consumers that fold budgets into iteration counts must
+// gate on this — a duration adjustment's NewBudget is MINUTES, and reading
+// it as iterations corrupts replayed budgets (codex r1 on hive#156).
+// An unknown future resource is neither iterations nor duration: it reads
+// as NOT iterations, so iteration consumers skip rather than misapply it.
+func (c AgentBudgetAdjustedContent) AdjustsIterations() bool {
+	return c.Resource == "" || c.Resource == "iterations"
+}
+
 // AgentRoleAssignedContent records role set or changed.
 type AgentRoleAssignedContent struct {
 	agentContent
