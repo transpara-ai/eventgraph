@@ -144,6 +144,10 @@ type AgentBudgetAdjustedContent struct {
 	Delta          int           `json:"Delta"`
 	Reason         string        `json:"Reason"`
 	PoolRemaining  int           `json:"PoolRemaining"`
+	// Resource names which budget dimension was adjusted: "iterations" or
+	// "duration" (v14-F3c: the allocator renews wall-clock lifespans as well
+	// as iteration counts). Empty on legacy events and reads as iterations.
+	Resource string `json:"Resource,omitempty"`
 }
 
 func (c AgentBudgetAdjustedContent) EventTypeName() string { return "agent.budget.adjusted" }

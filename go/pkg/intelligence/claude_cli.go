@@ -111,7 +111,7 @@ func (p *claudeCliProvider) Reason(ctx context.Context, prompt string, history [
 	// of parent deadline and child timeout, so this caps each call without
 	// overriding a tighter parent deadline.
 	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(ctx, defaultReasonTimeout)
+	ctx, cancel = context.WithTimeout(ctx, reasonTimeout())
 	defer cancel()
 
 	// Build the full prompt with history context.
@@ -242,7 +242,7 @@ func (p *claudeCliProvider) Operate(ctx context.Context, task decision.OperateTa
 	// of parent deadline and child timeout, so this caps each call without
 	// overriding a tighter parent deadline.
 	var cancel context.CancelFunc
-	ctx, cancel = context.WithTimeout(ctx, defaultOperateTimeout)
+	ctx, cancel = context.WithTimeout(ctx, operateTimeout())
 	defer cancel()
 
 	if task.WorkDir == "" {
