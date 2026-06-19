@@ -748,6 +748,8 @@ func authorityReferenceIntegrityReasonsFromRecords(records []Record) []string {
 	var requests []CivilizationAssemblyAuthorityRequest
 	var decisions []CivilizationAssemblyAuthorityDecision
 	var receipts []CivilizationAssemblyExecutionReceipt
+	var approvals []HumanApproval
+	var transitions []LifecycleTransition
 	for _, record := range records {
 		switch typed := record.(type) {
 		case *AuthorityRequest:
@@ -762,24 +764,42 @@ func authorityReferenceIntegrityReasonsFromRecords(records []Record) []string {
 				ID:                  typed.CommonNode.ID,
 				AuthorityDecisionID: typed.AuthorityDecisionID,
 			})
+		case *HumanApproval:
+			approvals = append(approvals, *typed)
+		case *LifecycleTransition:
+			transitions = append(transitions, *typed)
 		}
 	}
-	return authorityReferenceIntegrityReasons(requests, decisions, receipts)
+	reasons := authorityReferenceIntegrityReasons(requests, decisions, receipts)
+	requestIDs, decisionIDs := authorityReferenceIDSets(requests, decisions)
+	for _, approval := range approvals {
+		requestID := strings.TrimSpace(approval.RequestRef)
+		if requestID == "" {
+			reasons = append(reasons, "HumanApproval "+approval.CommonNode.ID+" is missing request_ref")
+			continue
+		}
+		if _, ok := requestIDs[requestID]; !ok {
+			reasons = append(reasons, "HumanApproval "+approval.CommonNode.ID+" references missing AuthorityRequest "+requestID)
+		}
+	}
+	for _, transition := range transitions {
+		if transition.AuthorityDecisionID == nil {
+			continue
+		}
+		decisionID := strings.TrimSpace(*transition.AuthorityDecisionID)
+		if decisionID == "" {
+			reasons = append(reasons, "LifecycleTransition "+transition.CommonNode.ID+" is missing authority_decision_id")
+			continue
+		}
+		if _, ok := decisionIDs[decisionID]; !ok {
+			reasons = append(reasons, "LifecycleTransition "+transition.CommonNode.ID+" references missing AuthorityDecision "+decisionID)
+		}
+	}
+	return appendSortedUnique(nil, reasons...)
 }
 
 func authorityReferenceIntegrityReasons(requests []CivilizationAssemblyAuthorityRequest, decisions []CivilizationAssemblyAuthorityDecision, receipts []CivilizationAssemblyExecutionReceipt) []string {
-	requestIDs := map[string]struct{}{}
-	decisionIDs := map[string]struct{}{}
-	for _, request := range requests {
-		if id := strings.TrimSpace(request.ID); id != "" {
-			requestIDs[id] = struct{}{}
-		}
-	}
-	for _, decision := range decisions {
-		if id := strings.TrimSpace(decision.ID); id != "" {
-			decisionIDs[id] = struct{}{}
-		}
-	}
+	requestIDs, decisionIDs := authorityReferenceIDSets(requests, decisions)
 
 	var reasons []string
 	for _, decision := range decisions {
@@ -803,6 +823,22 @@ func authorityReferenceIntegrityReasons(requests []CivilizationAssemblyAuthority
 		}
 	}
 	return appendSortedUnique(nil, reasons...)
+}
+
+func authorityReferenceIDSets(requests []CivilizationAssemblyAuthorityRequest, decisions []CivilizationAssemblyAuthorityDecision) (map[string]struct{}, map[string]struct{}) {
+	requestIDs := map[string]struct{}{}
+	decisionIDs := map[string]struct{}{}
+	for _, request := range requests {
+		if id := strings.TrimSpace(request.ID); id != "" {
+			requestIDs[id] = struct{}{}
+		}
+	}
+	for _, decision := range decisions {
+		if id := strings.TrimSpace(decision.ID); id != "" {
+			decisionIDs[id] = struct{}{}
+		}
+	}
+	return requestIDs, decisionIDs
 }
 
 func sortedMapKeysRecord(m map[string]Record) []string {

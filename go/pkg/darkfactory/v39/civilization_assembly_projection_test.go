@@ -94,6 +94,7 @@ func TestCivilizationAssemblyProjectionMissingAuthorityFailsClosed(t *testing.T)
 	store := civilizationAssemblyProjectionStore(t)
 	deleteRecord(store, "auth_dec_civ_001")
 	deleteRecord(store, "exec_civ_001")
+	store.records["lt_civ_001"].(*LifecycleTransition).AuthorityDecisionID = nil
 	appendRecord(t, store, &MemoryReference{AdvisoryReference: advisory("mem_civ_context", TypeMemoryReference, "tsk_civ_001")})
 
 	projection := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
@@ -171,6 +172,38 @@ func TestCivilizationAssemblyProjectionDanglingExecutionReceiptReferenceFails(t 
 	}
 	if !containsFailureReason(projection.FailureReasons, "ExecutionReceipt exec_civ_001 references missing AuthorityDecision auth_dec_civ_001") {
 		t.Fatalf("missing dangling AuthorityDecision failure reason: %+v", projection.FailureReasons)
+	}
+}
+
+func TestCivilizationAssemblyProjectionDanglingLifecycleAuthorityReferenceFails(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	store.mu.Lock()
+	*store.records["lt_civ_001"].(*LifecycleTransition).AuthorityDecisionID = "auth_dec_civ_missing"
+	store.mu.Unlock()
+
+	projection := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
+
+	if projection.DerivationStatus != CivilizationAssemblyDerivationFailed {
+		t.Fatalf("derivation status = %s, want failed", projection.DerivationStatus)
+	}
+	if !containsFailureReason(projection.FailureReasons, "LifecycleTransition lt_civ_001 references missing AuthorityDecision auth_dec_civ_missing") {
+		t.Fatalf("missing dangling lifecycle authority failure reason: %+v", projection.FailureReasons)
+	}
+}
+
+func TestCivilizationAssemblyProjectionDanglingHumanApprovalReferenceFails(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	store.mu.Lock()
+	store.records["approval_civ_001"].(*HumanApproval).RequestRef = "auth_req_civ_missing"
+	store.mu.Unlock()
+
+	projection := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
+
+	if projection.DerivationStatus != CivilizationAssemblyDerivationFailed {
+		t.Fatalf("derivation status = %s, want failed", projection.DerivationStatus)
+	}
+	if !containsFailureReason(projection.FailureReasons, "HumanApproval approval_civ_001 references missing AuthorityRequest auth_req_civ_missing") {
+		t.Fatalf("missing dangling approval authority failure reason: %+v", projection.FailureReasons)
 	}
 }
 
@@ -273,6 +306,26 @@ func TestCivilizationAssemblyProjectionUnresolvedCriticalContradictionFails(t *t
 	}
 	if !containsFailureReason(projection.FailureReasons, "unresolved critical contradiction contradiction_civ_accepted_conflict blocks trusted projection") {
 		t.Fatalf("missing unresolved critical contradiction failure reason: %+v", projection.FailureReasons)
+	}
+}
+
+func TestCivilizationAssemblyProjectionUnresolvedHighContradictionFails(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	appendRecord(t, store, &ContradictionLog{
+		CommonNode:      common("contradiction_civ_high", TypeContradictionLog, "open"),
+		ContradictionID: "contradiction_civ_high",
+		ClaimARef:       "auth_dec_civ_001",
+		ClaimBRef:       "approval_civ_001",
+		Severity:        "high",
+	})
+
+	projection := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
+
+	if projection.DerivationStatus != CivilizationAssemblyDerivationFailed {
+		t.Fatalf("derivation status = %s, want failed", projection.DerivationStatus)
+	}
+	if !containsFailureReason(projection.FailureReasons, "unresolved high contradiction contradiction_civ_high blocks trusted projection") {
+		t.Fatalf("missing unresolved high contradiction failure reason: %+v", projection.FailureReasons)
 	}
 }
 
