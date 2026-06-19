@@ -27,6 +27,9 @@ func TestCivilizationAssemblyProjectionCompleteDeterministicFixture(t *testing.T
 	if first.ProjectionSubject != CivilizationAssemblyProjectionSubject {
 		t.Fatalf("subject = %s", first.ProjectionSubject)
 	}
+	if !strings.HasPrefix(first.ProjectionID, "civilization_assembly:") || len(strings.TrimPrefix(first.ProjectionID, "civilization_assembly:")) != 16 {
+		t.Fatalf("derived projection id = %s, want stable 16-character state prefix", first.ProjectionID)
+	}
 	if first.SourceEventGraphHeadOrStateVersion == "" || !strings.HasPrefix(first.SourceEventGraphHeadOrStateVersion, "sha256:") {
 		t.Fatalf("missing deterministic source state version: %s", first.SourceEventGraphHeadOrStateVersion)
 	}
@@ -55,6 +58,18 @@ func TestCivilizationAssemblyProjectionCompleteDeterministicFixture(t *testing.T
 	}
 	if len(first.WithheldOrUnavailableFields) != 0 {
 		t.Fatalf("complete fixture should not have unavailable fields: %+v", first.WithheldOrUnavailableFields)
+	}
+}
+
+func TestCivilizationAssemblyProjectionDoesNotMutateStore(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	before := civilizationAssemblyStoreFootprint(t, store)
+
+	projection := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
+
+	after := civilizationAssemblyStoreFootprint(t, store)
+	if !reflect.DeepEqual(before, after) {
+		t.Fatalf("projection mutated store\nbefore=%+v\nafter=%+v\nprojection=%+v", before, after, projection)
 	}
 }
 
@@ -124,6 +139,72 @@ func TestCivilizationAssemblyProjectionConflictingAuthorityFails(t *testing.T) {
 	}
 }
 
+func TestCivilizationAssemblyProjectionDanglingAuthorityDecisionReferenceFails(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	store.mu.Lock()
+	deleteRecord(store, "auth_req_civ_001")
+	store.mu.Unlock()
+
+	projection := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
+
+	if projection.DerivationStatus != CivilizationAssemblyDerivationFailed {
+		t.Fatalf("derivation status = %s, want failed", projection.DerivationStatus)
+	}
+	if projection.AuthorityState.Status != CivilizationAssemblyFieldUnavailable {
+		t.Fatalf("authority state = %+v, want unavailable", projection.AuthorityState)
+	}
+	if !containsFailureReason(projection.FailureReasons, "AuthorityDecision auth_dec_civ_001 references missing AuthorityRequest auth_req_civ_001") {
+		t.Fatalf("missing dangling AuthorityRequest failure reason: %+v", projection.FailureReasons)
+	}
+}
+
+func TestCivilizationAssemblyProjectionDanglingExecutionReceiptReferenceFails(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	store.mu.Lock()
+	deleteRecord(store, "auth_dec_civ_001")
+	store.mu.Unlock()
+
+	projection := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
+
+	if projection.DerivationStatus != CivilizationAssemblyDerivationFailed {
+		t.Fatalf("derivation status = %s, want failed", projection.DerivationStatus)
+	}
+	if !containsFailureReason(projection.FailureReasons, "ExecutionReceipt exec_civ_001 references missing AuthorityDecision auth_dec_civ_001") {
+		t.Fatalf("missing dangling AuthorityDecision failure reason: %+v", projection.FailureReasons)
+	}
+}
+
+func TestCivilizationAssemblyProjectionMissingAuthorityRequestIDDoesNotCreateEmptyConflict(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	appendRecord(t, store, &AuthorityDecision{
+		CommonNode:         common("auth_dec_civ_missing_request_002", TypeAuthorityDecision, "approved"),
+		AuthorityRequestID: "auth_req_civ_001",
+		DeciderActorID:     "act_human",
+		DeciderRole:        "External Committee",
+		Decision:           "Forbidden",
+		Reason:             "negative missing request fixture",
+		Scope:              []string{"eventgraph.read.projection"},
+	})
+	store.mu.Lock()
+	store.records["auth_dec_civ_001"].(*AuthorityDecision).AuthorityRequestID = ""
+	store.records["auth_dec_civ_missing_request_002"].(*AuthorityDecision).AuthorityRequestID = ""
+	store.mu.Unlock()
+
+	projection := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
+
+	if projection.DerivationStatus != CivilizationAssemblyDerivationFailed {
+		t.Fatalf("derivation status = %s, want failed", projection.DerivationStatus)
+	}
+	if !containsFailureReason(projection.FailureReasons, "AuthorityDecision auth_dec_civ_001 is missing authority_request_id") {
+		t.Fatalf("missing empty authority_request_id failure reason: %+v", projection.FailureReasons)
+	}
+	for _, reason := range projection.FailureReasons {
+		if strings.Contains(reason, "conflicting AuthorityDecision records for :") {
+			t.Fatalf("empty authority_request_id should not create blank conflict reason: %+v", projection.FailureReasons)
+		}
+	}
+}
+
 func TestCivilizationAssemblyProjectionOpenGateAndResidualRiskArePartial(t *testing.T) {
 	store := civilizationAssemblyProjectionStore(t)
 	appendRecord(t, store, &GateResult{
@@ -172,6 +253,26 @@ func TestCivilizationAssemblyProjectionResolvedFailureDoesNotStayPartial(t *test
 	}
 	if len(projection.ResidualRiskSummary) != 0 {
 		t.Fatalf("closed failure should not appear as residual risk: %+v", projection.ResidualRiskSummary)
+	}
+}
+
+func TestCivilizationAssemblyProjectionUnresolvedCriticalContradictionFails(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	appendRecord(t, store, &ContradictionLog{
+		CommonNode:      common("contradiction_civ_accepted_conflict", TypeContradictionLog, "accepted_conflict"),
+		ContradictionID: "contradiction_civ_accepted_conflict",
+		ClaimARef:       "auth_dec_civ_001",
+		ClaimBRef:       "approval_civ_001",
+		Severity:        "critical",
+	})
+
+	projection := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
+
+	if projection.DerivationStatus != CivilizationAssemblyDerivationFailed {
+		t.Fatalf("derivation status = %s, want failed", projection.DerivationStatus)
+	}
+	if !containsFailureReason(projection.FailureReasons, "unresolved critical contradiction contradiction_civ_accepted_conflict blocks trusted projection") {
+		t.Fatalf("missing unresolved critical contradiction failure reason: %+v", projection.FailureReasons)
 	}
 }
 
@@ -461,4 +562,36 @@ func projectionHasUnavailableField(projection CivilizationAssemblyProjection, fi
 		}
 	}
 	return false
+}
+
+func containsFailureReason(reasons []string, want string) bool {
+	for _, reason := range reasons {
+		if strings.Contains(reason, want) {
+			return true
+		}
+	}
+	return false
+}
+
+func civilizationAssemblyStoreFootprint(t *testing.T, store *InMemoryStore) []string {
+	t.Helper()
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+
+	var footprint []string
+	for _, id := range sortedMapKeysRecord(store.records) {
+		canonical, err := CanonicalJSON(store.records[id])
+		if err != nil {
+			t.Fatalf("canonical record %s: %v", id, err)
+		}
+		footprint = append(footprint, "record:"+id+":"+string(canonical))
+	}
+	for _, id := range sortedMapKeysEdge(store.edges) {
+		canonical, err := CanonicalJSON(store.edges[id])
+		if err != nil {
+			t.Fatalf("canonical edge %s: %v", id, err)
+		}
+		footprint = append(footprint, "edge:"+id+":"+string(canonical))
+	}
+	return footprint
 }

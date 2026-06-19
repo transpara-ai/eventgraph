@@ -325,6 +325,11 @@ func civilizationAssemblyAuthorityState(records []Record) CivilizationAssemblyAu
 		state.Summary = "no AuthorityDecision records are present in the EventGraph source snapshot"
 		return state
 	}
+	if len(authorityReferenceIntegrityReasons(state.AuthorityRequests, state.AuthorityDecisions, state.ExecutionReceipts)) > 0 {
+		state.Status = CivilizationAssemblyFieldUnavailable
+		state.Summary = "authority chain contains dangling AuthorityRequest, AuthorityDecision, or ExecutionReceipt references"
+		return state
+	}
 	if hasConflictingAuthorityDecisions(state.AuthorityDecisions) {
 		state.Status = CivilizationAssemblyFieldUnavailable
 		state.Summary = "conflicting AuthorityDecision records are present for the same AuthorityRequest"
@@ -441,23 +446,25 @@ func civilizationAssemblyFactoryOrders(records []Record) []CivilizationAssemblyF
 	// in the source state hash/provenance, but this read model derives joins
 	// from the typed record fields that the store validates on append.
 	requirements := map[string][]string{}
+	requirementFactoryOrders := map[string]string{}
 	acceptance := map[string][]string{}
 	tasks := map[string][]string{}
 	releases := map[string][]string{}
 	var orders []CivilizationAssemblyFactoryOrder
 
 	for _, record := range records {
+		if typed, ok := record.(*Requirement); ok {
+			requirementFactoryOrders[typed.CommonNode.ID] = typed.FactoryOrderID
+		}
+	}
+
+	for _, record := range records {
 		switch typed := record.(type) {
 		case *Requirement:
 			requirements[typed.FactoryOrderID] = append(requirements[typed.FactoryOrderID], typed.CommonNode.ID)
 		case *AcceptanceCriterion:
-			requirementID := typed.RequirementID
-			for _, reqRecord := range records {
-				req, ok := reqRecord.(*Requirement)
-				if ok && req.CommonNode.ID == requirementID {
-					acceptance[req.FactoryOrderID] = append(acceptance[req.FactoryOrderID], typed.CommonNode.ID)
-					break
-				}
+			if factoryOrderID := requirementFactoryOrders[typed.RequirementID]; factoryOrderID != "" {
+				acceptance[factoryOrderID] = append(acceptance[factoryOrderID], typed.CommonNode.ID)
 			}
 		case *Task:
 			if typed.FactoryOrderID != nil {
@@ -645,14 +652,17 @@ func civilizationAssemblyFailureReasons(records []Record) []string {
 	if conflicts := conflictingAuthorityDecisionReasons(records); len(conflicts) > 0 {
 		reasons = append(reasons, conflicts...)
 	}
+	if authorityIntegrity := authorityReferenceIntegrityReasonsFromRecords(records); len(authorityIntegrity) > 0 {
+		reasons = append(reasons, authorityIntegrity...)
+	}
 	for _, record := range records {
 		contradiction, ok := record.(*ContradictionLog)
-		if !ok || normalizedStatus(contradiction.CommonNode) != "open" {
+		if !ok || normalizedStatus(contradiction.CommonNode) == "resolved" {
 			continue
 		}
 		severity := strings.ToLower(strings.TrimSpace(contradiction.Severity))
 		if severity == "high" || severity == "critical" {
-			reasons = append(reasons, "open "+severity+" contradiction "+contradiction.CommonNode.ID+" blocks trusted projection")
+			reasons = append(reasons, "unresolved "+severity+" contradiction "+contradiction.CommonNode.ID+" blocks trusted projection")
 		}
 	}
 	return appendSortedUnique(nil, reasons...)
@@ -701,10 +711,14 @@ func civilizationAssemblyProvenanceRefs(projection CivilizationAssemblyProjectio
 func hasConflictingAuthorityDecisions(decisions []CivilizationAssemblyAuthorityDecision) bool {
 	seen := map[string]string{}
 	for _, decision := range decisions {
-		if existing, ok := seen[decision.AuthorityRequestID]; ok && existing != decision.Decision {
+		authorityRequestID := strings.TrimSpace(decision.AuthorityRequestID)
+		if authorityRequestID == "" {
+			continue
+		}
+		if existing, ok := seen[authorityRequestID]; ok && existing != decision.Decision {
 			return true
 		}
-		seen[decision.AuthorityRequestID] = decision.Decision
+		seen[authorityRequestID] = decision.Decision
 	}
 	return false
 }
@@ -717,13 +731,78 @@ func conflictingAuthorityDecisionReasons(records []Record) []string {
 		if !ok {
 			continue
 		}
-		if existing, ok := seen[decision.AuthorityRequestID]; ok && existing.Decision != decision.Decision {
-			reasons = append(reasons, "conflicting AuthorityDecision records for "+decision.AuthorityRequestID+": "+existing.CommonNode.ID+"="+existing.Decision+" "+decision.CommonNode.ID+"="+decision.Decision)
+		authorityRequestID := strings.TrimSpace(decision.AuthorityRequestID)
+		if authorityRequestID == "" {
 			continue
 		}
-		seen[decision.AuthorityRequestID] = *decision
+		if existing, ok := seen[authorityRequestID]; ok && existing.Decision != decision.Decision {
+			reasons = append(reasons, "conflicting AuthorityDecision records for "+authorityRequestID+": "+existing.CommonNode.ID+"="+existing.Decision+" "+decision.CommonNode.ID+"="+decision.Decision)
+			continue
+		}
+		seen[authorityRequestID] = *decision
 	}
 	return reasons
+}
+
+func authorityReferenceIntegrityReasonsFromRecords(records []Record) []string {
+	var requests []CivilizationAssemblyAuthorityRequest
+	var decisions []CivilizationAssemblyAuthorityDecision
+	var receipts []CivilizationAssemblyExecutionReceipt
+	for _, record := range records {
+		switch typed := record.(type) {
+		case *AuthorityRequest:
+			requests = append(requests, CivilizationAssemblyAuthorityRequest{ID: typed.CommonNode.ID})
+		case *AuthorityDecision:
+			decisions = append(decisions, CivilizationAssemblyAuthorityDecision{
+				ID:                 typed.CommonNode.ID,
+				AuthorityRequestID: typed.AuthorityRequestID,
+			})
+		case *ExecutionReceipt:
+			receipts = append(receipts, CivilizationAssemblyExecutionReceipt{
+				ID:                  typed.CommonNode.ID,
+				AuthorityDecisionID: typed.AuthorityDecisionID,
+			})
+		}
+	}
+	return authorityReferenceIntegrityReasons(requests, decisions, receipts)
+}
+
+func authorityReferenceIntegrityReasons(requests []CivilizationAssemblyAuthorityRequest, decisions []CivilizationAssemblyAuthorityDecision, receipts []CivilizationAssemblyExecutionReceipt) []string {
+	requestIDs := map[string]struct{}{}
+	decisionIDs := map[string]struct{}{}
+	for _, request := range requests {
+		if id := strings.TrimSpace(request.ID); id != "" {
+			requestIDs[id] = struct{}{}
+		}
+	}
+	for _, decision := range decisions {
+		if id := strings.TrimSpace(decision.ID); id != "" {
+			decisionIDs[id] = struct{}{}
+		}
+	}
+
+	var reasons []string
+	for _, decision := range decisions {
+		requestID := strings.TrimSpace(decision.AuthorityRequestID)
+		if requestID == "" {
+			reasons = append(reasons, "AuthorityDecision "+decision.ID+" is missing authority_request_id")
+			continue
+		}
+		if _, ok := requestIDs[requestID]; !ok {
+			reasons = append(reasons, "AuthorityDecision "+decision.ID+" references missing AuthorityRequest "+requestID)
+		}
+	}
+	for _, receipt := range receipts {
+		decisionID := strings.TrimSpace(receipt.AuthorityDecisionID)
+		if decisionID == "" {
+			reasons = append(reasons, "ExecutionReceipt "+receipt.ID+" is missing authority_decision_id")
+			continue
+		}
+		if _, ok := decisionIDs[decisionID]; !ok {
+			reasons = append(reasons, "ExecutionReceipt "+receipt.ID+" references missing AuthorityDecision "+decisionID)
+		}
+	}
+	return appendSortedUnique(nil, reasons...)
 }
 
 func sortedMapKeysRecord(m map[string]Record) []string {
