@@ -186,6 +186,12 @@ func TestCivilizationAssemblyProjectionDanglingLifecycleAuthorityReferenceFails(
 	if projection.DerivationStatus != CivilizationAssemblyDerivationFailed {
 		t.Fatalf("derivation status = %s, want failed", projection.DerivationStatus)
 	}
+	if projection.AuthorityState.Status != CivilizationAssemblyFieldUnavailable {
+		t.Fatalf("authority state = %+v, want unavailable", projection.AuthorityState)
+	}
+	if !projectionHasUnavailableField(projection, "authority_state") {
+		t.Fatalf("dangling lifecycle authority ref should mark authority_state unavailable: %+v", projection.WithheldOrUnavailableFields)
+	}
 	if !containsFailureReason(projection.FailureReasons, "LifecycleTransition lt_civ_001 references missing AuthorityDecision auth_dec_civ_missing") {
 		t.Fatalf("missing dangling lifecycle authority failure reason: %+v", projection.FailureReasons)
 	}
@@ -201,6 +207,12 @@ func TestCivilizationAssemblyProjectionDanglingHumanApprovalReferenceFails(t *te
 
 	if projection.DerivationStatus != CivilizationAssemblyDerivationFailed {
 		t.Fatalf("derivation status = %s, want failed", projection.DerivationStatus)
+	}
+	if projection.AuthorityState.Status != CivilizationAssemblyFieldUnavailable {
+		t.Fatalf("authority state = %+v, want unavailable", projection.AuthorityState)
+	}
+	if !projectionHasUnavailableField(projection, "authority_state") {
+		t.Fatalf("dangling approval authority ref should mark authority_state unavailable: %+v", projection.WithheldOrUnavailableFields)
 	}
 	if !containsFailureReason(projection.FailureReasons, "HumanApproval approval_civ_001 references missing AuthorityRequest auth_req_civ_missing") {
 		t.Fatalf("missing dangling approval authority failure reason: %+v", projection.FailureReasons)

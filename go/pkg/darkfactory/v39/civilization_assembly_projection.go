@@ -325,9 +325,9 @@ func civilizationAssemblyAuthorityState(records []Record) CivilizationAssemblyAu
 		state.Summary = "no AuthorityDecision records are present in the EventGraph source snapshot"
 		return state
 	}
-	if len(authorityReferenceIntegrityReasons(state.AuthorityRequests, state.AuthorityDecisions, state.ExecutionReceipts)) > 0 {
+	if len(authorityReferenceIntegrityReasonsFromRecords(records)) > 0 {
 		state.Status = CivilizationAssemblyFieldUnavailable
-		state.Summary = "authority chain contains dangling AuthorityRequest, AuthorityDecision, or ExecutionReceipt references"
+		state.Summary = "authority chain contains dangling authority-bearing references"
 		return state
 	}
 	if hasConflictingAuthorityDecisions(state.AuthorityDecisions) {
