@@ -138,6 +138,26 @@ func TestCivilizationAssemblyProjectionOpenGateAndResidualRiskArePartial(t *test
 	}
 }
 
+func TestCivilizationAssemblyProjectionResolvedFailureDoesNotStayPartial(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	appendRecord(t, store, &Failure{
+		CommonNode:     common("failure_civ_closed", TypeFailure, "closed"),
+		FactoryOrderID: strPtr("fo_civ_001"),
+		FailureClass:   "traceability_gap",
+		Severity:       "high",
+		Summary:        "historical failure was closed",
+	})
+
+	projection := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
+
+	if projection.DerivationStatus != CivilizationAssemblyDerivationComplete {
+		t.Fatalf("closed historical failure should not make projection partial: %+v", projection)
+	}
+	if len(projection.ResidualRiskSummary) != 0 {
+		t.Fatalf("closed failure should not appear as residual risk: %+v", projection.ResidualRiskSummary)
+	}
+}
+
 func TestCivilizationAssemblyProjectionEmptyStoreUnavailable(t *testing.T) {
 	projection := NewInMemoryStore().ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
 
@@ -146,6 +166,39 @@ func TestCivilizationAssemblyProjectionEmptyStoreUnavailable(t *testing.T) {
 	}
 	if !projectionHasUnavailableField(projection, "authority_state") {
 		t.Fatalf("empty store should surface unavailable authority: %+v", projection.WithheldOrUnavailableFields)
+	}
+}
+
+func TestCivilizationAssemblyProjectionCloneFailureFailsClosed(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	store.mu.Lock()
+	store.records["clone_failure"] = &projectionCloneFailureRecord{CommonNode: common("clone_failure", "ProjectionCloneFailure", "recorded")}
+	store.canonicalByID["clone_failure"] = []byte(`{"id":"clone_failure"}`)
+	store.mu.Unlock()
+
+	projection := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
+
+	if projection.DerivationStatus != CivilizationAssemblyDerivationFailed {
+		t.Fatalf("clone failure status = %s, want failed", projection.DerivationStatus)
+	}
+	if len(projection.FailureReasons) == 0 || !strings.Contains(projection.FailureReasons[0], "could not be cloned") {
+		t.Fatalf("missing clone failure reason: %+v", projection.FailureReasons)
+	}
+}
+
+func TestCivilizationAssemblyProjectionSiteConsumerRequiresExplicitMarker(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	appendRecord(t, store, &Artifact{
+		CommonNode:   common("artifact_unrelated_civilization_report", TypeArtifact, "verified"),
+		ArtifactType: "report",
+		Path:         strPtr("report://civilization/unrelated"),
+		ContentHash:  strPtr("sha256:unrelated-civilization-report"),
+	})
+
+	projection := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
+
+	if !reflect.DeepEqual(projection.SiteConsumerStatus.SourceRefs, []string{"site_consumer_civ_001"}) {
+		t.Fatalf("unmarked civilization report should not count as Site consumer evidence: %+v", projection.SiteConsumerStatus)
 	}
 }
 
@@ -287,7 +340,7 @@ func civilizationAssemblyProjectionStore(t *testing.T) *InMemoryStore {
 		ContentHash:  strPtr("sha256:projection-fixture"),
 	})
 	appendRecord(t, store, &Artifact{
-		CommonNode:   common("site_consumer_civ_001", TypeArtifact, "verified"),
+		CommonNode:   commonWithSourceRefs("site_consumer_civ_001", TypeArtifact, "verified", []string{civilizationAssemblySiteConsumerSourceRef}),
 		TaskID:       &taskID,
 		ArtifactType: "report",
 		Path:         strPtr("site://ops/civilization/read-only"),
@@ -331,6 +384,14 @@ func civilizationAssemblyProjectionStore(t *testing.T) *InMemoryStore {
 	appendEdge(t, store, edge("edge_civ_tc_tr", EdgeVerifies, testCaseID, testRunID))
 	appendEdge(t, store, edge("edge_civ_tr_gate", EdgeProduced, testRunID, gateID))
 	return store
+}
+
+type projectionCloneFailureRecord struct {
+	CommonNode
+}
+
+func (r *projectionCloneFailureRecord) Validate() error {
+	return nil
 }
 
 func projectionHasUnavailableField(projection CivilizationAssemblyProjection, field string) bool {

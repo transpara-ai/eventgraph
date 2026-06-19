@@ -19,7 +19,9 @@ const (
 
 	CivilizationAssemblyFieldAvailable   CivilizationAssemblyFieldAvailability = "available"
 	CivilizationAssemblyFieldUnavailable CivilizationAssemblyFieldAvailability = "unavailable"
-	CivilizationAssemblyFieldWithheld    CivilizationAssemblyFieldAvailability = "withheld"
+
+	civilizationAssemblySiteConsumerSourceRef  = "civilization_assembly:site_consumer"
+	civilizationAssemblySiteConsumerPathPrefix = "site://ops/civilization/"
 )
 
 type CivilizationAssemblyDerivationStatus string
@@ -184,6 +186,7 @@ type civilizationAssemblySnapshot struct {
 	records      []Record
 	sourceIDs    []string
 	stateVersion string
+	failures     []string
 }
 
 func (s *InMemoryStore) ProjectCivilizationAssembly(options CivilizationAssemblyProjectionOptions) CivilizationAssemblyProjection {
@@ -223,7 +226,7 @@ func (s *InMemoryStore) ProjectCivilizationAssembly(options CivilizationAssembly
 	projection.ValidationRefs = appendSortedUnique(projection.ValidationRefs, projection.WorkEvidenceSummary.GateResultRefs...)
 	projection.ProvenanceRefs = civilizationAssemblyProvenanceRefs(projection)
 	projection.WithheldOrUnavailableFields = civilizationAssemblyUnavailableFields(projection)
-	projection.FailureReasons = civilizationAssemblyFailureReasons(snapshot.records)
+	projection.FailureReasons = appendSortedUnique(snapshot.failures, civilizationAssemblyFailureReasons(snapshot.records)...)
 	projection.DerivationStatus = civilizationAssemblyDerivationStatus(snapshot, projection)
 	return projection
 }
@@ -236,6 +239,7 @@ func (s *InMemoryStore) civilizationAssemblySnapshot() civilizationAssemblySnaps
 	edgeIDs := sortedMapKeysEdge(s.edges)
 	sourceIDs := make([]string, 0, len(recordIDs)+len(edgeIDs))
 	records := make([]Record, 0, len(recordIDs))
+	failures := []string{}
 	hasher := sha256.New()
 
 	for _, id := range recordIDs {
@@ -243,8 +247,15 @@ func (s *InMemoryStore) civilizationAssemblySnapshot() civilizationAssemblySnaps
 		hasher.Write([]byte("record:" + id + "\n"))
 		hasher.Write(s.canonicalByID[id])
 		hasher.Write([]byte("\n"))
-		if cloned, err := cloneRecord(s.records[id]); err == nil {
+		record := s.records[id]
+		if record == nil {
+			failures = append(failures, "source record "+id+" could not be cloned: nil record")
+			continue
+		}
+		if cloned, err := cloneRecord(record); err == nil {
 			records = append(records, cloned)
+		} else {
+			failures = append(failures, "source record "+id+" could not be cloned: "+err.Error())
 		}
 	}
 	for _, id := range edgeIDs {
@@ -252,6 +263,8 @@ func (s *InMemoryStore) civilizationAssemblySnapshot() civilizationAssemblySnaps
 		hasher.Write([]byte("edge:" + id + "\n"))
 		if canonical, err := CanonicalJSON(s.edges[id]); err == nil {
 			hasher.Write(canonical)
+		} else {
+			failures = append(failures, "source edge "+id+" could not be canonicalized: "+err.Error())
 		}
 		hasher.Write([]byte("\n"))
 	}
@@ -260,6 +273,7 @@ func (s *InMemoryStore) civilizationAssemblySnapshot() civilizationAssemblySnaps
 		records:      records,
 		sourceIDs:    sourceIDs,
 		stateVersion: "sha256:" + hex.EncodeToString(hasher.Sum(nil)),
+		failures:     appendSortedUnique(nil, failures...),
 	}
 }
 
@@ -506,13 +520,12 @@ func civilizationAssemblySiteConsumerStatus(records []Record) CivilizationAssemb
 		if !ok {
 			continue
 		}
-		artifactType := strings.ToLower(strings.TrimSpace(artifact.ArtifactType))
 		artifactPath := ""
 		if artifact.Path != nil {
 			artifactPath = strings.ToLower(strings.TrimSpace(*artifact.Path))
 		}
-		if strings.Contains(artifactPath, "site://ops/civilization") ||
-			(artifactType == "report" && strings.Contains(artifactPath, "civilization")) {
+		if strings.HasPrefix(artifactPath, civilizationAssemblySiteConsumerPathPrefix) ||
+			containsString(artifact.SourceRefs, civilizationAssemblySiteConsumerSourceRef) {
 			refs = append(refs, artifact.CommonNode.ID)
 		}
 	}
@@ -555,6 +568,9 @@ func civilizationAssemblyResidualRisks(records []Record) []CivilizationAssemblyR
 	for _, record := range records {
 		switch typed := record.(type) {
 		case *Failure:
+			if !isUnresolvedFailureStatus(commonStatus(typed.CommonNode)) {
+				continue
+			}
 			out = append(out, CivilizationAssemblyResidualRisk{
 				ID:       typed.CommonNode.ID,
 				Kind:     TypeFailure,
@@ -728,16 +744,31 @@ func commonStatus(common CommonNode) string {
 func appendSortedUnique(base []string, values ...string) []string {
 	seen := map[string]struct{}{}
 	out := make([]string, 0, len(base)+len(values))
-	for _, value := range append(base, values...) {
+	add := func(value string) {
 		if value == "" {
-			continue
+			return
 		}
 		if _, ok := seen[value]; ok {
-			continue
+			return
 		}
 		seen[value] = struct{}{}
 		out = append(out, value)
 	}
+	for _, value := range base {
+		add(value)
+	}
+	for _, value := range values {
+		add(value)
+	}
 	sort.Strings(out)
 	return out
+}
+
+func isUnresolvedFailureStatus(status string) bool {
+	switch status {
+	case "repaired", "waived", "closed":
+		return false
+	default:
+		return true
+	}
 }
