@@ -58,6 +58,23 @@ func TestCivilizationAssemblyProjectionCompleteDeterministicFixture(t *testing.T
 	}
 }
 
+func TestCivilizationAssemblyProjectionOptionsOverrideProjectionIDAndMergeBoundaryFlags(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+
+	projection := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{
+		ProjectionID:  "custom_projection_id",
+		GeneratedAt:   fixedTime,
+		BoundaryFlags: []string{"custom_boundary", "no_deploy"},
+	})
+
+	if projection.ProjectionID != "custom_projection_id" {
+		t.Fatalf("projection id = %s", projection.ProjectionID)
+	}
+	if !containsString(projection.BoundaryFlags, "custom_boundary") || !containsString(projection.BoundaryFlags, "no_deploy") {
+		t.Fatalf("boundary flags were not merged/deduped: %+v", projection.BoundaryFlags)
+	}
+}
+
 func TestCivilizationAssemblyProjectionMissingAuthorityFailsClosed(t *testing.T) {
 	store := civilizationAssemblyProjectionStore(t)
 	deleteRecord(store, "auth_dec_civ_001")
@@ -199,6 +216,49 @@ func TestCivilizationAssemblyProjectionSiteConsumerRequiresExplicitMarker(t *tes
 
 	if !reflect.DeepEqual(projection.SiteConsumerStatus.SourceRefs, []string{"site_consumer_civ_001"}) {
 		t.Fatalf("unmarked civilization report should not count as Site consumer evidence: %+v", projection.SiteConsumerStatus)
+	}
+}
+
+func TestCivilizationAssemblyProjectionNormalizesStatusComparisons(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	appendRecord(t, store, &ContradictionLog{
+		CommonNode:      common("contradiction_civ_mixed_case", TypeContradictionLog, "open"),
+		ContradictionID: "contradiction_civ_mixed_case",
+		ClaimARef:       "auth_dec_civ_001",
+		ClaimBRef:       "approval_civ_001",
+		Severity:        "critical",
+	})
+	store.mu.Lock()
+	*store.records["gate_civ_pass"].(*GateResult).CommonNode.Status = "PASS"
+	*store.records["contradiction_civ_mixed_case"].(*ContradictionLog).CommonNode.Status = "OPEN"
+	store.records["contradiction_civ_mixed_case"].(*ContradictionLog).Severity = "Critical"
+	store.mu.Unlock()
+
+	projection := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
+
+	if len(projection.OpenGateSummary) != 0 {
+		t.Fatalf("mixed-case PASS gate should not be open: %+v", projection.OpenGateSummary)
+	}
+	if projection.DerivationStatus != CivilizationAssemblyDerivationFailed {
+		t.Fatalf("mixed-case critical contradiction should fail projection: %+v", projection)
+	}
+	if len(projection.FailureReasons) == 0 || !strings.Contains(projection.FailureReasons[0], "critical contradiction") {
+		t.Fatalf("missing normalized contradiction failure: %+v", projection.FailureReasons)
+	}
+}
+
+func TestCivilizationAssemblyProjectionSkipsEmptyActorRoleBindings(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	store.mu.Lock()
+	store.records["auth_dec_civ_001"].(*AuthorityDecision).DeciderActorID = ""
+	store.mu.Unlock()
+
+	projection := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
+
+	for _, binding := range projection.RoleBindings {
+		if binding.SourceRef == "auth_dec_civ_001" {
+			t.Fatalf("empty decider actor should not produce role binding: %+v", projection.RoleBindings)
+		}
 	}
 }
 

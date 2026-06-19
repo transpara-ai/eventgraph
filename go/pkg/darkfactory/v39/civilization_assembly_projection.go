@@ -385,11 +385,17 @@ func civilizationAssemblyRoleBindings(records []Record) []CivilizationAssemblyRo
 	for _, record := range records {
 		switch typed := record.(type) {
 		case *AuthorityRequest:
-			out = append(out, CivilizationAssemblyRoleBinding{ActorID: typed.ActorID, Role: typed.ActorRole, SourceRef: typed.CommonNode.ID, SourceType: TypeAuthorityRequest})
+			if typed.ActorID != "" && typed.ActorRole != "" {
+				out = append(out, CivilizationAssemblyRoleBinding{ActorID: typed.ActorID, Role: typed.ActorRole, SourceRef: typed.CommonNode.ID, SourceType: TypeAuthorityRequest})
+			}
 		case *AuthorityDecision:
-			out = append(out, CivilizationAssemblyRoleBinding{ActorID: typed.DeciderActorID, Role: typed.DeciderRole, SourceRef: typed.CommonNode.ID, SourceType: TypeAuthorityDecision})
+			if typed.DeciderActorID != "" && typed.DeciderRole != "" {
+				out = append(out, CivilizationAssemblyRoleBinding{ActorID: typed.DeciderActorID, Role: typed.DeciderRole, SourceRef: typed.CommonNode.ID, SourceType: TypeAuthorityDecision})
+			}
 		case *HumanApproval:
-			out = append(out, CivilizationAssemblyRoleBinding{ActorID: typed.ApproverActorID, Role: typed.ApproverRole, SourceRef: typed.CommonNode.ID, SourceType: TypeHumanApproval})
+			if typed.ApproverActorID != "" && typed.ApproverRole != "" {
+				out = append(out, CivilizationAssemblyRoleBinding{ActorID: typed.ApproverActorID, Role: typed.ApproverRole, SourceRef: typed.CommonNode.ID, SourceType: TypeHumanApproval})
+			}
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -431,6 +437,9 @@ func civilizationAssemblyLifecycleSummary(records []Record) []CivilizationAssemb
 }
 
 func civilizationAssemblyFactoryOrders(records []Record) []CivilizationAssemblyFactoryOrder {
+	// v39 records carry validated relationship fields; edges are still included
+	// in the source state hash/provenance, but this read model derives joins
+	// from the typed record fields that the store validates on append.
 	requirements := map[string][]string{}
 	acceptance := map[string][]string{}
 	tasks := map[string][]string{}
@@ -547,7 +556,7 @@ func civilizationAssemblyOpenGates(records []Record) []CivilizationAssemblyGateS
 	var out []CivilizationAssemblyGateSummary
 	for _, record := range records {
 		gate, ok := record.(*GateResult)
-		if !ok || commonStatus(gate.CommonNode) == "pass" {
+		if !ok || normalizedStatus(gate.CommonNode) == "pass" {
 			continue
 		}
 		out = append(out, CivilizationAssemblyGateSummary{
@@ -568,7 +577,7 @@ func civilizationAssemblyResidualRisks(records []Record) []CivilizationAssemblyR
 	for _, record := range records {
 		switch typed := record.(type) {
 		case *Failure:
-			if !isUnresolvedFailureStatus(commonStatus(typed.CommonNode)) {
+			if !isUnresolvedFailureStatus(normalizedStatus(typed.CommonNode)) {
 				continue
 			}
 			out = append(out, CivilizationAssemblyResidualRisk{
@@ -579,7 +588,7 @@ func civilizationAssemblyResidualRisks(records []Record) []CivilizationAssemblyR
 				Summary:  typed.Summary,
 			})
 		case *ContradictionLog:
-			if commonStatus(typed.CommonNode) == "resolved" {
+			if normalizedStatus(typed.CommonNode) == "resolved" {
 				continue
 			}
 			out = append(out, CivilizationAssemblyResidualRisk{
@@ -638,11 +647,12 @@ func civilizationAssemblyFailureReasons(records []Record) []string {
 	}
 	for _, record := range records {
 		contradiction, ok := record.(*ContradictionLog)
-		if !ok || commonStatus(contradiction.CommonNode) != "open" {
+		if !ok || normalizedStatus(contradiction.CommonNode) != "open" {
 			continue
 		}
-		if contradiction.Severity == "high" || contradiction.Severity == "critical" {
-			reasons = append(reasons, "open "+contradiction.Severity+" contradiction "+contradiction.CommonNode.ID+" blocks trusted projection")
+		severity := strings.ToLower(strings.TrimSpace(contradiction.Severity))
+		if severity == "high" || severity == "critical" {
+			reasons = append(reasons, "open "+severity+" contradiction "+contradiction.CommonNode.ID+" blocks trusted projection")
 		}
 	}
 	return appendSortedUnique(nil, reasons...)
@@ -739,6 +749,10 @@ func commonStatus(common CommonNode) string {
 		return ""
 	}
 	return *common.Status
+}
+
+func normalizedStatus(common CommonNode) string {
+	return strings.ToLower(strings.TrimSpace(commonStatus(common)))
 }
 
 func appendSortedUnique(base []string, values ...string) []string {
