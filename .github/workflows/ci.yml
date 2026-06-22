@@ -11,6 +11,14 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  canonical-paths:
+    name: Canonical paths
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: test -L eventgraph
+      - run: test "$(readlink eventgraph)" = "."
+
   go:
     name: Go
     runs-on: ubuntu-latest

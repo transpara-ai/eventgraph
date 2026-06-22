@@ -1,8 +1,12 @@
-.PHONY: verify verify-go verify-ts verify-python verify-rust build-go test-go vet-go build-ts test-ts test-python test-rust
+.PHONY: verify verify-canonical-paths verify-go verify-ts verify-python verify-rust build-go test-go vet-go build-ts test-ts test-python test-rust
 
 CARGO ?= $(HOME)/.cargo/bin/cargo
 
-verify: verify-go verify-ts verify-python verify-rust
+verify: verify-canonical-paths verify-go verify-ts verify-python verify-rust
+
+verify-canonical-paths:
+	test -L eventgraph
+	test "$$(readlink eventgraph)" = "."
 
 verify-go: build-go test-go vet-go
 
