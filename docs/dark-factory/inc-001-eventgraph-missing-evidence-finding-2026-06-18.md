@@ -10,9 +10,9 @@ Repo: `transpara-ai/eventgraph`
 
 Work follow-up task: [transpara-ai/work#52](https://github.com/transpara-ai/work/issues/52)
 
-Incident record: [transpara-ai/civilization-operation Test 001 tabletop](https://github.com/transpara-ai/civilization-operation/blob/main/docs/incidents/001-cross-repo-runtime-doctrine-drift-tabletop.md)
+Incident record: [transpara-ai/operation Test 001 tabletop](https://github.com/transpara-ai/operation/blob/main/docs/incidents/001-cross-repo-runtime-doctrine-drift-tabletop.md)
 
-Source contract: `transpara-ai/civilization-operation` `docs/operations/eventgraph-incident-record-semantics.md`
+Source contract: `transpara-ai/operation` `docs/operations/eventgraph-incident-record-semantics.md`
 
 EventGraph query/export decision: [incident-evidence-query-export-decision-2026-06-16.md](./incident-evidence-query-export-decision-2026-06-16.md)
 
@@ -52,15 +52,15 @@ causal_context: []
 classification_requested_by_incident: INSUFFICIENT
 source_artifact_refs:
   - transpara-ai/work#52
-  - transpara-ai/civilization-operation/docs/incidents/001-cross-repo-runtime-doctrine-drift-tabletop.md
-  - transpara-ai/civilization-operation/docs/operations/eventgraph-incident-record-semantics.md
+  - transpara-ai/operation/docs/incidents/001-cross-repo-runtime-doctrine-drift-tabletop.md
+  - transpara-ai/operation/docs/operations/eventgraph-incident-record-semantics.md
   - transpara-ai/eventgraph/docs/dark-factory/incident-evidence-query-export-decision-2026-06-16.md
 missing_evidence:
   - No authoritative EventGraph store, deployment, or data source for INC-001 was identified.
   - No EventGraph event references were returned for the tabletop.
   - No chain verification result exists for INC-001 because no incident store chain was available.
-  - No EventGraph record proves active hive runtime behavior, work execution state, rendered site or civilization-wiki state, docs doctrine truth, human authorization, or incident closure.
-operator_notes: Treat this packet as an EventGraph-side missing-evidence finding only. The civilization-operation incident record owns final classification and must keep Test 001 YELLOW unless all other required evidence and authority gaps are resolved.
+  - No EventGraph record proves active hive runtime behavior, work execution state, rendered site or wiki state, docs doctrine truth, human authorization, or incident closure.
+operator_notes: Treat this packet as an EventGraph-side missing-evidence finding only. The operation incident record owns final classification and must keep Test 001 YELLOW unless all other required evidence and authority gaps are resolved.
 ```
 
 ## Data Source Sweep
@@ -115,7 +115,7 @@ The incident record must not treat this packet as proof of:
 
 - active `hive` runtime behavior or deployment state
 - `work` task execution or closure
-- rendered `site` or `civilization-wiki` state
+- rendered `site` or `wiki` state
 - canonical `docs` doctrine truth
 - human authorization
 - incident closure
@@ -125,4 +125,4 @@ The incident record must not treat this packet as proof of:
 
 This missing-evidence finding becomes accepted EventGraph-side evidence only after this file is reviewed and merged in `transpara-ai/eventgraph`.
 
-After merge, a later `transpara-ai/civilization-operation` update may cite the merged packet as the EventGraph evidence outcome for `work#52`, while still preserving the Test 001 `YELLOW` result unless every other required evidence and authority gap is resolved.
+After merge, a later `transpara-ai/operation` update may cite the merged packet as the EventGraph evidence outcome for `work#52`, while still preserving the Test 001 `YELLOW` result unless every other required evidence and authority gap is resolved.
