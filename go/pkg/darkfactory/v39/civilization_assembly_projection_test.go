@@ -51,6 +51,41 @@ func TestCivilizationAssemblyProjectionCompleteDeterministicFixture(t *testing.T
 	if first.SiteConsumerStatus.Status != CivilizationAssemblyFieldAvailable || !containsString(first.SiteConsumerStatus.SourceRefs, "site_consumer_civ_001") {
 		t.Fatalf("site consumer status missing EventGraph artifact evidence: %+v", first.SiteConsumerStatus)
 	}
+	if first.IssueIntakeProjection.Status != CivilizationAssemblyFieldAvailable || len(first.IssueIntakeProjection.Issues) != 2 {
+		t.Fatalf("issue intake projection missing typed GitHub issue refs: %+v", first.IssueIntakeProjection)
+	}
+	if !containsCivilizationIssue(first.IssueIntakeProjection.Issues, "transpara-ai/docs", 172) ||
+		!containsCivilizationIssue(first.IssueIntakeProjection.Issues, "transpara-ai/site", 115) {
+		t.Fatalf("issue intake projection does not preserve docs#172 and site#115: %+v", first.IssueIntakeProjection.Issues)
+	}
+	if len(first.IssueIntakeProjection.Groups) != 2 {
+		t.Fatalf("issue intake groups = %+v, want two repo/substrate groups", first.IssueIntakeProjection.Groups)
+	}
+	if first.IssueIntakeProjection.Groups[0].GroupID != "repo-transpara-ai-docs-substrate-factoryorder-risk-high-readiness-accepted" ||
+		first.IssueIntakeProjection.Groups[0].PrimaryRepo != "transpara-ai/docs" ||
+		first.IssueIntakeProjection.Groups[0].TouchedSubstrate != TypeFactoryOrder ||
+		first.IssueIntakeProjection.Groups[0].RiskClass != "high" ||
+		first.IssueIntakeProjection.Groups[0].Readiness != "accepted" ||
+		!containsCivilizationIssueRef(first.IssueIntakeProjection.Groups[0].IssueRefs, "transpara-ai/docs", 172) ||
+		!containsString(first.IssueIntakeProjection.Groups[0].SourceRefs, "github:transpara-ai/docs#172") ||
+		!strings.Contains(first.IssueIntakeProjection.Groups[0].Recommendation, "read-only source-intent projection") {
+		t.Fatalf("docs issue intake group does not preserve expected source-intent shape: %+v", first.IssueIntakeProjection.Groups[0])
+	}
+	if first.IssueIntakeProjection.Groups[1].GroupID != "repo-transpara-ai-site-substrate-requirement-risk-high-readiness-accepted" ||
+		first.IssueIntakeProjection.Groups[1].PrimaryRepo != "transpara-ai/site" ||
+		first.IssueIntakeProjection.Groups[1].TouchedSubstrate != TypeRequirement ||
+		first.IssueIntakeProjection.Groups[1].RiskClass != "high" ||
+		first.IssueIntakeProjection.Groups[1].Readiness != "accepted" ||
+		!containsCivilizationIssueRef(first.IssueIntakeProjection.Groups[1].IssueRefs, "transpara-ai/site", 115) ||
+		!containsString(first.IssueIntakeProjection.Groups[1].SourceRefs, "https://github.com/transpara-ai/site/issues/115") ||
+		first.IssueIntakeProjection.Groups[1].Summary != "1 issue(s) share repo/substrate/risk/readiness key." {
+		t.Fatalf("site issue intake group does not preserve expected source-intent shape: %+v", first.IssueIntakeProjection.Groups[1])
+	}
+	for _, boundary := range []string{"scanner_read_only", "no_eventgraph_writes", "no_github_issue_mutation", "no_pr_creation", "no_merge", "no_protected_action_approval"} {
+		if !containsString(first.IssueIntakeProjection.ScannerBoundaries, boundary) {
+			t.Fatalf("issue intake scanner boundary %s missing from %+v", boundary, first.IssueIntakeProjection.ScannerBoundaries)
+		}
+	}
 	for _, forbidden := range []string{"no_eventgraph_writes", "no_runtime_execution", "no_protected_actions", "no_site_replacement"} {
 		if !containsString(first.BoundaryFlags, forbidden) {
 			t.Fatalf("boundary flag %s missing from %+v", forbidden, first.BoundaryFlags)
@@ -70,6 +105,259 @@ func TestCivilizationAssemblyProjectionDoesNotMutateStore(t *testing.T) {
 	after := civilizationAssemblyStoreFootprint(t, store)
 	if !reflect.DeepEqual(before, after) {
 		t.Fatalf("projection mutated store\nbefore=%+v\nafter=%+v\nprojection=%+v", before, after, projection)
+	}
+}
+
+func TestCivilizationAssemblyIssueIntakeProjectionUnavailableWithoutIssueRefs(t *testing.T) {
+	projection := civilizationAssemblyIssueIntake([]Record{
+		&Artifact{
+			CommonNode:   common("artifact_without_issue_ref", TypeArtifact, "verified"),
+			ArtifactType: "report",
+			Path:         strPtr("site://ops/civilization/no-issue-ref"),
+			ContentHash:  strPtr("sha256:no-issue-ref"),
+		},
+	})
+
+	if projection.Status != CivilizationAssemblyFieldUnavailable {
+		t.Fatalf("status = %s, want unavailable", projection.Status)
+	}
+	if len(projection.Issues) != 0 || len(projection.Groups) != 0 {
+		t.Fatalf("unavailable issue intake should not project issues/groups: %+v", projection)
+	}
+	for _, boundary := range []string{"scanner_read_only", "no_eventgraph_writes", "no_github_issue_mutation"} {
+		if !containsString(projection.ScannerBoundaries, boundary) {
+			t.Fatalf("unavailable projection missing scanner boundary %s: %+v", boundary, projection.ScannerBoundaries)
+		}
+	}
+}
+
+func TestCivilizationAssemblyIssueIntakeSkipsNilRecords(t *testing.T) {
+	var typedNilArtifact *Artifact
+	projection := civilizationAssemblyIssueIntake([]Record{
+		nil,
+		typedNilArtifact,
+		&Requirement{
+			CommonNode: commonWithSourceRefs("req_with_issue_ref", TypeRequirement, "accepted", []string{
+				"github:transpara-ai/site#115",
+			}),
+			RiskClass: "high",
+		},
+	})
+
+	if len(projection.Issues) != 1 || !containsCivilizationIssue(projection.Issues, "transpara-ai/site", 115) {
+		t.Fatalf("nil records should be skipped without dropping valid issue refs: %+v", projection)
+	}
+}
+
+func TestCivilizationAssemblyIssueIntakeAggregatesDuplicateIssueRefs(t *testing.T) {
+	projection := civilizationAssemblyIssueIntake([]Record{
+		&Requirement{
+			CommonNode: commonWithSourceRefs("a_requirement_issue_ref", TypeRequirement, "accepted", []string{
+				"github:transpara-ai/site#115",
+			}),
+			RiskClass: "low",
+		},
+		&FactoryOrder{
+			CommonNode: commonWithSourceRefs("z_factory_order_issue_ref", TypeFactoryOrder, "draft", []string{
+				"https://github.com/transpara-ai/site/issues/115",
+			}),
+			SourceIntentRef: "github:transpara-ai/site#115",
+			RiskClass:       "critical",
+		},
+	})
+
+	if len(projection.Issues) != 1 {
+		t.Fatalf("deduped issue count = %d, want 1: %+v", len(projection.Issues), projection.Issues)
+	}
+	issue := projection.Issues[0]
+	if issue.Repo != "transpara-ai/site" ||
+		issue.Number != 115 ||
+		issue.TouchedSubstrate != "multiple" ||
+		issue.RiskClass != "critical" ||
+		issue.Readiness != "mixed" ||
+		!containsString(issue.TouchedSubstrates, TypeFactoryOrder) ||
+		!containsString(issue.TouchedSubstrates, TypeRequirement) ||
+		!containsString(issue.RiskClasses, "critical") ||
+		!containsString(issue.RiskClasses, "low") ||
+		!containsString(issue.ReadinessStates, "accepted") ||
+		!containsString(issue.ReadinessStates, "draft") ||
+		!containsString(issue.SourceRefs, "github:transpara-ai/site#115") ||
+		!containsString(issue.SourceRefs, "https://github.com/transpara-ai/site/issues/115") {
+		t.Fatalf("duplicate issue refs were not aggregated conservatively: %+v", issue)
+	}
+	if len(projection.Groups) != 1 ||
+		projection.Groups[0].GroupID != "repo-transpara-ai-site-substrate-multiple-risk-critical-readiness-mixed" ||
+		projection.Groups[0].TouchedSubstrate != "multiple" ||
+		projection.Groups[0].RiskClass != "critical" ||
+		projection.Groups[0].Readiness != "mixed" ||
+		!containsCivilizationIssueRef(projection.Groups[0].IssueRefs, "transpara-ai/site", 115) {
+		t.Fatalf("deduped issue group does not preserve aggregated fields: %+v", projection.Groups)
+	}
+}
+
+func TestCivilizationAssemblyIssueIntakeSurfacesUnknownRiskSeparately(t *testing.T) {
+	projection := civilizationAssemblyIssueIntake([]Record{
+		&Requirement{
+			CommonNode: commonWithSourceRefs("known_low_issue_ref", TypeRequirement, "accepted", []string{
+				"github:transpara-ai/site#115",
+			}),
+			RiskClass: "low",
+		},
+		&Requirement{
+			CommonNode: commonWithSourceRefs("future_risk_issue_ref", TypeRequirement, "accepted", []string{
+				"github:transpara-ai/site#115",
+			}),
+			RiskClass: "blocker",
+		},
+	})
+
+	if len(projection.Issues) != 1 {
+		t.Fatalf("deduped issue count = %d, want 1: %+v", len(projection.Issues), projection.Issues)
+	}
+	issue := projection.Issues[0]
+	if issue.RiskClass != "low" ||
+		!containsString(issue.RiskClasses, "blocker") ||
+		!containsString(issue.RiskClasses, "low") ||
+		!containsString(issue.UnrecognizedRisk, "blocker") {
+		t.Fatalf("unknown risk should be retained separately without replacing canonical headline: %+v", issue)
+	}
+}
+
+func TestCivilizationAssemblyIssueIntakeUnknownRiskWithoutKnownClass(t *testing.T) {
+	projection := civilizationAssemblyIssueIntake([]Record{
+		&Requirement{
+			CommonNode: commonWithSourceRefs("future_only_risk_issue_ref", TypeRequirement, "accepted", []string{
+				"github:transpara-ai/site#115",
+			}),
+			RiskClass: "blocker",
+		},
+	})
+
+	if len(projection.Issues) != 1 {
+		t.Fatalf("issue count = %d, want 1: %+v", len(projection.Issues), projection.Issues)
+	}
+	issue := projection.Issues[0]
+	if issue.RiskClass != "unknown" || !containsString(issue.UnrecognizedRisk, "blocker") {
+		t.Fatalf("unknown-only risk should use canonical unknown headline and retain raw term: %+v", issue)
+	}
+}
+
+func TestCivilizationAssemblyIssueIntakeGroupsMultipleIssues(t *testing.T) {
+	projection := civilizationAssemblyIssueIntake([]Record{
+		&Requirement{
+			CommonNode: commonWithSourceRefs("req_site_issue_115", TypeRequirement, "accepted", []string{
+				"github:transpara-ai/site#115",
+			}),
+			RiskClass: "high",
+		},
+		&Requirement{
+			CommonNode: commonWithSourceRefs("req_site_issue_116", TypeRequirement, "accepted", []string{
+				"https://github.com/transpara-ai/site/issues/116",
+			}),
+			RiskClass: "high",
+		},
+	})
+
+	if len(projection.Issues) != 2 || len(projection.Groups) != 1 {
+		t.Fatalf("projection = %+v, want two issues in one group", projection)
+	}
+	group := projection.Groups[0]
+	if group.GroupID != "repo-transpara-ai-site-substrate-requirement-risk-high-readiness-accepted" ||
+		group.Summary != "2 issue(s) share repo/substrate/risk/readiness key." ||
+		len(group.IssueRefs) != 2 ||
+		!containsCivilizationIssueRef(group.IssueRefs, "transpara-ai/site", 115) ||
+		!containsCivilizationIssueRef(group.IssueRefs, "transpara-ai/site", 116) ||
+		!containsString(group.SourceRefs, "req_site_issue_115") ||
+		!containsString(group.SourceRefs, "req_site_issue_116") {
+		t.Fatalf("multi-issue group missing expected aggregation: %+v", group)
+	}
+}
+
+func TestCivilizationAssemblyIssueIntakeGroupsEmptyRisk(t *testing.T) {
+	projection := civilizationAssemblyIssueIntake([]Record{
+		&Artifact{
+			CommonNode: commonWithSourceRefs("artifact_issue_ref", TypeArtifact, "verified", []string{
+				"github:transpara-ai/site#115",
+			}),
+			ArtifactType: "report",
+		},
+	})
+
+	if len(projection.Issues) != 1 || len(projection.Groups) != 1 {
+		t.Fatalf("projection = %+v, want one issue and one group", projection)
+	}
+	if projection.Issues[0].RiskClass != "" || len(projection.Issues[0].RiskClasses) != 0 {
+		t.Fatalf("non-risk record should not synthesize risk: %+v", projection.Issues[0])
+	}
+	if projection.Groups[0].GroupID != "repo-transpara-ai-site-substrate-artifact-risk-readiness-verified" ||
+		projection.Groups[0].RiskClass != "" ||
+		projection.Groups[0].Readiness != "verified" {
+		t.Fatalf("empty-risk group should preserve labeled empty risk axis: %+v", projection.Groups[0])
+	}
+}
+
+func TestParseCivilizationGitHubIssueRefAcceptsCanonicalRefs(t *testing.T) {
+	for _, ref := range []string{
+		"github:transpara-ai/site#115",
+		"https://github.com/transpara-ai/site/issues/115",
+	} {
+		repo, number, issueURL, ok := parseCivilizationGitHubIssueRef(ref)
+		if !ok || repo != "transpara-ai/site" || number != 115 || issueURL != "https://github.com/transpara-ai/site/issues/115" {
+			t.Fatalf("parseCivilizationGitHubIssueRef(%q) = %s #%d %s %t, want canonical site#115", ref, repo, number, issueURL, ok)
+		}
+	}
+}
+
+func TestParseCivilizationGitHubIssueRefRejectsNonIssueRefs(t *testing.T) {
+	for _, ref := range []string{
+		"",
+		"github:transpara-ai/site",
+		"github:transpara-ai/site#0",
+		"github:transpara-ai/site#+5",
+		"github:Transpara-AI/site#115",
+		"github:transpara-ai/site#0115",
+		"github:transpara-ai/docs#172#5",
+		"github:transpara-ai/site name#5",
+		"github:transpara-ai/..#5",
+		"github:../eventgraph#5",
+		"https://attacker@github.com/transpara-ai/site/issues/5",
+		"https://github.com/transpara-ai/site/pull/125",
+		"https://github.com/transpara-ai/site/issues/+5",
+		"https://github.com/transpara-ai/site/issues/115?source=tracker",
+		"https://github.com/transpara-ai/site/issues/115#issuecomment-1",
+		"https://github.com/transpara-ai/site/issues/115/",
+		"https://github.com//transpara-ai/site/issues/115",
+		"https://github.com/transpara-ai/site/issues/%31%31%35",
+		"https://github.com/transpara-ai/../issues/5",
+		"https://example.com/transpara-ai/site/issues/117",
+		"issue://117",
+	} {
+		if repo, number, issueURL, ok := parseCivilizationGitHubIssueRef(ref); ok {
+			t.Fatalf("parseCivilizationGitHubIssueRef(%q) = %s #%d %s, want rejected", ref, repo, number, issueURL)
+		}
+	}
+}
+
+func TestCivilizationAssemblyRecordRiskClassSources(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   Record
+		want string
+	}{
+		{name: "factory order", in: &FactoryOrder{CommonNode: common("fo_risk", TypeFactoryOrder, "accepted"), RiskClass: "critical"}, want: "critical"},
+		{name: "requirement", in: &Requirement{CommonNode: common("req_risk", TypeRequirement, "accepted"), RiskClass: "high"}, want: "high"},
+		{name: "acceptance criterion", in: &AcceptanceCriterion{CommonNode: common("ac_risk", TypeAcceptanceCriterion, "accepted"), RiskClass: "medium"}, want: "medium"},
+		{name: "assumption", in: &Assumption{CommonNode: common("asm_risk", TypeAssumption, "accepted"), RiskClass: "low"}, want: "low"},
+		{name: "task", in: &Task{CommonNode: common("tsk_risk", TypeTask, "accepted"), RiskClass: "high"}, want: "high"},
+		{name: "authority request", in: &AuthorityRequest{CommonNode: common("auth_req_risk", TypeAuthorityRequest, "requested"), RiskClass: "critical"}, want: "critical"},
+		{name: "failure severity", in: &Failure{CommonNode: common("failure_risk", TypeFailure, "open"), Severity: "high"}, want: "high"},
+		{name: "non-risk record", in: &Artifact{CommonNode: common("artifact_risk", TypeArtifact, "verified")}, want: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := civilizationAssemblyRecordRiskClass(tc.in); got != tc.want {
+				t.Fatalf("risk class = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 
@@ -465,12 +753,12 @@ func civilizationAssemblyProjectionStore(t *testing.T) *InMemoryStore {
 		CommonNode:          common(foID, TypeFactoryOrder, "accepted"),
 		FactoryOrderVersion: 1,
 		SourceIntentHash:    "sha256:civilization-intent",
-		SourceIntentRef:     "eventgraph://fixture/civilization",
+		SourceIntentRef:     "github:transpara-ai/docs#172",
 		RiskClass:           "high",
 		ReleasePolicy:       "human_approval_required",
 	})
 	appendRecord(t, store, &Requirement{
-		CommonNode:     common(reqID, TypeRequirement, "accepted"),
+		CommonNode:     commonWithSourceRefs(reqID, TypeRequirement, "accepted", []string{"https://github.com/transpara-ai/site/issues/115"}),
 		FactoryOrderID: foID,
 		Text:           "derive civilization assembly projection from EventGraph records",
 		Source:         "explicit",
@@ -632,6 +920,24 @@ func projectionHasUnavailableField(projection CivilizationAssemblyProjection, fi
 func containsFailureReason(reasons []string, want string) bool {
 	for _, reason := range reasons {
 		if strings.Contains(reason, want) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsCivilizationIssue(issues []CivilizationAssemblyIssueIntakeIssue, repo string, number int) bool {
+	for _, issue := range issues {
+		if issue.Repo == repo && issue.Number == number {
+			return true
+		}
+	}
+	return false
+}
+
+func containsCivilizationIssueRef(issues []CivilizationAssemblyIssueRef, repo string, number int) bool {
+	for _, issue := range issues {
+		if issue.Repo == repo && issue.Number == number {
 			return true
 		}
 	}
