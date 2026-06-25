@@ -177,6 +177,33 @@ func TestCivilizationAssemblyIssueIntakeAggregatesDuplicateIssueRefs(t *testing.
 	}
 }
 
+func TestCivilizationAssemblyIssueIntakeRanksUnknownRiskConservatively(t *testing.T) {
+	projection := civilizationAssemblyIssueIntake([]Record{
+		&Requirement{
+			CommonNode: commonWithSourceRefs("known_low_issue_ref", TypeRequirement, "accepted", []string{
+				"github:transpara-ai/site#115",
+			}),
+			RiskClass: "low",
+		},
+		&Requirement{
+			CommonNode: commonWithSourceRefs("future_risk_issue_ref", TypeRequirement, "accepted", []string{
+				"github:transpara-ai/site#115",
+			}),
+			RiskClass: "blocker",
+		},
+	})
+
+	if len(projection.Issues) != 1 {
+		t.Fatalf("deduped issue count = %d, want 1: %+v", len(projection.Issues), projection.Issues)
+	}
+	issue := projection.Issues[0]
+	if issue.RiskClass != "blocker" ||
+		!containsString(issue.RiskClasses, "blocker") ||
+		!containsString(issue.RiskClasses, "low") {
+		t.Fatalf("unknown risk should be retained and ranked conservatively above low: %+v", issue)
+	}
+}
+
 func TestCivilizationAssemblyIssueIntakeGroupsMultipleIssues(t *testing.T) {
 	projection := civilizationAssemblyIssueIntake([]Record{
 		&Requirement{
