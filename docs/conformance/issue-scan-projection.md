@@ -55,6 +55,6 @@ show:
 - one selected target issue per run,
 - no duplicate canonical stage chains,
 - no running workers for parked, blocked, stale, or human-scope runs,
-- explicit `duplicate_chain`, `protected_action`, or `stale_target` blockers
-  when those conditions are present,
+- explicit `duplicate_chain`, `needs_human_scope`, `protected_action`, or
+  `stale_target` blockers when those conditions are present,
 - a clear `required_action` string for the human or upstream repair step.

@@ -154,6 +154,7 @@ func TestIssueScanProjectionDocs172Site115FixtureHasTypedKanbanFields(t *testing
 		{RunID: runDocs.RunID, FactoryOrderID: runDocs.FactoryOrderID, StageID: stageDocs.StageID, BlockerType: IssueScanBlockerDuplicateChain, RequiredAction: "collapse duplicate canonical stage chain"},
 		{RunID: "run_site_115", FactoryOrderID: "fo_site_115", StageID: "surface_ready_for_human_result_pr", BlockerType: IssueScanBlockerProtectedAction, RequiredAction: "human must authorize protected repo action"},
 		{RunID: "run_site_115", FactoryOrderID: "fo_site_115", StageID: "research_issue_and_repo_context", BlockerType: IssueScanBlockerStaleTarget, RequiredAction: "confirm target issue is still live"},
+		{RunID: "run_docs_172_scope", FactoryOrderID: "fo_docs_172_scope", StageID: "select_and_design_approach", BlockerType: IssueScanBlockerNeedsHumanScope, RequiredAction: "human must clarify issue scope before runtime continues"},
 	}
 
 	if runDocs.SelectedIssue.Repo != "transpara-ai/docs" || runDocs.SelectedIssue.Number != 172 {
@@ -173,6 +174,7 @@ func TestIssueScanProjectionDocs172Site115FixtureHasTypedKanbanFields(t *testing
 	}
 	wantBlockers := map[IssueScanBlockerType]bool{
 		IssueScanBlockerDuplicateChain:  true,
+		IssueScanBlockerNeedsHumanScope: true,
 		IssueScanBlockerProtectedAction: true,
 		IssueScanBlockerStaleTarget:     true,
 	}
