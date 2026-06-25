@@ -83,8 +83,11 @@ type CivilizationAssemblyIssueIntakeIssue struct {
 	URL               string   `json:"url,omitempty"`
 	PrimaryRepo       string   `json:"primary_repo,omitempty"`
 	TouchedSubstrate  string   `json:"touched_substrate,omitempty"`
+	TouchedSubstrates []string `json:"touched_substrates,omitempty"`
 	RiskClass         string   `json:"risk_class,omitempty"`
+	RiskClasses       []string `json:"risk_classes,omitempty"`
 	Readiness         string   `json:"readiness,omitempty"`
+	ReadinessStates   []string `json:"readiness_states,omitempty"`
 	AuthorityBoundary string   `json:"authority_boundary,omitempty"`
 	SourceRefs        []string `json:"source_refs,omitempty"`
 }
@@ -634,14 +637,17 @@ func civilizationAssemblyIssueIntake(records []Record) CivilizationAssemblyIssue
 				}
 				issuesByKey[key] = issue
 			}
-			if issue.TouchedSubstrate == "" {
-				issue.TouchedSubstrate = common.Type
+			issue.TouchedSubstrates = appendSortedUnique(issue.TouchedSubstrates, common.Type)
+			issue.TouchedSubstrate = civilizationAssemblyAggregatedValue(issue.TouchedSubstrates, "multiple")
+			riskClass := civilizationAssemblyRecordRiskClass(record)
+			if riskClass != "" {
+				issue.RiskClasses = appendSortedUnique(issue.RiskClasses, riskClass)
+				issue.RiskClass = civilizationAssemblyHighestRiskClass(issue.RiskClasses)
 			}
-			if issue.RiskClass == "" {
-				issue.RiskClass = civilizationAssemblyRecordRiskClass(record)
-			}
-			if issue.Readiness == "" {
-				issue.Readiness = commonStatus(common)
+			readiness := commonStatus(common)
+			if readiness != "" {
+				issue.ReadinessStates = appendSortedUnique(issue.ReadinessStates, readiness)
+				issue.Readiness = civilizationAssemblyAggregatedValue(issue.ReadinessStates, "mixed")
 			}
 			issue.SourceRefs = appendSortedUnique(issue.SourceRefs, sourceRef, common.ID)
 			projection.SourceRefs = appendSortedUnique(projection.SourceRefs, sourceRef, common.ID)
@@ -714,9 +720,51 @@ func civilizationAssemblyIssueIntakeGroups(issues []CivilizationAssemblyIssueInt
 		if groups[i].TouchedSubstrate != groups[j].TouchedSubstrate {
 			return groups[i].TouchedSubstrate < groups[j].TouchedSubstrate
 		}
+		if groups[i].Readiness != groups[j].Readiness {
+			return groups[i].Readiness < groups[j].Readiness
+		}
 		return groups[i].GroupID < groups[j].GroupID
 	})
 	return groups
+}
+
+func civilizationAssemblyAggregatedValue(values []string, multiValue string) string {
+	switch len(values) {
+	case 0:
+		return ""
+	case 1:
+		return values[0]
+	default:
+		return multiValue
+	}
+}
+
+func civilizationAssemblyHighestRiskClass(values []string) string {
+	highest := ""
+	highestRank := -1
+	for _, value := range values {
+		rank := civilizationAssemblyRiskClassRank(value)
+		if highest == "" || rank > highestRank || (rank == highestRank && value > highest) {
+			highest = value
+			highestRank = rank
+		}
+	}
+	return highest
+}
+
+func civilizationAssemblyRiskClassRank(value string) int {
+	switch value {
+	case "low":
+		return 1
+	case "medium":
+		return 2
+	case "high":
+		return 3
+	case "critical":
+		return 4
+	default:
+		return 0
+	}
 }
 
 func parseCivilizationGitHubIssueRef(ref string) (repo string, number int, issueURL string, ok bool) {
@@ -779,7 +827,7 @@ func civilizationAssemblyValidGitHubRepo(repo string) bool {
 		return false
 	}
 	for _, part := range parts {
-		if strings.TrimSpace(part) == "" {
+		if strings.TrimSpace(part) == "" || strings.Trim(part, ".") == "" {
 			return false
 		}
 		for _, r := range part {

@@ -131,6 +131,83 @@ func TestCivilizationAssemblyIssueIntakeProjectionUnavailableWithoutIssueRefs(t 
 	}
 }
 
+func TestCivilizationAssemblyIssueIntakeAggregatesDuplicateIssueRefs(t *testing.T) {
+	projection := civilizationAssemblyIssueIntake([]Record{
+		&Requirement{
+			CommonNode: commonWithSourceRefs("a_requirement_issue_ref", TypeRequirement, "accepted", []string{
+				"github:transpara-ai/site#115",
+			}),
+			RiskClass: "low",
+		},
+		&FactoryOrder{
+			CommonNode: commonWithSourceRefs("z_factory_order_issue_ref", TypeFactoryOrder, "draft", []string{
+				"https://github.com/transpara-ai/site/issues/115",
+			}),
+			SourceIntentRef: "github:transpara-ai/site#115",
+			RiskClass:       "critical",
+		},
+	})
+
+	if len(projection.Issues) != 1 {
+		t.Fatalf("deduped issue count = %d, want 1: %+v", len(projection.Issues), projection.Issues)
+	}
+	issue := projection.Issues[0]
+	if issue.Repo != "transpara-ai/site" ||
+		issue.Number != 115 ||
+		issue.TouchedSubstrate != "multiple" ||
+		issue.RiskClass != "critical" ||
+		issue.Readiness != "mixed" ||
+		!containsString(issue.TouchedSubstrates, TypeFactoryOrder) ||
+		!containsString(issue.TouchedSubstrates, TypeRequirement) ||
+		!containsString(issue.RiskClasses, "critical") ||
+		!containsString(issue.RiskClasses, "low") ||
+		!containsString(issue.ReadinessStates, "accepted") ||
+		!containsString(issue.ReadinessStates, "draft") ||
+		!containsString(issue.SourceRefs, "github:transpara-ai/site#115") ||
+		!containsString(issue.SourceRefs, "https://github.com/transpara-ai/site/issues/115") {
+		t.Fatalf("duplicate issue refs were not aggregated conservatively: %+v", issue)
+	}
+	if len(projection.Groups) != 1 ||
+		projection.Groups[0].GroupID != "transpara-ai-site-multiple-critical-mixed" ||
+		projection.Groups[0].TouchedSubstrate != "multiple" ||
+		projection.Groups[0].RiskClass != "critical" ||
+		projection.Groups[0].Readiness != "mixed" ||
+		!containsCivilizationIssueRef(projection.Groups[0].IssueRefs, "transpara-ai/site", 115) {
+		t.Fatalf("deduped issue group does not preserve aggregated fields: %+v", projection.Groups)
+	}
+}
+
+func TestCivilizationAssemblyIssueIntakeGroupsMultipleIssues(t *testing.T) {
+	projection := civilizationAssemblyIssueIntake([]Record{
+		&Requirement{
+			CommonNode: commonWithSourceRefs("req_site_issue_115", TypeRequirement, "accepted", []string{
+				"github:transpara-ai/site#115",
+			}),
+			RiskClass: "high",
+		},
+		&Requirement{
+			CommonNode: commonWithSourceRefs("req_site_issue_116", TypeRequirement, "accepted", []string{
+				"https://github.com/transpara-ai/site/issues/116",
+			}),
+			RiskClass: "high",
+		},
+	})
+
+	if len(projection.Issues) != 2 || len(projection.Groups) != 1 {
+		t.Fatalf("projection = %+v, want two issues in one group", projection)
+	}
+	group := projection.Groups[0]
+	if group.GroupID != "transpara-ai-site-requirement-high-accepted" ||
+		group.Summary != "2 issue(s) share repo/substrate/risk/readiness key." ||
+		len(group.IssueRefs) != 2 ||
+		!containsCivilizationIssueRef(group.IssueRefs, "transpara-ai/site", 115) ||
+		!containsCivilizationIssueRef(group.IssueRefs, "transpara-ai/site", 116) ||
+		!containsString(group.SourceRefs, "req_site_issue_115") ||
+		!containsString(group.SourceRefs, "req_site_issue_116") {
+		t.Fatalf("multi-issue group missing expected aggregation: %+v", group)
+	}
+}
+
 func TestParseCivilizationGitHubIssueRefRejectsNonIssueRefs(t *testing.T) {
 	for _, ref := range []string{
 		"",
@@ -139,8 +216,11 @@ func TestParseCivilizationGitHubIssueRefRejectsNonIssueRefs(t *testing.T) {
 		"github:transpara-ai/site#+5",
 		"github:transpara-ai/docs#172#5",
 		"github:transpara-ai/site name#5",
+		"github:transpara-ai/..#5",
+		"github:../eventgraph#5",
 		"https://github.com/transpara-ai/site/pull/125",
 		"https://github.com/transpara-ai/site/issues/+5",
+		"https://github.com/transpara-ai/../issues/5",
 		"https://example.com/transpara-ai/site/issues/117",
 		"issue://117",
 	} {
