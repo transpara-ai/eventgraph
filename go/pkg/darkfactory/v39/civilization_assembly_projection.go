@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"net/url"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -616,6 +617,9 @@ func civilizationAssemblyIssueIntake(records []Record) CivilizationAssemblyIssue
 	issuesByKey := map[string]*CivilizationAssemblyIssueIntakeIssue{}
 
 	for _, record := range records {
+		if civilizationAssemblyNilRecord(record) {
+			continue
+		}
 		common := record.GetCommon()
 		sourceRefs := append([]string(nil), common.SourceRefs...)
 		if order, ok := record.(*FactoryOrder); ok {
@@ -741,6 +745,14 @@ func civilizationAssemblyAggregatedValue(values []string, multiValue string) str
 	}
 }
 
+func civilizationAssemblyNilRecord(record Record) bool {
+	if record == nil {
+		return true
+	}
+	value := reflect.ValueOf(record)
+	return value.Kind() == reflect.Ptr && value.IsNil()
+}
+
 func civilizationAssemblyHighestKnownRiskClass(values []string) string {
 	highest := ""
 	highestRank := -1
@@ -797,8 +809,11 @@ func parseCivilizationGitHubIssueRef(ref string) (repo string, number int, issue
 		if !ok {
 			return "", 0, "", false
 		}
-		repo = value[:hash]
+		repo = strings.ToLower(value[:hash])
 		if !civilizationAssemblyValidGitHubRepo(repo) {
+			return "", 0, "", false
+		}
+		if value != repo+"#"+strconv.Itoa(n) {
 			return "", 0, "", false
 		}
 		return repo, n, "https://github.com/" + repo + "/issues/" + strconv.Itoa(n), true

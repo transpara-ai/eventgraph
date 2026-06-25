@@ -131,6 +131,24 @@ func TestCivilizationAssemblyIssueIntakeProjectionUnavailableWithoutIssueRefs(t 
 	}
 }
 
+func TestCivilizationAssemblyIssueIntakeSkipsNilRecords(t *testing.T) {
+	var typedNilArtifact *Artifact
+	projection := civilizationAssemblyIssueIntake([]Record{
+		nil,
+		typedNilArtifact,
+		&Requirement{
+			CommonNode: commonWithSourceRefs("req_with_issue_ref", TypeRequirement, "accepted", []string{
+				"github:transpara-ai/site#115",
+			}),
+			RiskClass: "high",
+		},
+	})
+
+	if len(projection.Issues) != 1 || !containsCivilizationIssue(projection.Issues, "transpara-ai/site", 115) {
+		t.Fatalf("nil records should be skipped without dropping valid issue refs: %+v", projection)
+	}
+}
+
 func TestCivilizationAssemblyIssueIntakeAggregatesDuplicateIssueRefs(t *testing.T) {
 	projection := civilizationAssemblyIssueIntake([]Record{
 		&Requirement{
@@ -296,6 +314,8 @@ func TestParseCivilizationGitHubIssueRefRejectsNonIssueRefs(t *testing.T) {
 		"github:transpara-ai/site",
 		"github:transpara-ai/site#0",
 		"github:transpara-ai/site#+5",
+		"github:Transpara-AI/site#115",
+		"github:transpara-ai/site#0115",
 		"github:transpara-ai/docs#172#5",
 		"github:transpara-ai/site name#5",
 		"github:transpara-ai/..#5",
