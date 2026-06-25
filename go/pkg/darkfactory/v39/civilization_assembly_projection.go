@@ -86,6 +86,7 @@ type CivilizationAssemblyIssueIntakeIssue struct {
 	TouchedSubstrates []string `json:"touched_substrates,omitempty"`
 	RiskClass         string   `json:"risk_class,omitempty"`
 	RiskClasses       []string `json:"risk_classes,omitempty"`
+	UnrecognizedRisk  []string `json:"unrecognized_risk_terms,omitempty"`
 	Readiness         string   `json:"readiness,omitempty"`
 	ReadinessStates   []string `json:"readiness_states,omitempty"`
 	AuthorityBoundary string   `json:"authority_boundary,omitempty"`
@@ -642,7 +643,8 @@ func civilizationAssemblyIssueIntake(records []Record) CivilizationAssemblyIssue
 			riskClass := civilizationAssemblyRecordRiskClass(record)
 			if riskClass != "" {
 				issue.RiskClasses = appendSortedUnique(issue.RiskClasses, riskClass)
-				issue.RiskClass = civilizationAssemblyHighestRiskClass(issue.RiskClasses)
+				issue.RiskClass = civilizationAssemblyHighestKnownRiskClass(issue.RiskClasses)
+				issue.UnrecognizedRisk = civilizationAssemblyUnrecognizedRiskTerms(issue.RiskClasses)
 			}
 			readiness := commonStatus(common)
 			if readiness != "" {
@@ -739,17 +741,33 @@ func civilizationAssemblyAggregatedValue(values []string, multiValue string) str
 	}
 }
 
-func civilizationAssemblyHighestRiskClass(values []string) string {
+func civilizationAssemblyHighestKnownRiskClass(values []string) string {
 	highest := ""
 	highestRank := -1
 	for _, value := range values {
 		rank := civilizationAssemblyRiskClassRank(value)
+		if rank == 0 {
+			continue
+		}
 		if highest == "" || rank > highestRank || (rank == highestRank && value > highest) {
 			highest = value
 			highestRank = rank
 		}
 	}
+	if highest == "" && len(values) > 0 {
+		return "unknown"
+	}
 	return highest
+}
+
+func civilizationAssemblyUnrecognizedRiskTerms(values []string) []string {
+	var out []string
+	for _, value := range values {
+		if value != "" && civilizationAssemblyRiskClassRank(value) == 0 {
+			out = appendSortedUnique(out, value)
+		}
+	}
+	return out
 }
 
 func civilizationAssemblyRiskClassRank(value string) int {
@@ -763,7 +781,7 @@ func civilizationAssemblyRiskClassRank(value string) int {
 	case "critical":
 		return 4
 	default:
-		return 5
+		return 0
 	}
 }
 
@@ -802,7 +820,11 @@ func parseCivilizationGitHubIssueRef(ref string) (repo string, number int, issue
 	if !civilizationAssemblyValidGitHubRepo(repo) {
 		return "", 0, "", false
 	}
-	return repo, n, "https://github.com/" + repo + "/issues/" + strconv.Itoa(n), true
+	issueURL = "https://github.com/" + repo + "/issues/" + strconv.Itoa(n)
+	if ref != issueURL {
+		return "", 0, "", false
+	}
+	return repo, n, issueURL, true
 }
 
 func civilizationAssemblyParseIssueNumber(value string) (int, bool) {

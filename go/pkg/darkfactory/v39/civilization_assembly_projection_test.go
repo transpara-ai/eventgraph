@@ -177,7 +177,7 @@ func TestCivilizationAssemblyIssueIntakeAggregatesDuplicateIssueRefs(t *testing.
 	}
 }
 
-func TestCivilizationAssemblyIssueIntakeRanksUnknownRiskConservatively(t *testing.T) {
+func TestCivilizationAssemblyIssueIntakeSurfacesUnknownRiskSeparately(t *testing.T) {
 	projection := civilizationAssemblyIssueIntake([]Record{
 		&Requirement{
 			CommonNode: commonWithSourceRefs("known_low_issue_ref", TypeRequirement, "accepted", []string{
@@ -197,10 +197,30 @@ func TestCivilizationAssemblyIssueIntakeRanksUnknownRiskConservatively(t *testin
 		t.Fatalf("deduped issue count = %d, want 1: %+v", len(projection.Issues), projection.Issues)
 	}
 	issue := projection.Issues[0]
-	if issue.RiskClass != "blocker" ||
+	if issue.RiskClass != "low" ||
 		!containsString(issue.RiskClasses, "blocker") ||
-		!containsString(issue.RiskClasses, "low") {
-		t.Fatalf("unknown risk should be retained and ranked conservatively above low: %+v", issue)
+		!containsString(issue.RiskClasses, "low") ||
+		!containsString(issue.UnrecognizedRisk, "blocker") {
+		t.Fatalf("unknown risk should be retained separately without replacing canonical headline: %+v", issue)
+	}
+}
+
+func TestCivilizationAssemblyIssueIntakeUnknownRiskWithoutKnownClass(t *testing.T) {
+	projection := civilizationAssemblyIssueIntake([]Record{
+		&Requirement{
+			CommonNode: commonWithSourceRefs("future_only_risk_issue_ref", TypeRequirement, "accepted", []string{
+				"github:transpara-ai/site#115",
+			}),
+			RiskClass: "blocker",
+		},
+	})
+
+	if len(projection.Issues) != 1 {
+		t.Fatalf("issue count = %d, want 1: %+v", len(projection.Issues), projection.Issues)
+	}
+	issue := projection.Issues[0]
+	if issue.RiskClass != "unknown" || !containsString(issue.UnrecognizedRisk, "blocker") {
+		t.Fatalf("unknown-only risk should use canonical unknown headline and retain raw term: %+v", issue)
 	}
 }
 
@@ -235,6 +255,41 @@ func TestCivilizationAssemblyIssueIntakeGroupsMultipleIssues(t *testing.T) {
 	}
 }
 
+func TestCivilizationAssemblyIssueIntakeGroupsEmptyRisk(t *testing.T) {
+	projection := civilizationAssemblyIssueIntake([]Record{
+		&Artifact{
+			CommonNode: commonWithSourceRefs("artifact_issue_ref", TypeArtifact, "verified", []string{
+				"github:transpara-ai/site#115",
+			}),
+			ArtifactType: "report",
+		},
+	})
+
+	if len(projection.Issues) != 1 || len(projection.Groups) != 1 {
+		t.Fatalf("projection = %+v, want one issue and one group", projection)
+	}
+	if projection.Issues[0].RiskClass != "" || len(projection.Issues[0].RiskClasses) != 0 {
+		t.Fatalf("non-risk record should not synthesize risk: %+v", projection.Issues[0])
+	}
+	if projection.Groups[0].GroupID != "repo-transpara-ai-site-substrate-artifact-risk-readiness-verified" ||
+		projection.Groups[0].RiskClass != "" ||
+		projection.Groups[0].Readiness != "verified" {
+		t.Fatalf("empty-risk group should preserve labeled empty risk axis: %+v", projection.Groups[0])
+	}
+}
+
+func TestParseCivilizationGitHubIssueRefAcceptsCanonicalRefs(t *testing.T) {
+	for _, ref := range []string{
+		"github:transpara-ai/site#115",
+		"https://github.com/transpara-ai/site/issues/115",
+	} {
+		repo, number, issueURL, ok := parseCivilizationGitHubIssueRef(ref)
+		if !ok || repo != "transpara-ai/site" || number != 115 || issueURL != "https://github.com/transpara-ai/site/issues/115" {
+			t.Fatalf("parseCivilizationGitHubIssueRef(%q) = %s #%d %s %t, want canonical site#115", ref, repo, number, issueURL, ok)
+		}
+	}
+}
+
 func TestParseCivilizationGitHubIssueRefRejectsNonIssueRefs(t *testing.T) {
 	for _, ref := range []string{
 		"",
@@ -250,6 +305,9 @@ func TestParseCivilizationGitHubIssueRefRejectsNonIssueRefs(t *testing.T) {
 		"https://github.com/transpara-ai/site/issues/+5",
 		"https://github.com/transpara-ai/site/issues/115?source=tracker",
 		"https://github.com/transpara-ai/site/issues/115#issuecomment-1",
+		"https://github.com/transpara-ai/site/issues/115/",
+		"https://github.com//transpara-ai/site/issues/115",
+		"https://github.com/transpara-ai/site/issues/%31%31%35",
 		"https://github.com/transpara-ai/../issues/5",
 		"https://example.com/transpara-ai/site/issues/117",
 		"issue://117",
