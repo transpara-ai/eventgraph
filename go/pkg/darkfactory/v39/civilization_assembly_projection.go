@@ -81,17 +81,11 @@ type CivilizationAssemblyIssueIntakeIssue struct {
 	Repo              string   `json:"repo"`
 	Number            int      `json:"number"`
 	URL               string   `json:"url,omitempty"`
-	Title             string   `json:"title,omitempty"`
-	State             string   `json:"state,omitempty"`
-	StateReason       string   `json:"state_reason,omitempty"`
-	Labels            []string `json:"labels,omitempty"`
 	PrimaryRepo       string   `json:"primary_repo,omitempty"`
 	TouchedSubstrate  string   `json:"touched_substrate,omitempty"`
 	RiskClass         string   `json:"risk_class,omitempty"`
 	Readiness         string   `json:"readiness,omitempty"`
-	PRReadyWhen       string   `json:"pr_ready_when,omitempty"`
 	AuthorityBoundary string   `json:"authority_boundary,omitempty"`
-	UpdatedAt         string   `json:"updated_at,omitempty"`
 	SourceRefs        []string `json:"source_refs,omitempty"`
 }
 
@@ -109,13 +103,9 @@ type CivilizationAssemblyIssueIntakeGroup struct {
 }
 
 type CivilizationAssemblyIssueRef struct {
-	Repo        string   `json:"repo"`
-	Number      int      `json:"number"`
-	URL         string   `json:"url,omitempty"`
-	Title       string   `json:"title,omitempty"`
-	State       string   `json:"state,omitempty"`
-	StateReason string   `json:"state_reason,omitempty"`
-	Labels      []string `json:"labels,omitempty"`
+	Repo   string `json:"repo"`
+	Number int    `json:"number"`
+	URL    string `json:"url,omitempty"`
 }
 
 type CivilizationAssemblyUnavailableField struct {
@@ -696,12 +686,9 @@ func civilizationAssemblyIssueIntakeGroups(issues []CivilizationAssemblyIssueInt
 			groupsByKey[key] = group
 		}
 		group.IssueRefs = append(group.IssueRefs, CivilizationAssemblyIssueRef{
-			Repo:        issue.Repo,
-			Number:      issue.Number,
-			URL:         issue.URL,
-			State:       issue.State,
-			StateReason: issue.StateReason,
-			Labels:      appendSortedUnique(nil, issue.Labels...),
+			Repo:   issue.Repo,
+			Number: issue.Number,
+			URL:    issue.URL,
 		})
 		group.SourceRefs = appendSortedUnique(group.SourceRefs, issue.SourceRefs...)
 	}
@@ -740,8 +727,8 @@ func parseCivilizationGitHubIssueRef(ref string) (repo string, number int, issue
 		if hash <= 0 || hash == len(value)-1 {
 			return "", 0, "", false
 		}
-		n, err := strconv.Atoi(value[hash+1:])
-		if err != nil || n <= 0 {
+		n, ok := civilizationAssemblyParseIssueNumber(value[hash+1:])
+		if !ok {
 			return "", 0, "", false
 		}
 		repo = value[:hash]
@@ -759,8 +746,8 @@ func parseCivilizationGitHubIssueRef(ref string) (repo string, number int, issue
 	if len(parts) != 4 || parts[2] != "issues" {
 		return "", 0, "", false
 	}
-	n, err := strconv.Atoi(parts[3])
-	if err != nil || n <= 0 {
+	n, ok := civilizationAssemblyParseIssueNumber(parts[3])
+	if !ok {
 		return "", 0, "", false
 	}
 	repo = parts[0] + "/" + parts[1]
@@ -770,14 +757,41 @@ func parseCivilizationGitHubIssueRef(ref string) (repo string, number int, issue
 	return repo, n, "https://github.com/" + repo + "/issues/" + strconv.Itoa(n), true
 }
 
+func civilizationAssemblyParseIssueNumber(value string) (int, bool) {
+	if value == "" {
+		return 0, false
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return 0, false
+		}
+	}
+	n, err := strconv.Atoi(value)
+	if err != nil || n <= 0 {
+		return 0, false
+	}
+	return n, true
+}
+
 func civilizationAssemblyValidGitHubRepo(repo string) bool {
 	parts := strings.Split(repo, "/")
 	if len(parts) != 2 {
 		return false
 	}
 	for _, part := range parts {
-		if strings.TrimSpace(part) == "" || strings.ContainsAny(part, " \t\n\r") {
+		if strings.TrimSpace(part) == "" {
 			return false
+		}
+		for _, r := range part {
+			ok := (r >= 'a' && r <= 'z') ||
+				(r >= 'A' && r <= 'Z') ||
+				(r >= '0' && r <= '9') ||
+				r == '-' ||
+				r == '_' ||
+				r == '.'
+			if !ok {
+				return false
+			}
 		}
 	}
 	return true

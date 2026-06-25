@@ -58,6 +58,29 @@ func TestCivilizationAssemblyProjectionCompleteDeterministicFixture(t *testing.T
 		!containsCivilizationIssue(first.IssueIntakeProjection.Issues, "transpara-ai/site", 115) {
 		t.Fatalf("issue intake projection does not preserve docs#172 and site#115: %+v", first.IssueIntakeProjection.Issues)
 	}
+	if len(first.IssueIntakeProjection.Groups) != 2 {
+		t.Fatalf("issue intake groups = %+v, want two repo/substrate groups", first.IssueIntakeProjection.Groups)
+	}
+	if first.IssueIntakeProjection.Groups[0].GroupID != "transpara-ai-docs-factoryorder-high-accepted" ||
+		first.IssueIntakeProjection.Groups[0].PrimaryRepo != "transpara-ai/docs" ||
+		first.IssueIntakeProjection.Groups[0].TouchedSubstrate != TypeFactoryOrder ||
+		first.IssueIntakeProjection.Groups[0].RiskClass != "high" ||
+		first.IssueIntakeProjection.Groups[0].Readiness != "accepted" ||
+		!containsCivilizationIssueRef(first.IssueIntakeProjection.Groups[0].IssueRefs, "transpara-ai/docs", 172) ||
+		!containsString(first.IssueIntakeProjection.Groups[0].SourceRefs, "github:transpara-ai/docs#172") ||
+		!strings.Contains(first.IssueIntakeProjection.Groups[0].Recommendation, "read-only source-intent projection") {
+		t.Fatalf("docs issue intake group does not preserve expected source-intent shape: %+v", first.IssueIntakeProjection.Groups[0])
+	}
+	if first.IssueIntakeProjection.Groups[1].GroupID != "transpara-ai-site-requirement-high-accepted" ||
+		first.IssueIntakeProjection.Groups[1].PrimaryRepo != "transpara-ai/site" ||
+		first.IssueIntakeProjection.Groups[1].TouchedSubstrate != TypeRequirement ||
+		first.IssueIntakeProjection.Groups[1].RiskClass != "high" ||
+		first.IssueIntakeProjection.Groups[1].Readiness != "accepted" ||
+		!containsCivilizationIssueRef(first.IssueIntakeProjection.Groups[1].IssueRefs, "transpara-ai/site", 115) ||
+		!containsString(first.IssueIntakeProjection.Groups[1].SourceRefs, "https://github.com/transpara-ai/site/issues/115") ||
+		first.IssueIntakeProjection.Groups[1].Summary != "1 issue(s) share repo/substrate/risk/readiness key." {
+		t.Fatalf("site issue intake group does not preserve expected source-intent shape: %+v", first.IssueIntakeProjection.Groups[1])
+	}
 	for _, boundary := range []string{"scanner_read_only", "no_eventgraph_writes", "no_github_issue_mutation", "no_pr_creation", "no_merge", "no_protected_action_approval"} {
 		if !containsString(first.IssueIntakeProjection.ScannerBoundaries, boundary) {
 			t.Fatalf("issue intake scanner boundary %s missing from %+v", boundary, first.IssueIntakeProjection.ScannerBoundaries)
@@ -113,7 +136,11 @@ func TestParseCivilizationGitHubIssueRefRejectsNonIssueRefs(t *testing.T) {
 		"",
 		"github:transpara-ai/site",
 		"github:transpara-ai/site#0",
+		"github:transpara-ai/site#+5",
+		"github:transpara-ai/docs#172#5",
+		"github:transpara-ai/site name#5",
 		"https://github.com/transpara-ai/site/pull/125",
+		"https://github.com/transpara-ai/site/issues/+5",
 		"https://example.com/transpara-ai/site/issues/117",
 		"issue://117",
 	} {
@@ -689,6 +716,15 @@ func containsFailureReason(reasons []string, want string) bool {
 }
 
 func containsCivilizationIssue(issues []CivilizationAssemblyIssueIntakeIssue, repo string, number int) bool {
+	for _, issue := range issues {
+		if issue.Repo == repo && issue.Number == number {
+			return true
+		}
+	}
+	return false
+}
+
+func containsCivilizationIssueRef(issues []CivilizationAssemblyIssueRef, repo string, number int) bool {
 	for _, issue := range issues {
 		if issue.Repo == repo && issue.Number == number {
 			return true
