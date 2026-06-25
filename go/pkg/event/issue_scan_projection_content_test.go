@@ -131,6 +131,15 @@ func TestIssueScanProjectionRejectsInvalidEnums(t *testing.T) {
 			},
 		},
 		{
+			name:      "missing run state",
+			eventType: EventTypeIssueScanRunProjected,
+			json:      `{"run_id":"run_bad","lifecycle_version":"v","target_issue":{"repo":"transpara-ai/docs","number":172},"selected_issue":{"repo":"transpara-ai/docs","number":172}}`,
+			content: IssueScanRunProjectedContent{
+				RunID:            "run_bad",
+				LifecycleVersion: "v",
+			},
+		},
+		{
 			name:      "stage state",
 			eventType: EventTypeIssueScanStageProjected,
 			json:      `{"run_id":"run_bad","stage_id":"research","stage_number":1,"canonical_task_id":"tsk_bad","current_state":"banana","completion_gate":"gate","authority_boundary":"none"}`,
@@ -142,12 +151,31 @@ func TestIssueScanProjectionRejectsInvalidEnums(t *testing.T) {
 			},
 		},
 		{
+			name:      "missing stage state",
+			eventType: EventTypeIssueScanStageProjected,
+			json:      `{"run_id":"run_bad","stage_id":"research","stage_number":1,"canonical_task_id":"tsk_bad","completion_gate":"gate","authority_boundary":"none"}`,
+			content: IssueScanStageProjectedContent{
+				RunID:       "run_bad",
+				StageID:     "research",
+				StageNumber: 1,
+			},
+		},
+		{
 			name:      "blocker type",
 			eventType: EventTypeIssueScanBlockerProjected,
 			json:      `{"run_id":"run_bad","blocker_type":"banana","required_action":"stop"}`,
 			content: IssueScanBlockerProjectedContent{
 				RunID:          "run_bad",
 				BlockerType:    IssueScanBlockerType("banana"),
+				RequiredAction: "stop",
+			},
+		},
+		{
+			name:      "missing blocker type",
+			eventType: EventTypeIssueScanBlockerProjected,
+			json:      `{"run_id":"run_bad","required_action":"stop"}`,
+			content: IssueScanBlockerProjectedContent{
+				RunID:          "run_bad",
 				RequiredAction: "stop",
 			},
 		},

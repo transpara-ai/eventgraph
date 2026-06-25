@@ -143,6 +143,22 @@ type IssueScanRunProjectedContent struct {
 	EvidenceRefs     []string            `json:"evidence_refs,omitempty"`
 }
 
+func (c *IssueScanRunProjectedContent) UnmarshalJSON(data []byte) error {
+	if err := requireIssueScanProjectionJSONField(data, "state"); err != nil {
+		return err
+	}
+	type alias IssueScanRunProjectedContent
+	var out alias
+	if err := json.Unmarshal(data, &out); err != nil {
+		return err
+	}
+	if !out.State.IsValid() {
+		return fmt.Errorf("invalid issue-scan run state %q", out.State)
+	}
+	*c = IssueScanRunProjectedContent(out)
+	return nil
+}
+
 func (c IssueScanRunProjectedContent) EventTypeName() string {
 	return EventTypeIssueScanRunProjected.Value()
 }
@@ -165,6 +181,22 @@ type IssueScanStageProjectedContent struct {
 	SourceRefs        []string            `json:"source_refs,omitempty"`
 }
 
+func (c *IssueScanStageProjectedContent) UnmarshalJSON(data []byte) error {
+	if err := requireIssueScanProjectionJSONField(data, "current_state"); err != nil {
+		return err
+	}
+	type alias IssueScanStageProjectedContent
+	var out alias
+	if err := json.Unmarshal(data, &out); err != nil {
+		return err
+	}
+	if !out.CurrentState.IsValid() {
+		return fmt.Errorf("invalid issue-scan stage state %q", out.CurrentState)
+	}
+	*c = IssueScanStageProjectedContent(out)
+	return nil
+}
+
 func (c IssueScanStageProjectedContent) EventTypeName() string {
 	return EventTypeIssueScanStageProjected.Value()
 }
@@ -179,6 +211,22 @@ type IssueScanBlockerProjectedContent struct {
 	RequiredAction string               `json:"required_action"`
 	EvidenceRefs   []string             `json:"evidence_refs,omitempty"`
 	SourceRefs     []string             `json:"source_refs,omitempty"`
+}
+
+func (c *IssueScanBlockerProjectedContent) UnmarshalJSON(data []byte) error {
+	if err := requireIssueScanProjectionJSONField(data, "blocker_type"); err != nil {
+		return err
+	}
+	type alias IssueScanBlockerProjectedContent
+	var out alias
+	if err := json.Unmarshal(data, &out); err != nil {
+		return err
+	}
+	if !out.BlockerType.IsValid() {
+		return fmt.Errorf("invalid issue-scan blocker type %q", out.BlockerType)
+	}
+	*c = IssueScanBlockerProjectedContent(out)
+	return nil
 }
 
 func (c IssueScanBlockerProjectedContent) EventTypeName() string {
@@ -221,6 +269,17 @@ func validateIssueScanProjectionContent(content EventContent) error {
 		return nil
 	default:
 		return fmt.Errorf("unexpected issue-scan projection content %T", content)
+	}
+	return nil
+}
+
+func requireIssueScanProjectionJSONField(data []byte, field string) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	if _, ok := fields[field]; !ok {
+		return fmt.Errorf("issue-scan projection field %q is required", field)
 	}
 	return nil
 }
