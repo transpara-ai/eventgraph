@@ -190,6 +190,11 @@ func init() {
 		"issuescan.blocker.projected": unmarshal[IssueScanBlockerProjectedContent],
 		"issuescan.lineage.projected": unmarshal[IssueScanLineageProjectedContent],
 
+		// Native evidence records
+		"evidence.testrun.recorded":     unmarshal[NativeTestRunRecordedContent],
+		"evidence.gateresult.recorded":  unmarshal[NativeGateResultRecordedContent],
+		"evidence.auditreport.recorded": unmarshal[NativeAuditReportRecordedContent],
+
 		// Site
 		"site.op.received":   unmarshal[SiteOpReceivedContent],
 		"site.op.translated": unmarshal[SiteOpTranslatedContent],

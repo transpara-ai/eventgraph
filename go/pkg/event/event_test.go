@@ -993,8 +993,8 @@ func TestHashChainLinking(t *testing.T) {
 func TestDefaultRegistry(t *testing.T) {
 	r := DefaultRegistry()
 	allTypes := r.AllTypes()
-	if len(allTypes) != 149 {
-		t.Errorf("expected 149 registered types, got %d", len(allTypes))
+	if len(allTypes) != 152 {
+		t.Errorf("expected 152 registered types, got %d", len(allTypes))
 	}
 	if !r.IsRegistered(EventTypeTrustUpdated) {
 		t.Error("trust.updated should be registered")
