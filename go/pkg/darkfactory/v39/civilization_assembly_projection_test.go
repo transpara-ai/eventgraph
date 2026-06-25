@@ -61,7 +61,7 @@ func TestCivilizationAssemblyProjectionCompleteDeterministicFixture(t *testing.T
 	if len(first.IssueIntakeProjection.Groups) != 2 {
 		t.Fatalf("issue intake groups = %+v, want two repo/substrate groups", first.IssueIntakeProjection.Groups)
 	}
-	if first.IssueIntakeProjection.Groups[0].GroupID != "transpara-ai-docs-factoryorder-high-accepted" ||
+	if first.IssueIntakeProjection.Groups[0].GroupID != "repo-transpara-ai-docs-substrate-factoryorder-risk-high-readiness-accepted" ||
 		first.IssueIntakeProjection.Groups[0].PrimaryRepo != "transpara-ai/docs" ||
 		first.IssueIntakeProjection.Groups[0].TouchedSubstrate != TypeFactoryOrder ||
 		first.IssueIntakeProjection.Groups[0].RiskClass != "high" ||
@@ -71,7 +71,7 @@ func TestCivilizationAssemblyProjectionCompleteDeterministicFixture(t *testing.T
 		!strings.Contains(first.IssueIntakeProjection.Groups[0].Recommendation, "read-only source-intent projection") {
 		t.Fatalf("docs issue intake group does not preserve expected source-intent shape: %+v", first.IssueIntakeProjection.Groups[0])
 	}
-	if first.IssueIntakeProjection.Groups[1].GroupID != "transpara-ai-site-requirement-high-accepted" ||
+	if first.IssueIntakeProjection.Groups[1].GroupID != "repo-transpara-ai-site-substrate-requirement-risk-high-readiness-accepted" ||
 		first.IssueIntakeProjection.Groups[1].PrimaryRepo != "transpara-ai/site" ||
 		first.IssueIntakeProjection.Groups[1].TouchedSubstrate != TypeRequirement ||
 		first.IssueIntakeProjection.Groups[1].RiskClass != "high" ||
@@ -168,7 +168,7 @@ func TestCivilizationAssemblyIssueIntakeAggregatesDuplicateIssueRefs(t *testing.
 		t.Fatalf("duplicate issue refs were not aggregated conservatively: %+v", issue)
 	}
 	if len(projection.Groups) != 1 ||
-		projection.Groups[0].GroupID != "transpara-ai-site-multiple-critical-mixed" ||
+		projection.Groups[0].GroupID != "repo-transpara-ai-site-substrate-multiple-risk-critical-readiness-mixed" ||
 		projection.Groups[0].TouchedSubstrate != "multiple" ||
 		projection.Groups[0].RiskClass != "critical" ||
 		projection.Groups[0].Readiness != "mixed" ||
@@ -224,7 +224,7 @@ func TestCivilizationAssemblyIssueIntakeGroupsMultipleIssues(t *testing.T) {
 		t.Fatalf("projection = %+v, want two issues in one group", projection)
 	}
 	group := projection.Groups[0]
-	if group.GroupID != "transpara-ai-site-requirement-high-accepted" ||
+	if group.GroupID != "repo-transpara-ai-site-substrate-requirement-risk-high-readiness-accepted" ||
 		group.Summary != "2 issue(s) share repo/substrate/risk/readiness key." ||
 		len(group.IssueRefs) != 2 ||
 		!containsCivilizationIssueRef(group.IssueRefs, "transpara-ai/site", 115) ||
@@ -245,8 +245,11 @@ func TestParseCivilizationGitHubIssueRefRejectsNonIssueRefs(t *testing.T) {
 		"github:transpara-ai/site name#5",
 		"github:transpara-ai/..#5",
 		"github:../eventgraph#5",
+		"https://attacker@github.com/transpara-ai/site/issues/5",
 		"https://github.com/transpara-ai/site/pull/125",
 		"https://github.com/transpara-ai/site/issues/+5",
+		"https://github.com/transpara-ai/site/issues/115?source=tracker",
+		"https://github.com/transpara-ai/site/issues/115#issuecomment-1",
 		"https://github.com/transpara-ai/../issues/5",
 		"https://example.com/transpara-ai/site/issues/117",
 		"issue://117",
@@ -254,6 +257,29 @@ func TestParseCivilizationGitHubIssueRefRejectsNonIssueRefs(t *testing.T) {
 		if repo, number, issueURL, ok := parseCivilizationGitHubIssueRef(ref); ok {
 			t.Fatalf("parseCivilizationGitHubIssueRef(%q) = %s #%d %s, want rejected", ref, repo, number, issueURL)
 		}
+	}
+}
+
+func TestCivilizationAssemblyRecordRiskClassSources(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		in   Record
+		want string
+	}{
+		{name: "factory order", in: &FactoryOrder{CommonNode: common("fo_risk", TypeFactoryOrder, "accepted"), RiskClass: "critical"}, want: "critical"},
+		{name: "requirement", in: &Requirement{CommonNode: common("req_risk", TypeRequirement, "accepted"), RiskClass: "high"}, want: "high"},
+		{name: "acceptance criterion", in: &AcceptanceCriterion{CommonNode: common("ac_risk", TypeAcceptanceCriterion, "accepted"), RiskClass: "medium"}, want: "medium"},
+		{name: "assumption", in: &Assumption{CommonNode: common("asm_risk", TypeAssumption, "accepted"), RiskClass: "low"}, want: "low"},
+		{name: "task", in: &Task{CommonNode: common("tsk_risk", TypeTask, "accepted"), RiskClass: "high"}, want: "high"},
+		{name: "authority request", in: &AuthorityRequest{CommonNode: common("auth_req_risk", TypeAuthorityRequest, "requested"), RiskClass: "critical"}, want: "critical"},
+		{name: "failure severity", in: &Failure{CommonNode: common("failure_risk", TypeFailure, "open"), Severity: "high"}, want: "high"},
+		{name: "non-risk record", in: &Artifact{CommonNode: common("artifact_risk", TypeArtifact, "verified")}, want: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := civilizationAssemblyRecordRiskClass(tc.in); got != tc.want {
+				t.Fatalf("risk class = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 

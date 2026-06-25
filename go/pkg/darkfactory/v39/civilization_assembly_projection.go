@@ -682,7 +682,7 @@ func civilizationAssemblyIssueIntakeGroups(issues []CivilizationAssemblyIssueInt
 		group := groupsByKey[key]
 		if group == nil {
 			group = &CivilizationAssemblyIssueIntakeGroup{
-				GroupID:          civilizationAssemblyIssueIntakeGroupID(issue.PrimaryRepo, issue.TouchedSubstrate, issue.RiskClass, issue.Readiness),
+				GroupID:          civilizationAssemblyIssueIntakeGroupID("repo", issue.PrimaryRepo, "substrate", issue.TouchedSubstrate, "risk", issue.RiskClass, "readiness", issue.Readiness),
 				PrimaryRepo:      issue.PrimaryRepo,
 				TouchedSubstrate: issue.TouchedSubstrate,
 				RiskClass:        issue.RiskClass,
@@ -787,7 +787,7 @@ func parseCivilizationGitHubIssueRef(ref string) (repo string, number int, issue
 	}
 
 	parsed, err := url.Parse(ref)
-	if err != nil || parsed.Scheme != "https" || parsed.Host != "github.com" {
+	if err != nil || parsed.Scheme != "https" || parsed.Host != "github.com" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return "", 0, "", false
 	}
 	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
