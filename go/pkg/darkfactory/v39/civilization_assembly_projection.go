@@ -3,7 +3,9 @@ package v39
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -50,6 +52,7 @@ type CivilizationAssemblyProjection struct {
 	FactoryOrderSummary                []CivilizationAssemblyFactoryOrder     `json:"factory_order_summary"`
 	WorkEvidenceSummary                CivilizationAssemblyWorkEvidence       `json:"work_evidence_summary"`
 	SiteConsumerStatus                 CivilizationAssemblyFieldStatus        `json:"site_consumer_status"`
+	IssueIntakeProjection              CivilizationAssemblyIssueIntake        `json:"issue_intake_projection"`
 	OpenGateSummary                    []CivilizationAssemblyGateSummary      `json:"open_gate_summary"`
 	ResidualRiskSummary                []CivilizationAssemblyResidualRisk     `json:"residual_risk_summary"`
 	WithheldOrUnavailableFields        []CivilizationAssemblyUnavailableField `json:"withheld_or_unavailable_fields"`
@@ -63,6 +66,56 @@ type CivilizationAssemblyFieldStatus struct {
 	Status     CivilizationAssemblyFieldAvailability `json:"status"`
 	Summary    string                                `json:"summary"`
 	SourceRefs []string                              `json:"source_refs,omitempty"`
+}
+
+type CivilizationAssemblyIssueIntake struct {
+	Status            CivilizationAssemblyFieldAvailability  `json:"status"`
+	Summary           string                                 `json:"summary"`
+	Issues            []CivilizationAssemblyIssueIntakeIssue `json:"issues,omitempty"`
+	Groups            []CivilizationAssemblyIssueIntakeGroup `json:"groups,omitempty"`
+	SourceRefs        []string                               `json:"source_refs,omitempty"`
+	ScannerBoundaries []string                               `json:"scanner_boundaries,omitempty"`
+}
+
+type CivilizationAssemblyIssueIntakeIssue struct {
+	Repo              string   `json:"repo"`
+	Number            int      `json:"number"`
+	URL               string   `json:"url,omitempty"`
+	Title             string   `json:"title,omitempty"`
+	State             string   `json:"state,omitempty"`
+	StateReason       string   `json:"state_reason,omitempty"`
+	Labels            []string `json:"labels,omitempty"`
+	PrimaryRepo       string   `json:"primary_repo,omitempty"`
+	TouchedSubstrate  string   `json:"touched_substrate,omitempty"`
+	RiskClass         string   `json:"risk_class,omitempty"`
+	Readiness         string   `json:"readiness,omitempty"`
+	PRReadyWhen       string   `json:"pr_ready_when,omitempty"`
+	AuthorityBoundary string   `json:"authority_boundary,omitempty"`
+	UpdatedAt         string   `json:"updated_at,omitempty"`
+	SourceRefs        []string `json:"source_refs,omitempty"`
+}
+
+type CivilizationAssemblyIssueIntakeGroup struct {
+	GroupID          string                         `json:"group_id,omitempty"`
+	Summary          string                         `json:"summary,omitempty"`
+	PrimaryRepo      string                         `json:"primary_repo,omitempty"`
+	TouchedSubstrate string                         `json:"touched_substrate,omitempty"`
+	RiskClass        string                         `json:"risk_class,omitempty"`
+	Readiness        string                         `json:"readiness,omitempty"`
+	Recommendation   string                         `json:"recommendation,omitempty"`
+	IssueRefs        []CivilizationAssemblyIssueRef `json:"issue_refs,omitempty"`
+	Blockers         []string                       `json:"blockers,omitempty"`
+	SourceRefs       []string                       `json:"source_refs,omitempty"`
+}
+
+type CivilizationAssemblyIssueRef struct {
+	Repo        string   `json:"repo"`
+	Number      int      `json:"number"`
+	URL         string   `json:"url,omitempty"`
+	Title       string   `json:"title,omitempty"`
+	State       string   `json:"state,omitempty"`
+	StateReason string   `json:"state_reason,omitempty"`
+	Labels      []string `json:"labels,omitempty"`
 }
 
 type CivilizationAssemblyUnavailableField struct {
@@ -220,6 +273,7 @@ func (s *InMemoryStore) ProjectCivilizationAssembly(options CivilizationAssembly
 	projection.FactoryOrderSummary = civilizationAssemblyFactoryOrders(snapshot.records)
 	projection.WorkEvidenceSummary = civilizationAssemblyWorkEvidence(snapshot.records)
 	projection.SiteConsumerStatus = civilizationAssemblySiteConsumerStatus(snapshot.records)
+	projection.IssueIntakeProjection = civilizationAssemblyIssueIntake(snapshot.records)
 	projection.OpenGateSummary = civilizationAssemblyOpenGates(snapshot.records)
 	projection.ResidualRiskSummary = civilizationAssemblyResidualRisks(snapshot.records)
 	projection.ValidationRefs = appendSortedUnique(projection.ValidationRefs, projection.WorkEvidenceSummary.TestRunRefs...)
@@ -559,6 +613,230 @@ func civilizationAssemblySiteConsumerStatus(records []Record) CivilizationAssemb
 	}
 }
 
+func civilizationAssemblyIssueIntake(records []Record) CivilizationAssemblyIssueIntake {
+	projection := CivilizationAssemblyIssueIntake{
+		Status:            CivilizationAssemblyFieldUnavailable,
+		Summary:           "no GitHub issue source-intent refs are present in the EventGraph source snapshot",
+		ScannerBoundaries: civilizationAssemblyIssueIntakeScannerBoundaries(),
+	}
+	issuesByKey := map[string]*CivilizationAssemblyIssueIntakeIssue{}
+
+	for _, record := range records {
+		common := record.GetCommon()
+		sourceRefs := append([]string(nil), common.SourceRefs...)
+		if order, ok := record.(*FactoryOrder); ok {
+			sourceRefs = append(sourceRefs, order.SourceIntentRef)
+		}
+		for _, sourceRef := range sourceRefs {
+			repo, number, issueURL, ok := parseCivilizationGitHubIssueRef(sourceRef)
+			if !ok {
+				continue
+			}
+			key := repo + "#" + strconv.Itoa(number)
+			issue := issuesByKey[key]
+			if issue == nil {
+				issue = &CivilizationAssemblyIssueIntakeIssue{
+					Repo:              repo,
+					Number:            number,
+					URL:               issueURL,
+					PrimaryRepo:       repo,
+					AuthorityBoundary: "read-only issue source; scanner cannot write EventGraph, mutate GitHub, create PRs, merge, deploy, or approve protected actions",
+				}
+				issuesByKey[key] = issue
+			}
+			if issue.TouchedSubstrate == "" {
+				issue.TouchedSubstrate = common.Type
+			}
+			if issue.RiskClass == "" {
+				issue.RiskClass = civilizationAssemblyRecordRiskClass(record)
+			}
+			if issue.Readiness == "" {
+				issue.Readiness = commonStatus(common)
+			}
+			issue.SourceRefs = appendSortedUnique(issue.SourceRefs, sourceRef, common.ID)
+			projection.SourceRefs = appendSortedUnique(projection.SourceRefs, sourceRef, common.ID)
+		}
+	}
+
+	if len(issuesByKey) == 0 {
+		return projection
+	}
+
+	for _, issue := range issuesByKey {
+		issue.SourceRefs = appendSortedUnique(nil, issue.SourceRefs...)
+		projection.Issues = append(projection.Issues, *issue)
+	}
+	sort.Slice(projection.Issues, func(i, j int) bool {
+		if projection.Issues[i].Repo != projection.Issues[j].Repo {
+			return projection.Issues[i].Repo < projection.Issues[j].Repo
+		}
+		return projection.Issues[i].Number < projection.Issues[j].Number
+	})
+	projection.Groups = civilizationAssemblyIssueIntakeGroups(projection.Issues)
+	projection.Status = CivilizationAssemblyFieldAvailable
+	projection.Summary = strconv.Itoa(len(projection.Issues)) + " GitHub issue source-intent record(s) projected from existing EventGraph source refs"
+	projection.SourceRefs = appendSortedUnique(nil, projection.SourceRefs...)
+	return projection
+}
+
+func civilizationAssemblyIssueIntakeGroups(issues []CivilizationAssemblyIssueIntakeIssue) []CivilizationAssemblyIssueIntakeGroup {
+	groupsByKey := map[string]*CivilizationAssemblyIssueIntakeGroup{}
+	for _, issue := range issues {
+		key := strings.Join([]string{issue.PrimaryRepo, issue.TouchedSubstrate, issue.RiskClass, issue.Readiness}, "\x00")
+		group := groupsByKey[key]
+		if group == nil {
+			group = &CivilizationAssemblyIssueIntakeGroup{
+				GroupID:          civilizationAssemblyIssueIntakeGroupID(issue.PrimaryRepo, issue.TouchedSubstrate, issue.RiskClass, issue.Readiness),
+				PrimaryRepo:      issue.PrimaryRepo,
+				TouchedSubstrate: issue.TouchedSubstrate,
+				RiskClass:        issue.RiskClass,
+				Readiness:        issue.Readiness,
+				Recommendation:   "read-only source-intent projection; verify issue authority and PR-ready labels before implementation",
+			}
+			groupsByKey[key] = group
+		}
+		group.IssueRefs = append(group.IssueRefs, CivilizationAssemblyIssueRef{
+			Repo:        issue.Repo,
+			Number:      issue.Number,
+			URL:         issue.URL,
+			State:       issue.State,
+			StateReason: issue.StateReason,
+			Labels:      appendSortedUnique(nil, issue.Labels...),
+		})
+		group.SourceRefs = appendSortedUnique(group.SourceRefs, issue.SourceRefs...)
+	}
+
+	groups := make([]CivilizationAssemblyIssueIntakeGroup, 0, len(groupsByKey))
+	for _, group := range groupsByKey {
+		sort.Slice(group.IssueRefs, func(i, j int) bool {
+			if group.IssueRefs[i].Repo != group.IssueRefs[j].Repo {
+				return group.IssueRefs[i].Repo < group.IssueRefs[j].Repo
+			}
+			return group.IssueRefs[i].Number < group.IssueRefs[j].Number
+		})
+		group.Summary = strconv.Itoa(len(group.IssueRefs)) + " issue(s) share repo/substrate/risk/readiness key."
+		groups = append(groups, *group)
+	}
+	sort.Slice(groups, func(i, j int) bool {
+		if groups[i].PrimaryRepo != groups[j].PrimaryRepo {
+			return groups[i].PrimaryRepo < groups[j].PrimaryRepo
+		}
+		if groups[i].RiskClass != groups[j].RiskClass {
+			return groups[i].RiskClass < groups[j].RiskClass
+		}
+		if groups[i].TouchedSubstrate != groups[j].TouchedSubstrate {
+			return groups[i].TouchedSubstrate < groups[j].TouchedSubstrate
+		}
+		return groups[i].GroupID < groups[j].GroupID
+	})
+	return groups
+}
+
+func parseCivilizationGitHubIssueRef(ref string) (repo string, number int, issueURL string, ok bool) {
+	ref = strings.TrimSpace(ref)
+	if strings.HasPrefix(ref, "github:") {
+		value := strings.TrimPrefix(ref, "github:")
+		hash := strings.LastIndex(value, "#")
+		if hash <= 0 || hash == len(value)-1 {
+			return "", 0, "", false
+		}
+		n, err := strconv.Atoi(value[hash+1:])
+		if err != nil || n <= 0 {
+			return "", 0, "", false
+		}
+		repo = value[:hash]
+		if !civilizationAssemblyValidGitHubRepo(repo) {
+			return "", 0, "", false
+		}
+		return repo, n, "https://github.com/" + repo + "/issues/" + strconv.Itoa(n), true
+	}
+
+	parsed, err := url.Parse(ref)
+	if err != nil || parsed.Scheme != "https" || parsed.Host != "github.com" {
+		return "", 0, "", false
+	}
+	parts := strings.Split(strings.Trim(parsed.Path, "/"), "/")
+	if len(parts) != 4 || parts[2] != "issues" {
+		return "", 0, "", false
+	}
+	n, err := strconv.Atoi(parts[3])
+	if err != nil || n <= 0 {
+		return "", 0, "", false
+	}
+	repo = parts[0] + "/" + parts[1]
+	if !civilizationAssemblyValidGitHubRepo(repo) {
+		return "", 0, "", false
+	}
+	return repo, n, "https://github.com/" + repo + "/issues/" + strconv.Itoa(n), true
+}
+
+func civilizationAssemblyValidGitHubRepo(repo string) bool {
+	parts := strings.Split(repo, "/")
+	if len(parts) != 2 {
+		return false
+	}
+	for _, part := range parts {
+		if strings.TrimSpace(part) == "" || strings.ContainsAny(part, " \t\n\r") {
+			return false
+		}
+	}
+	return true
+}
+
+func civilizationAssemblyIssueIntakeScannerBoundaries() []string {
+	return []string{
+		"scanner_read_only",
+		"no_eventgraph_writes",
+		"no_github_issue_mutation",
+		"no_hive_action_api",
+		"no_work_mutation",
+		"no_pr_creation",
+		"no_merge",
+		"no_deploy",
+		"no_protected_action_approval",
+	}
+}
+
+func civilizationAssemblyIssueIntakeGroupID(parts ...string) string {
+	joined := strings.ToLower(strings.Join(parts, "-"))
+	var b strings.Builder
+	lastDash := false
+	for _, r := range joined {
+		ok := (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9')
+		if ok {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	return strings.Trim(b.String(), "-")
+}
+
+func civilizationAssemblyRecordRiskClass(record Record) string {
+	switch typed := record.(type) {
+	case *FactoryOrder:
+		return typed.RiskClass
+	case *Requirement:
+		return typed.RiskClass
+	case *AcceptanceCriterion:
+		return typed.RiskClass
+	case *Assumption:
+		return typed.RiskClass
+	case *Task:
+		return typed.RiskClass
+	case *AuthorityRequest:
+		return typed.RiskClass
+	case *Failure:
+		return typed.Severity
+	default:
+		return ""
+	}
+}
+
 func civilizationAssemblyOpenGates(records []Record) []CivilizationAssemblyGateSummary {
 	var out []CivilizationAssemblyGateSummary
 	for _, record := range records {
@@ -640,6 +918,9 @@ func civilizationAssemblyUnavailableFields(projection CivilizationAssemblyProjec
 	if projection.SiteConsumerStatus.Status != CivilizationAssemblyFieldAvailable {
 		add("site_consumer_status", projection.SiteConsumerStatus.Status, projection.SiteConsumerStatus.Summary)
 	}
+	if projection.IssueIntakeProjection.Status != CivilizationAssemblyFieldAvailable {
+		add("issue_intake_projection", projection.IssueIntakeProjection.Status, projection.IssueIntakeProjection.Summary)
+	}
 	if len(projection.ValidationRefs) == 0 {
 		add("validation_refs", CivilizationAssemblyFieldUnavailable, "no TestRun, GateResult, or caller-provided validation refs are present")
 	}
@@ -705,6 +986,7 @@ func civilizationAssemblyProvenanceRefs(projection CivilizationAssemblyProjectio
 	refs = appendSortedUnique(refs, projection.ExternalCommitteeState.ApprovalRefs...)
 	refs = appendSortedUnique(refs, projection.WorkEvidenceSummary.SourceRefs...)
 	refs = appendSortedUnique(refs, projection.SiteConsumerStatus.SourceRefs...)
+	refs = appendSortedUnique(refs, projection.IssueIntakeProjection.SourceRefs...)
 	return refs
 }
 

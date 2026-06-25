@@ -51,6 +51,18 @@ func TestCivilizationAssemblyProjectionCompleteDeterministicFixture(t *testing.T
 	if first.SiteConsumerStatus.Status != CivilizationAssemblyFieldAvailable || !containsString(first.SiteConsumerStatus.SourceRefs, "site_consumer_civ_001") {
 		t.Fatalf("site consumer status missing EventGraph artifact evidence: %+v", first.SiteConsumerStatus)
 	}
+	if first.IssueIntakeProjection.Status != CivilizationAssemblyFieldAvailable || len(first.IssueIntakeProjection.Issues) != 2 {
+		t.Fatalf("issue intake projection missing typed GitHub issue refs: %+v", first.IssueIntakeProjection)
+	}
+	if !containsCivilizationIssue(first.IssueIntakeProjection.Issues, "transpara-ai/docs", 172) ||
+		!containsCivilizationIssue(first.IssueIntakeProjection.Issues, "transpara-ai/site", 115) {
+		t.Fatalf("issue intake projection does not preserve docs#172 and site#115: %+v", first.IssueIntakeProjection.Issues)
+	}
+	for _, boundary := range []string{"scanner_read_only", "no_eventgraph_writes", "no_github_issue_mutation", "no_pr_creation", "no_merge", "no_protected_action_approval"} {
+		if !containsString(first.IssueIntakeProjection.ScannerBoundaries, boundary) {
+			t.Fatalf("issue intake scanner boundary %s missing from %+v", boundary, first.IssueIntakeProjection.ScannerBoundaries)
+		}
+	}
 	for _, forbidden := range []string{"no_eventgraph_writes", "no_runtime_execution", "no_protected_actions", "no_site_replacement"} {
 		if !containsString(first.BoundaryFlags, forbidden) {
 			t.Fatalf("boundary flag %s missing from %+v", forbidden, first.BoundaryFlags)
@@ -70,6 +82,44 @@ func TestCivilizationAssemblyProjectionDoesNotMutateStore(t *testing.T) {
 	after := civilizationAssemblyStoreFootprint(t, store)
 	if !reflect.DeepEqual(before, after) {
 		t.Fatalf("projection mutated store\nbefore=%+v\nafter=%+v\nprojection=%+v", before, after, projection)
+	}
+}
+
+func TestCivilizationAssemblyIssueIntakeProjectionUnavailableWithoutIssueRefs(t *testing.T) {
+	projection := civilizationAssemblyIssueIntake([]Record{
+		&Artifact{
+			CommonNode:   common("artifact_without_issue_ref", TypeArtifact, "verified"),
+			ArtifactType: "report",
+			Path:         strPtr("site://ops/civilization/no-issue-ref"),
+			ContentHash:  strPtr("sha256:no-issue-ref"),
+		},
+	})
+
+	if projection.Status != CivilizationAssemblyFieldUnavailable {
+		t.Fatalf("status = %s, want unavailable", projection.Status)
+	}
+	if len(projection.Issues) != 0 || len(projection.Groups) != 0 {
+		t.Fatalf("unavailable issue intake should not project issues/groups: %+v", projection)
+	}
+	for _, boundary := range []string{"scanner_read_only", "no_eventgraph_writes", "no_github_issue_mutation"} {
+		if !containsString(projection.ScannerBoundaries, boundary) {
+			t.Fatalf("unavailable projection missing scanner boundary %s: %+v", boundary, projection.ScannerBoundaries)
+		}
+	}
+}
+
+func TestParseCivilizationGitHubIssueRefRejectsNonIssueRefs(t *testing.T) {
+	for _, ref := range []string{
+		"",
+		"github:transpara-ai/site",
+		"github:transpara-ai/site#0",
+		"https://github.com/transpara-ai/site/pull/125",
+		"https://example.com/transpara-ai/site/issues/117",
+		"issue://117",
+	} {
+		if repo, number, issueURL, ok := parseCivilizationGitHubIssueRef(ref); ok {
+			t.Fatalf("parseCivilizationGitHubIssueRef(%q) = %s #%d %s, want rejected", ref, repo, number, issueURL)
+		}
 	}
 }
 
@@ -465,12 +515,12 @@ func civilizationAssemblyProjectionStore(t *testing.T) *InMemoryStore {
 		CommonNode:          common(foID, TypeFactoryOrder, "accepted"),
 		FactoryOrderVersion: 1,
 		SourceIntentHash:    "sha256:civilization-intent",
-		SourceIntentRef:     "eventgraph://fixture/civilization",
+		SourceIntentRef:     "github:transpara-ai/docs#172",
 		RiskClass:           "high",
 		ReleasePolicy:       "human_approval_required",
 	})
 	appendRecord(t, store, &Requirement{
-		CommonNode:     common(reqID, TypeRequirement, "accepted"),
+		CommonNode:     commonWithSourceRefs(reqID, TypeRequirement, "accepted", []string{"https://github.com/transpara-ai/site/issues/115"}),
 		FactoryOrderID: foID,
 		Text:           "derive civilization assembly projection from EventGraph records",
 		Source:         "explicit",
@@ -632,6 +682,15 @@ func projectionHasUnavailableField(projection CivilizationAssemblyProjection, fi
 func containsFailureReason(reasons []string, want string) bool {
 	for _, reason := range reasons {
 		if strings.Contains(reason, want) {
+			return true
+		}
+	}
+	return false
+}
+
+func containsCivilizationIssue(issues []CivilizationAssemblyIssueIntakeIssue, repo string, number int) bool {
+	for _, issue := range issues {
+		if issue.Repo == repo && issue.Number == number {
 			return true
 		}
 	}
