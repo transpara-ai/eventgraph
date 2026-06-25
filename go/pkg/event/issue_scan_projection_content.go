@@ -1,0 +1,127 @@
+package event
+
+type issueScanProjectionContent struct{}
+
+func (issueScanProjectionContent) Accept(EventContentVisitor) {}
+
+type IssueScanRunState string
+
+const (
+	IssueScanRunStateQueued         IssueScanRunState = "queued"
+	IssueScanRunStateDispatched     IssueScanRunState = "dispatched"
+	IssueScanRunStateRunning        IssueScanRunState = "running"
+	IssueScanRunStateBlocked        IssueScanRunState = "blocked"
+	IssueScanRunStateParked         IssueScanRunState = "parked"
+	IssueScanRunStateHumanAction    IssueScanRunState = "human_action"
+	IssueScanRunStateReadyForHuman  IssueScanRunState = "ready_for_human"
+	IssueScanRunStateSuperseded     IssueScanRunState = "superseded"
+	IssueScanRunStateCompleted      IssueScanRunState = "completed"
+	IssueScanRunStateProjectionOnly IssueScanRunState = "projection_only"
+)
+
+type IssueScanStageState string
+
+const (
+	IssueScanStageStateDeclared       IssueScanStageState = "declared"
+	IssueScanStageStateBlocked        IssueScanStageState = "blocked"
+	IssueScanStageStateReady          IssueScanStageState = "ready"
+	IssueScanStageStateRunning        IssueScanStageState = "running"
+	IssueScanStageStateComplete       IssueScanStageState = "complete"
+	IssueScanStageStateHumanAction    IssueScanStageState = "human_action"
+	IssueScanStageStateParked         IssueScanStageState = "parked"
+	IssueScanStageStateSuperseded     IssueScanStageState = "superseded"
+	IssueScanStageStateProjectionOnly IssueScanStageState = "projection_only"
+)
+
+type IssueScanBlockerType string
+
+const (
+	IssueScanBlockerNeedsHumanScope     IssueScanBlockerType = "needs_human_scope"
+	IssueScanBlockerProtectedAction     IssueScanBlockerType = "protected_action"
+	IssueScanBlockerStaleTarget         IssueScanBlockerType = "stale_target"
+	IssueScanBlockerDuplicateChain      IssueScanBlockerType = "duplicate_chain"
+	IssueScanBlockerMissingGateEvidence IssueScanBlockerType = "missing_gate_evidence"
+)
+
+type IssueScanIssueRef struct {
+	Repo        string   `json:"repo"`
+	Number      int      `json:"number"`
+	URL         string   `json:"url,omitempty"`
+	Title       string   `json:"title,omitempty"`
+	State       string   `json:"state,omitempty"`
+	StateReason string   `json:"state_reason,omitempty"`
+	Labels      []string `json:"labels,omitempty"`
+}
+
+type IssueScanRunProjectedContent struct {
+	issueScanProjectionContent
+	RunID            string              `json:"run_id"`
+	FactoryOrderID   string              `json:"factory_order_id,omitempty"`
+	LifecycleVersion string              `json:"lifecycle_version"`
+	State            IssueScanRunState   `json:"state"`
+	TargetIssue      IssueScanIssueRef   `json:"target_issue"`
+	SelectedIssue    IssueScanIssueRef   `json:"selected_issue"`
+	CandidateIssues  []IssueScanIssueRef `json:"candidate_issues,omitempty"`
+	SourceRefs       []string            `json:"source_refs,omitempty"`
+	EvidenceRefs     []string            `json:"evidence_refs,omitempty"`
+}
+
+func (c IssueScanRunProjectedContent) EventTypeName() string {
+	return EventTypeIssueScanRunProjected.Value()
+}
+
+type IssueScanStageProjectedContent struct {
+	issueScanProjectionContent
+	RunID             string              `json:"run_id"`
+	FactoryOrderID    string              `json:"factory_order_id,omitempty"`
+	StageID           string              `json:"stage_id"`
+	StageNumber       int                 `json:"stage_number"`
+	StageCount        int                 `json:"stage_count,omitempty"`
+	CanonicalTaskID   string              `json:"canonical_task_id"`
+	TaskID            string              `json:"task_id,omitempty"`
+	CurrentState      IssueScanStageState `json:"current_state"`
+	CompletionGate    string              `json:"completion_gate"`
+	AuthorityBoundary string              `json:"authority_boundary"`
+	AssignedAgentIDs  []string            `json:"assigned_agent_ids,omitempty"`
+	TouchingAgentIDs  []string            `json:"touching_agent_ids,omitempty"`
+	EvidenceRefs      []string            `json:"evidence_refs,omitempty"`
+	SourceRefs        []string            `json:"source_refs,omitempty"`
+}
+
+func (c IssueScanStageProjectedContent) EventTypeName() string {
+	return EventTypeIssueScanStageProjected.Value()
+}
+
+type IssueScanBlockerProjectedContent struct {
+	issueScanProjectionContent
+	RunID          string               `json:"run_id"`
+	FactoryOrderID string               `json:"factory_order_id,omitempty"`
+	StageID        string               `json:"stage_id,omitempty"`
+	BlockerType    IssueScanBlockerType `json:"blocker_type"`
+	Reason         string               `json:"reason,omitempty"`
+	RequiredAction string               `json:"required_action"`
+	EvidenceRefs   []string             `json:"evidence_refs,omitempty"`
+	SourceRefs     []string             `json:"source_refs,omitempty"`
+}
+
+func (c IssueScanBlockerProjectedContent) EventTypeName() string {
+	return EventTypeIssueScanBlockerProjected.Value()
+}
+
+type IssueScanLineageProjectedContent struct {
+	issueScanProjectionContent
+	RunID             string   `json:"run_id"`
+	FactoryOrderID    string   `json:"factory_order_id,omitempty"`
+	StageID           string   `json:"stage_id,omitempty"`
+	CanonicalTaskID   string   `json:"canonical_task_id"`
+	PrimaryTaskID     string   `json:"primary_task_id,omitempty"`
+	TaskIDs           []string `json:"task_ids"`
+	DuplicateTaskIDs  []string `json:"duplicate_task_ids,omitempty"`
+	DuplicateOf       string   `json:"duplicate_of,omitempty"`
+	SupersededTaskIDs []string `json:"superseded_task_ids,omitempty"`
+	SourceRefs        []string `json:"source_refs,omitempty"`
+}
+
+func (c IssueScanLineageProjectedContent) EventTypeName() string {
+	return EventTypeIssueScanLineageProjected.Value()
+}

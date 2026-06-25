@@ -184,6 +184,12 @@ func init() {
 		"refinery.intake.classified":  unmarshal[RefineryIntakeClassifiedContent],
 		"refinery.state.transitioned": unmarshal[RefineryStateTransitionedContent],
 
+		// Issue-scan projections
+		"issuescan.run.projected":     unmarshal[IssueScanRunProjectedContent],
+		"issuescan.stage.projected":   unmarshal[IssueScanStageProjectedContent],
+		"issuescan.blocker.projected": unmarshal[IssueScanBlockerProjectedContent],
+		"issuescan.lineage.projected": unmarshal[IssueScanLineageProjectedContent],
+
 		// Site
 		"site.op.received":   unmarshal[SiteOpReceivedContent],
 		"site.op.translated": unmarshal[SiteOpTranslatedContent],

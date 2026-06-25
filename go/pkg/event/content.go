@@ -766,6 +766,10 @@ func DefaultRegistry() *EventTypeRegistry {
 	for _, et := range AllHiveEventTypes() {
 		r.Register(et, nil)
 	}
+	// Issue-scan projection event types
+	for _, et := range AllIssueScanProjectionEventTypes() {
+		r.Register(et, nil)
+	}
 	// Site event types
 	for _, et := range AllSiteEventTypes() {
 		r.Register(et, nil)
