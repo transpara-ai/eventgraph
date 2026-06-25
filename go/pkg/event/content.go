@@ -768,7 +768,7 @@ func DefaultRegistry() *EventTypeRegistry {
 	}
 	// Issue-scan projection event types
 	for _, et := range AllIssueScanProjectionEventTypes() {
-		r.Register(et, nil)
+		r.Register(et, validateIssueScanProjectionContent)
 	}
 	// Site event types
 	for _, et := range AllSiteEventTypes() {

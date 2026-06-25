@@ -1,5 +1,10 @@
 package event
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 type issueScanProjectionContent struct{}
 
 func (issueScanProjectionContent) Accept(EventContentVisitor) {}
@@ -19,6 +24,31 @@ const (
 	IssueScanRunStateProjectionOnly IssueScanRunState = "projection_only"
 )
 
+func (s IssueScanRunState) IsValid() bool {
+	switch s {
+	case IssueScanRunStateQueued, IssueScanRunStateDispatched, IssueScanRunStateRunning,
+		IssueScanRunStateBlocked, IssueScanRunStateParked, IssueScanRunStateHumanAction,
+		IssueScanRunStateReadyForHuman, IssueScanRunStateSuperseded, IssueScanRunStateCompleted,
+		IssueScanRunStateProjectionOnly:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *IssueScanRunState) UnmarshalJSON(data []byte) error {
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	state := IssueScanRunState(value)
+	if !state.IsValid() {
+		return fmt.Errorf("invalid issue-scan run state %q", value)
+	}
+	*s = state
+	return nil
+}
+
 type IssueScanStageState string
 
 const (
@@ -33,6 +63,30 @@ const (
 	IssueScanStageStateProjectionOnly IssueScanStageState = "projection_only"
 )
 
+func (s IssueScanStageState) IsValid() bool {
+	switch s {
+	case IssueScanStageStateDeclared, IssueScanStageStateBlocked, IssueScanStageStateReady,
+		IssueScanStageStateRunning, IssueScanStageStateComplete, IssueScanStageStateHumanAction,
+		IssueScanStageStateParked, IssueScanStageStateSuperseded, IssueScanStageStateProjectionOnly:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *IssueScanStageState) UnmarshalJSON(data []byte) error {
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	state := IssueScanStageState(value)
+	if !state.IsValid() {
+		return fmt.Errorf("invalid issue-scan stage state %q", value)
+	}
+	*s = state
+	return nil
+}
+
 type IssueScanBlockerType string
 
 const (
@@ -42,6 +96,29 @@ const (
 	IssueScanBlockerDuplicateChain      IssueScanBlockerType = "duplicate_chain"
 	IssueScanBlockerMissingGateEvidence IssueScanBlockerType = "missing_gate_evidence"
 )
+
+func (t IssueScanBlockerType) IsValid() bool {
+	switch t {
+	case IssueScanBlockerNeedsHumanScope, IssueScanBlockerProtectedAction, IssueScanBlockerStaleTarget,
+		IssueScanBlockerDuplicateChain, IssueScanBlockerMissingGateEvidence:
+		return true
+	default:
+		return false
+	}
+}
+
+func (t *IssueScanBlockerType) UnmarshalJSON(data []byte) error {
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	blockerType := IssueScanBlockerType(value)
+	if !blockerType.IsValid() {
+		return fmt.Errorf("invalid issue-scan blocker type %q", value)
+	}
+	*t = blockerType
+	return nil
+}
 
 type IssueScanIssueRef struct {
 	Repo        string   `json:"repo"`
@@ -124,4 +201,26 @@ type IssueScanLineageProjectedContent struct {
 
 func (c IssueScanLineageProjectedContent) EventTypeName() string {
 	return EventTypeIssueScanLineageProjected.Value()
+}
+
+func validateIssueScanProjectionContent(content EventContent) error {
+	switch c := content.(type) {
+	case IssueScanRunProjectedContent:
+		if !c.State.IsValid() {
+			return fmt.Errorf("invalid issue-scan run state %q", c.State)
+		}
+	case IssueScanStageProjectedContent:
+		if !c.CurrentState.IsValid() {
+			return fmt.Errorf("invalid issue-scan stage state %q", c.CurrentState)
+		}
+	case IssueScanBlockerProjectedContent:
+		if !c.BlockerType.IsValid() {
+			return fmt.Errorf("invalid issue-scan blocker type %q", c.BlockerType)
+		}
+	case IssueScanLineageProjectedContent:
+		return nil
+	default:
+		return fmt.Errorf("unexpected issue-scan projection content %T", content)
+	}
+	return nil
 }

@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"reflect"
 	"testing"
+
+	"github.com/transpara-ai/eventgraph/go/pkg/types"
 )
 
 func TestIssueScanProjectionEventTypesRegistered(t *testing.T) {
@@ -105,6 +107,58 @@ func TestIssueScanProjectionContentRoundTrip(t *testing.T) {
 			}
 			if got.EventTypeName() != tc.eventType {
 				t.Fatalf("EventTypeName = %q, want %q", got.EventTypeName(), tc.eventType)
+			}
+		})
+	}
+}
+
+func TestIssueScanProjectionRejectsInvalidEnums(t *testing.T) {
+	registry := DefaultRegistry()
+	cases := []struct {
+		name      string
+		eventType types.EventType
+		json      string
+		content   EventContent
+	}{
+		{
+			name:      "run state",
+			eventType: EventTypeIssueScanRunProjected,
+			json:      `{"run_id":"run_bad","lifecycle_version":"v","state":"banana","target_issue":{"repo":"transpara-ai/docs","number":172},"selected_issue":{"repo":"transpara-ai/docs","number":172}}`,
+			content: IssueScanRunProjectedContent{
+				RunID:            "run_bad",
+				LifecycleVersion: "v",
+				State:            IssueScanRunState("banana"),
+			},
+		},
+		{
+			name:      "stage state",
+			eventType: EventTypeIssueScanStageProjected,
+			json:      `{"run_id":"run_bad","stage_id":"research","stage_number":1,"canonical_task_id":"tsk_bad","current_state":"banana","completion_gate":"gate","authority_boundary":"none"}`,
+			content: IssueScanStageProjectedContent{
+				RunID:        "run_bad",
+				StageID:      "research",
+				StageNumber:  1,
+				CurrentState: IssueScanStageState("banana"),
+			},
+		},
+		{
+			name:      "blocker type",
+			eventType: EventTypeIssueScanBlockerProjected,
+			json:      `{"run_id":"run_bad","blocker_type":"banana","required_action":"stop"}`,
+			content: IssueScanBlockerProjectedContent{
+				RunID:          "run_bad",
+				BlockerType:    IssueScanBlockerType("banana"),
+				RequiredAction: "stop",
+			},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := UnmarshalContent(tc.eventType.Value(), []byte(tc.json)); err == nil {
+				t.Fatalf("UnmarshalContent accepted invalid %s", tc.name)
+			}
+			if err := registry.Validate(tc.eventType, tc.content); err == nil {
+				t.Fatalf("registry accepted invalid %s", tc.name)
 			}
 		})
 	}
