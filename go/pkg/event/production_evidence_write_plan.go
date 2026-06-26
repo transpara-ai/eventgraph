@@ -10,11 +10,14 @@ const (
 )
 
 type ProductionEvidenceWriteCandidate struct {
-	CandidateID         string
-	Repo                string
-	ActorRef            string
-	ActionClass         string
-	SchemaVersion       string
+	CandidateID   string
+	Repo          string
+	ActorRef      string
+	ActionClass   string
+	SchemaVersion string
+	// SourceStateRef and CurrentStateRef are caller-supplied local snapshot refs.
+	// They prove candidate self-consistency only; live-head freshness requires a
+	// separate authority packet or adapter.
 	SourceStateRef      string
 	CurrentStateRef     string
 	SourceIssueRefs     []NativeEvidenceIssueRef
@@ -89,6 +92,9 @@ func PlanProductionEvidenceWrite(candidate ProductionEvidenceWriteCandidate) (Pr
 	}, nil
 }
 
+// ApplyProductionEvidenceWritePlanToFixture is an in-memory replay helper for
+// tests and fixtures. Production writers must validate a fresh
+// ProductionEvidenceWriteCandidate instead of trusting a pre-built plan.
 func ApplyProductionEvidenceWritePlanToFixture(existing []ProductionEvidenceWriteEntry, plan ProductionEvidenceWritePlan) ([]ProductionEvidenceWriteEntry, error) {
 	if err := validateProductionEvidenceWritePlan(plan); err != nil {
 		return nil, err
@@ -333,23 +339,31 @@ func validateProductionEvidenceIssueRefs(repo string, refs []NativeEvidenceIssue
 }
 
 func productionEvidenceIssueRefsMatch(expected []NativeEvidenceIssueRef, got []NativeEvidenceIssueRef) bool {
-	if len(expected) != len(got) {
-		return false
-	}
-	expectedKeys := map[string]bool{}
+	expectedCounts := map[string]int{}
 	for _, ref := range expected {
-		expectedKeys[productionEvidenceIssueRefKey(ref)] = true
+		expectedCounts[productionEvidenceIssueRefKey(ref)]++
 	}
+	gotCounts := map[string]int{}
 	for _, ref := range got {
-		if !expectedKeys[productionEvidenceIssueRefKey(ref)] {
-			return false
-		}
+		gotCounts[productionEvidenceIssueRefKey(ref)]++
 	}
-	return true
+	return productionEvidenceIssueRefCountsEqual(expectedCounts, gotCounts)
 }
 
 func productionEvidenceIssueRefKey(ref NativeEvidenceIssueRef) string {
 	return fmt.Sprintf("%s#%d", ref.Repo, ref.Number)
+}
+
+func productionEvidenceIssueRefCountsEqual(a map[string]int, b map[string]int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for key, count := range a {
+		if b[key] != count {
+			return false
+		}
+	}
+	return true
 }
 
 func productionEvidenceWriteEntryForContent(content EventContent) (ProductionEvidenceWriteEntry, error) {

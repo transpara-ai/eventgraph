@@ -76,6 +76,31 @@ func TestPlanProductionEvidenceWriteFailsClosed(t *testing.T) {
 			wantErr: "issue_evidence_ref",
 		},
 		{
+			name: "empty source issues",
+			mutate: func(candidate *ProductionEvidenceWriteCandidate) {
+				candidate.SourceIssueRefs = nil
+			},
+			wantErr: "source_issue_ref",
+		},
+		{
+			name: "candidate source issue wrong repo",
+			mutate: func(candidate *ProductionEvidenceWriteCandidate) {
+				candidate.SourceIssueRefs[0].Repo = "transpara-ai/work"
+			},
+			wantErr: "does not match repo",
+		},
+		{
+			name: "authority decision duplicate substitutes missing issue",
+			mutate: func(candidate *ProductionEvidenceWriteCandidate) {
+				addSecondProductionEvidenceIssue(candidate)
+				candidate.AuthorityDecision.SourceIssueRefs = []NativeEvidenceIssueRef{
+					candidate.SourceIssueRefs[0],
+					candidate.SourceIssueRefs[0],
+				}
+			},
+			wantErr: "authority decision source_issue_refs",
+		},
+		{
 			name: "missing authority decision",
 			mutate: func(candidate *ProductionEvidenceWriteCandidate) {
 				candidate.AuthorityDecision = AuthorityDecisionRecordedContent{}
@@ -97,7 +122,7 @@ func TestPlanProductionEvidenceWriteFailsClosed(t *testing.T) {
 			wantErr: "actor_ref",
 		},
 		{
-			name: "wrong repo",
+			name: "native evidence source issue mismatch",
 			mutate: func(candidate *ProductionEvidenceWriteCandidate) {
 				candidate.TestRuns[0].SourceIssueRefs = []NativeEvidenceIssueRef{{Repo: "transpara-ai/work", Number: 59}}
 			},
@@ -123,6 +148,34 @@ func TestPlanProductionEvidenceWriteFailsClosed(t *testing.T) {
 				candidate.CurrentStateRef = "github:transpara-ai/eventgraph#61@newer"
 			},
 			wantErr: "stale source",
+		},
+		{
+			name: "store governance wrong store",
+			mutate: func(candidate *ProductionEvidenceWriteCandidate) {
+				candidate.StoreGovernance.StoreName = "runtime_eventgraph_live"
+			},
+			wantErr: "store_name",
+		},
+		{
+			name: "store governance blocked write status",
+			mutate: func(candidate *ProductionEvidenceWriteCandidate) {
+				candidate.StoreGovernance.WriteStatus = AuthorityStoreWriteStatusWritePathBlocked
+			},
+			wantErr: "write_status",
+		},
+		{
+			name: "store governance missing decision authority",
+			mutate: func(candidate *ProductionEvidenceWriteCandidate) {
+				candidate.StoreGovernance.AuthorityRefs = []string{"docs:DF-V4.0-EPIC-017-AUTHORITY-DECISION"}
+			},
+			wantErr: "must include authority decision",
+		},
+		{
+			name: "store governance schema mismatch",
+			mutate: func(candidate *ProductionEvidenceWriteCandidate) {
+				candidate.StoreGovernance.SchemaVersion = "production_evidence_write_v1"
+			},
+			wantErr: "schema_version",
 		},
 		{
 			name: "gate lacks test-run evidence",
@@ -169,6 +222,19 @@ func TestPlanProductionEvidenceWriteFailsClosed(t *testing.T) {
 	}
 }
 
+func TestPlanProductionEvidenceWriteRecordsNonPassingEvidence(t *testing.T) {
+	candidate := baseProductionEvidenceWriteCandidate()
+	candidate.TestRuns[0].Outcome = NativeEvidenceOutcomeFailed
+	candidate.GateResults[0].Outcome = NativeEvidenceOutcomeFailed
+	candidate.AuditReports[0].Outcome = NativeEvidenceOutcomeFailed
+	candidate.AuditReports[0].TraceScoreBasisPoints = productionEvidenceIntPtr(7500)
+	candidate.AuditReports[0].MissingLinks = []string{"followup:failed-validation"}
+
+	if _, err := PlanProductionEvidenceWrite(candidate); err != nil {
+		t.Fatalf("PlanProductionEvidenceWrite should record non-passing evidence: %v", err)
+	}
+}
+
 func TestApplyProductionEvidenceWritePlanToFixtureRejectsConflictingExistingEvidence(t *testing.T) {
 	plan, err := PlanProductionEvidenceWrite(baseProductionEvidenceWriteCandidate())
 	if err != nil {
@@ -184,6 +250,28 @@ func TestApplyProductionEvidenceWritePlanToFixtureRejectsConflictingExistingEvid
 		t.Fatalf("ApplyProductionEvidenceWritePlanToFixture accepted conflicting existing evidence")
 	} else if !strings.Contains(err.Error(), "conflicting evidence") {
 		t.Fatalf("error = %q, want conflicting evidence", err.Error())
+	}
+}
+
+func addSecondProductionEvidenceIssue(candidate *ProductionEvidenceWriteCandidate) {
+	second := NativeEvidenceIssueRef{
+		Repo:   "transpara-ai/eventgraph",
+		Number: 62,
+		URL:    "https://github.com/transpara-ai/eventgraph/issues/62",
+		Title:  "Authority evidence schema and store governance",
+	}
+	refs := append(append([]NativeEvidenceIssueRef(nil), candidate.SourceIssueRefs...), second)
+	candidate.SourceIssueRefs = refs
+	candidate.AuthorityDecision.SourceIssueRefs = refs
+	candidate.StoreGovernance.SourceIssueRefs = refs
+	for i := range candidate.TestRuns {
+		candidate.TestRuns[i].SourceIssueRefs = refs
+	}
+	for i := range candidate.GateResults {
+		candidate.GateResults[i].SourceIssueRefs = refs
+	}
+	for i := range candidate.AuditReports {
+		candidate.AuditReports[i].SourceIssueRefs = refs
 	}
 }
 

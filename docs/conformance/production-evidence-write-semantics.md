@@ -74,10 +74,16 @@ the local append plan. They make the runtime and GitHub issue evidence sources
 explicit without introducing a live runtime writer or a production issue-sync
 adapter.
 
+`source_state_ref` and `current_state_ref` are caller-supplied local snapshot
+refs. Matching values prove only local candidate self-consistency. They are not
+live-head freshness checks and cannot authorize production writes without a
+separate exact-head authority packet or adapter-owned freshness proof.
+
 ## Evidence Requirements
 
 Native evidence records must pass their existing validators and cite the same
-source issue refs as the candidate.
+source issue refs as the candidate. The comparison is exact by source issue ref
+count; duplicate refs cannot stand in for a missing issue.
 
 Gate results must include at least one TestRun ID in `evidence_refs`.
 
@@ -85,6 +91,11 @@ Audit reports must include validation refs, CFAR refs, authority-boundary refs,
 at least one TestRun ID, and at least one GateResult ID in `evidence_refs`. A
 passed audit report must have no `missing_links` and must use
 `trace_score_basis_points: 10000`.
+
+The write plan records evidence outcomes. It does not certify that every
+TestRun, GateResult, or AuditReport passed. Consumers that require green
+closeout must enforce that gate separately before approving merge, deployment,
+runtime execution, or any other protected action.
 
 Duplicate evidence IDs inside one plan fail closed. Applying a plan to a local
 or fixture entry set is idempotent for exact duplicate entries and fails closed
