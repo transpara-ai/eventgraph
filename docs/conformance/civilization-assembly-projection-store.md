@@ -62,6 +62,16 @@ source snapshots. This prevents recursive self-inclusion, keeps the source
 state hash deterministic across idempotent replays, and prevents one projection
 record from creating another chain of derived truth.
 
+The default record id and idempotency key derive from the projection id, which
+derives from the source state version. Exact replays of the same source state
+must use deterministic `generated_at`, validation refs, and source refs. A
+second append for the same source state with different record content is an
+idempotency conflict, not an update.
+
+`provenance_refs` on the projection-store record is the authoritative envelope
+provenance set for consumers. The embedded projection's `provenance_refs` remain
+the pure derived projection provenance plus the required authority decision ref.
+
 ## Boundaries
 
 This contract does not create or authorize:

@@ -200,6 +200,99 @@ func TestRecordCivilizationAssemblyProjectionIdempotentReplay(t *testing.T) {
 	}
 }
 
+func TestRecordCivilizationAssemblyProjectionDivergentReplayConflicts(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	authorityDecisionRef := appendCivilizationProjectionStoreAuthority(t, store)
+
+	if _, err := store.RecordCivilizationAssemblyProjection(CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime,
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: authorityDecisionRef,
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime,
+			ValidationRefs: []string{"cfar:first"},
+		},
+	}); err != nil {
+		t.Fatalf("first record projection: %v", err)
+	}
+
+	_, err := store.RecordCivilizationAssemblyProjection(CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime.Add(time.Second),
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: authorityDecisionRef,
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime.Add(time.Second),
+			ValidationRefs: []string{"cfar:second"},
+		},
+	})
+	if !errors.Is(err, ErrIdempotencyConflict) {
+		t.Fatalf("divergent replay error = %v, want ErrIdempotencyConflict", err)
+	}
+	if got := len(store.ByType(TypeCivilizationAssemblyProjectionStoreRecord)); got != 1 {
+		t.Fatalf("projection store record count = %d, want 1", got)
+	}
+}
+
+func TestCivilizationAssemblyProjectionStoreRecordValidateRejectsCrossFieldMismatches(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(*CivilizationAssemblyProjectionStoreRecord)
+	}{
+		{
+			name: "schema version mismatch",
+			mutate: func(record *CivilizationAssemblyProjectionStoreRecord) {
+				record.ProjectionSchemaVersion = "0.0.0"
+			},
+		},
+		{
+			name: "subject mismatch",
+			mutate: func(record *CivilizationAssemblyProjectionStoreRecord) {
+				record.Projection.ProjectionSubject = "other_subject"
+			},
+		},
+		{
+			name: "generated at mismatch",
+			mutate: func(record *CivilizationAssemblyProjectionStoreRecord) {
+				record.Projection.GeneratedAt = record.GeneratedAt.Add(time.Second)
+			},
+		},
+		{
+			name: "projection id mismatch",
+			mutate: func(record *CivilizationAssemblyProjectionStoreRecord) {
+				record.Projection.ProjectionID = record.ProjectionID + ":mismatch"
+			},
+		},
+		{
+			name: "derivation status mismatch",
+			mutate: func(record *CivilizationAssemblyProjectionStoreRecord) {
+				record.Projection.DerivationStatus = CivilizationAssemblyDerivationPartial
+			},
+		},
+		{
+			name: "missing boundary flag",
+			mutate: func(record *CivilizationAssemblyProjectionStoreRecord) {
+				record.BoundaryFlags = withoutString(record.BoundaryFlags, "no_runtime_execution")
+			},
+		},
+		{
+			name: "missing authority provenance",
+			mutate: func(record *CivilizationAssemblyProjectionStoreRecord) {
+				record.ProvenanceRefs = withoutString(record.ProvenanceRefs, record.AuthorityDecisionRef)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			record := validCivilizationAssemblyProjectionStoreRecord(t)
+			tc.mutate(record)
+			if err := ValidateRecord(record); !errors.Is(err, ErrInvalidRecord) {
+				t.Fatalf("ValidateRecord error = %v, want ErrInvalidRecord", err)
+			}
+		})
+	}
+}
+
 func TestRecordCivilizationAssemblyProjectionRequiresScopedAuthorityDecision(t *testing.T) {
 	store := civilizationAssemblyProjectionStore(t)
 	before := civilizationAssemblyStoreFootprint(t, store)
@@ -1172,6 +1265,35 @@ func appendCivilizationProjectionStoreAuthorityDecision(t *testing.T, store *InM
 		ExpiresAt:          expiresAt,
 	})
 	return decisionID
+}
+
+func validCivilizationAssemblyProjectionStoreRecord(t *testing.T) *CivilizationAssemblyProjectionStoreRecord {
+	t.Helper()
+	store := civilizationAssemblyProjectionStore(t)
+	authorityDecisionRef := appendCivilizationProjectionStoreAuthority(t, store)
+	record, err := store.RecordCivilizationAssemblyProjection(CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime,
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: authorityDecisionRef,
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime,
+			ValidationRefs: []string{"cfar:pr-head"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("record projection: %v", err)
+	}
+	return record
+}
+
+func withoutString(values []string, remove string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if value != remove {
+			out = append(out, value)
+		}
+	}
+	return out
 }
 
 type projectionCloneFailureRecord struct {
