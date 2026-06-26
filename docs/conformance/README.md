@@ -7,6 +7,7 @@ Language-agnostic test vectors for EventGraph implementations. Every language pa
 - `canonical-vectors.json` — Test vectors for canonical form, hash computation, type validation, and state machine transitions
 - `issue-scan-projection.md` — Typed issue-scan projection event contract for Civilization dashboards and monitors
 - `native-evidence-events.md` — Typed TestRun, GateResult, and AuditReport evidence event contract for closeout monitors
+- `authority-evidence-governance.md` — Typed authority decision, protected-action boundary, residual, and store-governance event contract
 
 ## What Conformance Tests Cover
 

@@ -774,6 +774,10 @@ func DefaultRegistry() *EventTypeRegistry {
 	for _, et := range AllNativeEvidenceEventTypes() {
 		r.Register(et, validateNativeEvidenceContent)
 	}
+	// Authority evidence event types
+	for _, et := range AllAuthorityEvidenceEventTypes() {
+		r.Register(et, validateAuthorityEvidenceContent)
+	}
 	// Site event types
 	for _, et := range AllSiteEventTypes() {
 		r.Register(et, nil)
