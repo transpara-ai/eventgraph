@@ -27,11 +27,12 @@ and reject unsafe projection-store materialization:
 ## Required Authority
 
 The store helper requires `authority_decision_ref` to point at an existing
-active `AuthorityDecision` record whose `decision` is `Autonomous`, whose
-`scope` includes `eventgraph.civilization_assembly.projection_store.record`,
-and whose `expires_at` has not passed at the projection-store record time.
-Missing, unscoped, pending, forbidden, or expired authority is invalid input and
-must fail closed without appending a projection-store record.
+active `AuthorityDecision` record whose status is `approved`, whose `decision`
+is `Autonomous`, whose `scope` includes
+`eventgraph.civilization_assembly.projection_store.record`, and whose
+`expires_at` has not passed at the projection-store record time. Missing,
+unscoped, pending, forbidden, revoked, superseded, or expired authority is
+invalid input and must fail closed without appending a projection-store record.
 
 The current governed scope comes from the docs#207 Event 17 / Gate AA authority
 packet and eventgraph#59. That scope authorizes only local/testable

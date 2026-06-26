@@ -269,6 +269,32 @@ func TestRecordCivilizationAssemblyProjectionRejectsExpiredAuthorityDecision(t *
 	}
 }
 
+func TestRecordCivilizationAssemblyProjectionRejectsRevokedAuthorityDecision(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	authorityDecisionRef := appendCivilizationProjectionStoreAuthorityDecision(t, store, "auth_dec_civ_projection_store_revoked", "Autonomous", nil)
+	store.mu.Lock()
+	*store.records[authorityDecisionRef].(*AuthorityDecision).CommonNode.Status = "revoked"
+	store.mu.Unlock()
+	before := civilizationAssemblyStoreFootprint(t, store)
+
+	_, err := store.RecordCivilizationAssemblyProjection(CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime,
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: authorityDecisionRef,
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime,
+			ValidationRefs: []string{"cfar:pr-head"},
+		},
+	})
+	if !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("revoked authority decision error = %v, want ErrInvalidRecord", err)
+	}
+	after := civilizationAssemblyStoreFootprint(t, store)
+	if !reflect.DeepEqual(before, after) {
+		t.Fatalf("revoked authority decision mutated store\nbefore=%+v\nafter=%+v", before, after)
+	}
+}
+
 func TestRecordCivilizationAssemblyProjectionRequiresAuthorityDecision(t *testing.T) {
 	store := civilizationAssemblyProjectionStore(t)
 	before := civilizationAssemblyStoreFootprint(t, store)

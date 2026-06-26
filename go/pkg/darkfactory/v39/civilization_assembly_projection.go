@@ -1173,6 +1173,9 @@ func civilizationAssemblyProjectionStoreDecisionAuthorizesAt(decision *Authority
 	if decision == nil || strings.TrimSpace(decision.Decision) != "Autonomous" {
 		return false
 	}
+	if normalizedStatus(decision.CommonNode) != "approved" {
+		return false
+	}
 	if decision.ExpiresAt != nil {
 		checkAt := UTC(at)
 		if checkAt.IsZero() {
