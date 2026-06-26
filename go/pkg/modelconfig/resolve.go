@@ -30,15 +30,16 @@ type ResolutionInput struct {
 	AgentDefModel string           // legacy AgentDef.Model field
 	Policy        *RoleModelPolicy // role-declared policy (may be nil)
 	TaskOverride  *RoleModelPolicy // allocator per-task override (may be nil)
-	CanOperate    bool             // forces claude-cli provider
+	CanOperate    bool             // requires an Operate-capable provider
 }
 
 // ResolverDefaults configures the base layer of the precedence chain.
 type ResolverDefaults struct {
-	Provider   string               // default provider (e.g. "claude-cli")
-	Model      string               // fallback model ID
-	TierModels map[ModelTier]string // tier -> default model ID
-	RoleModels map[string]string    // role -> model alias
+	Provider     string               // default provider (e.g. "claude-cli")
+	Model        string               // fallback model ID
+	TierModels   map[ModelTier]string // tier -> default model ID
+	RoleModels   map[string]string    // role -> model alias
+	ModelAliases map[string]string    // exact selected token -> replacement alias/ID, applied once
 }
 
 // Resolver resolves model configuration through a deterministic precedence chain.
@@ -112,6 +113,11 @@ func (r *Resolver) Resolve(input ResolutionInput) (ResolvedConfig, error) {
 	// Layer 6: Task override
 	if input.TaskOverride != nil {
 		r.applyPolicy(&rc, &modelName, &modelOverridden, &providerOverridden, input.TaskOverride, "task-override")
+	}
+
+	if replacement, ok := r.defaults.ModelAliases[modelName]; ok {
+		rc.Trace = append(rc.Trace, fmt.Sprintf("model: catalog alias override (%s→%s)", modelName, replacement))
+		modelName = replacement
 	}
 
 	// Resolve model name to catalog entry

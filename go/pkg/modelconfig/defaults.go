@@ -15,9 +15,10 @@ var defaultCatalogYAML []byte
 
 // catalogFile is the top-level YAML structure for parsing.
 type catalogFile struct {
-	Models       []ModelCatalogEntry  `yaml:"models"`
-	TierDefaults map[string]string    `yaml:"tier_defaults"`
-	RoleDefaults map[string]string    `yaml:"role_defaults"`
+	Models       []ModelCatalogEntry    `yaml:"models"`
+	TierDefaults map[string]string      `yaml:"tier_defaults"`
+	RoleDefaults map[string]string      `yaml:"role_defaults"`
+	ModelAliases map[string]string      `yaml:"model_aliases"`
 	Profiles     map[string]profileYAML `yaml:"profiles"`
 }
 
@@ -62,10 +63,11 @@ func ParseCatalogYAML(data []byte) (*ModelCatalog, map[string]ModelProfile, Reso
 	}
 
 	defaults := ResolverDefaults{
-		Provider:   "claude-cli",
-		Model:      "claude-sonnet-4-6",
-		TierModels: tierModels,
-		RoleModels: f.RoleDefaults,
+		Provider:     "claude-cli",
+		Model:        "claude-sonnet-4-6",
+		TierModels:   tierModels,
+		RoleModels:   f.RoleDefaults,
+		ModelAliases: f.ModelAliases,
 	}
 
 	return catalog, profiles, defaults, nil
@@ -81,6 +83,9 @@ var (
 
 func initDefaults() {
 	defaultCatalog, defaultProfiles, defaultDefaults, defaultCatalogErr = ParseCatalogYAML(defaultCatalogYAML)
+	if defaultCatalogErr == nil {
+		defaultCatalogErr = validateModelAliasTargets(defaultCatalog, defaultDefaults.ModelAliases)
+	}
 }
 
 // DefaultCatalog returns the built-in model catalog (embedded YAML).
@@ -129,7 +134,8 @@ func DefaultResolverWithModel(modelNameOrAlias string) (*Resolver, error) {
 			TierExecution: entry.ID,
 			TierVolume:    entry.ID,
 		},
-		RoleModels: nil,
+		RoleModels:   nil,
+		ModelAliases: nil,
 	}
 	return NewResolver(catalog, defaultProfiles, defaults), nil
 }
@@ -137,7 +143,7 @@ func DefaultResolverWithModel(modelNameOrAlias string) (*Resolver, error) {
 // ResolverFromCatalogFile builds a Resolver by parsing catalogPath and merging
 // its entries on top of the embedded defaults. User entries with the same model
 // ID replace embedded ones; new IDs are appended. role_defaults, tier_defaults,
-// and profiles merge per-key (user wins on conflict).
+// model_aliases, and profiles merge per-key (user wins on conflict).
 func ResolverFromCatalogFile(catalogPath string) (*Resolver, error) {
 	data, err := os.ReadFile(catalogPath)
 	if err != nil {
@@ -165,10 +171,11 @@ func ResolverFromCatalogFile(catalogPath string) (*Resolver, error) {
 	// Merge defaults: deep-copy maps from embedded defaults to avoid mutating
 	// the package-level defaultDefaults (shared with DefaultResolver).
 	defaults := ResolverDefaults{
-		Provider:   defaultDefaults.Provider,
-		Model:      defaultDefaults.Model,
-		TierModels: maps.Clone(defaultDefaults.TierModels),
-		RoleModels: maps.Clone(defaultDefaults.RoleModels),
+		Provider:     defaultDefaults.Provider,
+		Model:        defaultDefaults.Model,
+		TierModels:   maps.Clone(defaultDefaults.TierModels),
+		RoleModels:   maps.Clone(defaultDefaults.RoleModels),
+		ModelAliases: maps.Clone(defaultDefaults.ModelAliases),
 	}
 	if userDefaults.Provider != defaultDefaults.Provider {
 		defaults.Provider = userDefaults.Provider
@@ -182,8 +189,26 @@ func ResolverFromCatalogFile(catalogPath string) (*Resolver, error) {
 	for role, model := range userDefaults.RoleModels {
 		defaults.RoleModels[role] = model
 	}
+	if defaults.ModelAliases == nil && len(userDefaults.ModelAliases) > 0 {
+		defaults.ModelAliases = make(map[string]string, len(userDefaults.ModelAliases))
+	}
+	for from, to := range userDefaults.ModelAliases {
+		defaults.ModelAliases[from] = to
+	}
+	if err := validateModelAliasTargets(merged, defaults.ModelAliases); err != nil {
+		return nil, fmt.Errorf("validate model_aliases: %w", err)
+	}
 
 	return NewResolver(merged, profiles, defaults), nil
+}
+
+func validateModelAliasTargets(catalog *ModelCatalog, aliases map[string]string) error {
+	for from, to := range aliases {
+		if _, ok := catalog.Lookup(to); !ok {
+			return fmt.Errorf("model_aliases target %q for %q not found in catalog", to, from)
+		}
+	}
+	return nil
 }
 
 // MergeCatalogs merges user catalog entries on top of base. Entries with the
