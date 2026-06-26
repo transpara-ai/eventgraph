@@ -195,6 +195,12 @@ func init() {
 		"evidence.gateresult.recorded":  unmarshal[NativeGateResultRecordedContent],
 		"evidence.auditreport.recorded": unmarshal[NativeAuditReportRecordedContent],
 
+		// Authority evidence records
+		"authority.decision.recorded":        unmarshal[AuthorityDecisionRecordedContent],
+		"authority.boundary.recorded":        unmarshal[AuthorityBoundaryRecordedContent],
+		"authority.residual.recorded":        unmarshal[AuthorityResidualRecordedContent],
+		"authority.storegovernance.recorded": unmarshal[AuthorityStoreGovernanceRecordedContent],
+
 		// Site
 		"site.op.received":   unmarshal[SiteOpReceivedContent],
 		"site.op.translated": unmarshal[SiteOpTranslatedContent],
