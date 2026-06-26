@@ -3,6 +3,7 @@ package v39
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"net/url"
 	"reflect"
 	"sort"
@@ -27,14 +28,29 @@ const (
 	civilizationAssemblySiteConsumerPathPrefix = "site://ops/civilization/"
 )
 
+const CivilizationAssemblyProjectionStoreAction = "eventgraph.civilization_assembly.projection_store.record"
+
 type CivilizationAssemblyDerivationStatus string
 type CivilizationAssemblyFieldAvailability string
 
 type CivilizationAssemblyProjectionOptions struct {
-	ProjectionID   string
-	GeneratedAt    time.Time
-	ValidationRefs []string
-	BoundaryFlags  []string
+	ProjectionID          string
+	GeneratedAt           time.Time
+	ValidationRefs        []string
+	BoundaryFlags         []string
+	ProjectionStoreRecord bool
+}
+
+type CivilizationAssemblyProjectionStoreRecordOptions struct {
+	RecordID                string
+	CreatedAt               time.Time
+	CreatedBy               string
+	CorrelationID           string
+	IdempotencyKey          string
+	AuthorityDecisionRef    string
+	ProjectionOptions       CivilizationAssemblyProjectionOptions
+	AdditionalSourceRefs    []string
+	AdditionalBoundaryFlags []string
 }
 
 type CivilizationAssemblyProjection struct {
@@ -256,7 +272,7 @@ func (s *InMemoryStore) ProjectCivilizationAssembly(options CivilizationAssembly
 		GeneratedAt:                        generatedAt.UTC(),
 		SourceEventGraphHeadOrStateVersion: snapshot.stateVersion,
 		SourceEventIDsOrQueryWindow:        append([]string(nil), snapshot.sourceIDs...),
-		BoundaryFlags:                      civilizationAssemblyBoundaryFlags(options.BoundaryFlags),
+		BoundaryFlags:                      civilizationAssemblyBoundaryFlags(options.BoundaryFlags, options.ProjectionStoreRecord),
 		ValidationRefs:                     appendSortedUnique(nil, options.ValidationRefs...),
 	}
 
@@ -280,6 +296,89 @@ func (s *InMemoryStore) ProjectCivilizationAssembly(options CivilizationAssembly
 	return projection
 }
 
+func (s *InMemoryStore) RecordCivilizationAssemblyProjection(options CivilizationAssemblyProjectionStoreRecordOptions) (*CivilizationAssemblyProjectionStoreRecord, error) {
+	authorityDecisionRef := strings.TrimSpace(options.AuthorityDecisionRef)
+	if authorityDecisionRef == "" {
+		return nil, fieldError(TypeCivilizationAssemblyProjectionStoreRecord, "authority_decision_ref", "required")
+	}
+	decision, ok := s.mustGetAuthorityDecision(authorityDecisionRef)
+	if !ok {
+		return nil, fmt.Errorf("%w: AuthorityDecision %s", ErrNotFound, authorityDecisionRef)
+	}
+	if !civilizationAssemblyProjectionStoreDecisionAuthorizes(decision) {
+		return nil, fieldError(TypeAuthorityDecision, "scope", "must include "+CivilizationAssemblyProjectionStoreAction)
+	}
+
+	projectionOptions := options.ProjectionOptions
+	projectionOptions.ProjectionStoreRecord = true
+	projectionOptions.BoundaryFlags = appendSortedUnique(projectionOptions.BoundaryFlags,
+		"projection_store_local_only",
+		"no_production_eventgraph_write",
+		"no_runtime_execution",
+		"no_protected_actions",
+		"no_deploy",
+	)
+	projection := s.ProjectCivilizationAssembly(projectionOptions)
+	projection.ProvenanceRefs = appendSortedUnique(projection.ProvenanceRefs, authorityDecisionRef)
+
+	recordID := strings.TrimSpace(options.RecordID)
+	if recordID == "" {
+		recordID = projection.ProjectionID + ":projection_store_record"
+	}
+	createdAt := options.CreatedAt
+	if createdAt.IsZero() {
+		createdAt = projection.GeneratedAt
+	}
+	correlationID := strings.TrimSpace(options.CorrelationID)
+	if correlationID == "" {
+		correlationID = projection.ProjectionID
+	}
+	idempotencyKey := strings.TrimSpace(options.IdempotencyKey)
+	if idempotencyKey == "" {
+		idempotencyKey = recordID
+	}
+	status := "recorded"
+	provenanceRefs := appendSortedUnique(projection.ProvenanceRefs, authorityDecisionRef)
+	provenanceRefs = appendSortedUnique(provenanceRefs, options.AdditionalSourceRefs...)
+	boundaryFlags := civilizationAssemblyBoundaryFlags(appendSortedUnique(projection.BoundaryFlags, options.AdditionalBoundaryFlags...), true)
+	projection.BoundaryFlags = appendSortedUnique(nil, boundaryFlags...)
+
+	record := &CivilizationAssemblyProjectionStoreRecord{
+		CommonNode: CommonNode{
+			ID:             recordID,
+			Type:           TypeCivilizationAssemblyProjectionStoreRecord,
+			CreatedAt:      createdAt.UTC(),
+			CreatedBy:      strings.TrimSpace(options.CreatedBy),
+			Status:         &status,
+			IdempotencyKey: idempotencyKey,
+			CorrelationID:  correlationID,
+			SourceRefs:     provenanceRefs,
+		},
+		ProjectionID:                       projection.ProjectionID,
+		ProjectionSchemaVersion:            projection.ProjectionSchemaVersion,
+		ProjectionSubject:                  projection.ProjectionSubject,
+		GeneratedAt:                        projection.GeneratedAt,
+		SourceEventGraphHeadOrStateVersion: projection.SourceEventGraphHeadOrStateVersion,
+		SourceEventIDsOrQueryWindow:        append([]string(nil), projection.SourceEventIDsOrQueryWindow...),
+		DerivationStatus:                   projection.DerivationStatus,
+		AuthorityDecisionRef:               authorityDecisionRef,
+		Projection:                         projection,
+		ProvenanceRefs:                     provenanceRefs,
+		ValidationRefs:                     appendSortedUnique(nil, projection.ValidationRefs...),
+		BoundaryFlags:                      boundaryFlags,
+	}
+
+	stored, err := s.AppendRecord(record)
+	if err != nil {
+		return nil, err
+	}
+	typed, ok := stored.(*CivilizationAssemblyProjectionStoreRecord)
+	if !ok {
+		return nil, fmt.Errorf("%w: CivilizationAssemblyProjectionStoreRecord append returned %T", ErrInvalidRecord, stored)
+	}
+	return typed, nil
+}
+
 func (s *InMemoryStore) civilizationAssemblySnapshot() civilizationAssemblySnapshot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -292,11 +391,14 @@ func (s *InMemoryStore) civilizationAssemblySnapshot() civilizationAssemblySnaps
 	hasher := sha256.New()
 
 	for _, id := range recordIDs {
+		record := s.records[id]
+		if record != nil && record.GetCommon().Type == TypeCivilizationAssemblyProjectionStoreRecord {
+			continue
+		}
 		sourceIDs = append(sourceIDs, id)
 		hasher.Write([]byte("record:" + id + "\n"))
 		hasher.Write(s.canonicalByID[id])
 		hasher.Write([]byte("\n"))
-		record := s.records[id]
 		if record == nil {
 			failures = append(failures, "source record "+id+" could not be cloned: nil record")
 			continue
@@ -1061,11 +1163,15 @@ func civilizationAssemblyDerivationStatus(snapshot civilizationAssemblySnapshot,
 	return CivilizationAssemblyDerivationComplete
 }
 
-func civilizationAssemblyBoundaryFlags(extra []string) []string {
+func civilizationAssemblyProjectionStoreDecisionAuthorizes(decision *AuthorityDecision) bool {
+	if decision == nil || strings.TrimSpace(decision.Decision) == "Forbidden" {
+		return false
+	}
+	return containsString(decision.Scope, CivilizationAssemblyProjectionStoreAction)
+}
+
+func civilizationAssemblyBoundaryFlags(extra []string, projectionStoreRecord bool) []string {
 	flags := []string{
-		"read_only_projection",
-		"no_eventgraph_writes",
-		"no_materialized_projection_store",
 		"no_runtime_execution",
 		"no_protected_actions",
 		"no_site_replacement",
@@ -1073,6 +1179,19 @@ func civilizationAssemblyBoundaryFlags(extra []string) []string {
 		"no_hive_action_api",
 		"no_deploy",
 		"no_production_data",
+	}
+	if projectionStoreRecord {
+		flags = append(flags,
+			"projection_store_local_only",
+			"read_only_source_projection",
+			"no_production_eventgraph_write",
+		)
+	} else {
+		flags = append(flags,
+			"read_only_projection",
+			"no_eventgraph_writes",
+			"no_materialized_projection_store",
+		)
 	}
 	return appendSortedUnique(flags, extra...)
 }
