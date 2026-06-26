@@ -337,6 +337,19 @@ func TestResolve_CanOperate_ValidatesCapability(t *testing.T) {
 	assert.Contains(t, err.Error(), "does not support operate")
 }
 
+func TestResolve_CanOperate_ValidatesAliasRemapTarget(t *testing.T) {
+	defaults := testDefaults()
+	defaults.ModelAliases = map[string]string{"sonnet": "haiku"}
+	resolver := NewResolver(testCatalog(t), testProfiles(), defaults)
+
+	_, err := resolver.Resolve(ResolutionInput{
+		Role:       "guardian",
+		CanOperate: true,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does not support operate")
+}
+
 func TestResolve_CanOperate_RejectsNonOperatorProvider(t *testing.T) {
 	// Build a catalog with a model on a non-operator provider that claims operate capability.
 	entries := []ModelCatalogEntry{

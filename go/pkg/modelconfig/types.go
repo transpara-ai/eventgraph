@@ -26,8 +26,8 @@ const (
 	CapReasoning     Capability = "reasoning"
 	CapCoding        Capability = "coding"
 	CapVision        Capability = "vision"
-	CapOperate       Capability = "operate"           // claude-cli filesystem access
-	CapLargeContext  Capability = "large-context"      // >100k context window
-	CapFastLatency   Capability = "fast-latency"       // optimized for speed
-	CapStructuredOut Capability = "structured-output"  // JSON schema output
+	CapOperate       Capability = "operate"           // agentic filesystem access
+	CapLargeContext  Capability = "large-context"     // >100k context window
+	CapFastLatency   Capability = "fast-latency"      // optimized for speed
+	CapStructuredOut Capability = "structured-output" // JSON schema output
 )

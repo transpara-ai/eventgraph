@@ -157,6 +157,71 @@ profiles:
 	assert.Equal(t, "claude-sonnet-4-6", rc.Model)
 }
 
+func TestDefaultResolverIncludesCodexOperateProfile(t *testing.T) {
+	rc, err := DefaultResolver().Resolve(ResolutionInput{
+		Role:       "implementer",
+		Policy:     &RoleModelPolicy{Profile: "codex-operate"},
+		CanOperate: true,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "gpt-5.5", rc.Model)
+	assert.Equal(t, "codex-cli", rc.Provider)
+	assert.Equal(t, AuthSubscription, rc.AuthMode)
+	assert.Empty(t, ValidateCapabilities(rc.Entry, []Capability{CapCoding, CapOperate}))
+}
+
+func TestResolverFromCatalogFile_ModelAliases(t *testing.T) {
+	yaml := `
+model_aliases:
+  sonnet: codex
+  claude-haiku-4-5-20251001: codex-fast
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "catalog.yaml")
+	require.NoError(t, os.WriteFile(path, []byte(yaml), 0o644))
+
+	resolver, err := ResolverFromCatalogFile(path)
+	require.NoError(t, err)
+
+	rc, err := resolver.Resolve(ResolutionInput{
+		Role:          "spawned-role",
+		AgentDefModel: "sonnet",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "gpt-5.5", rc.Model)
+	assert.Equal(t, "codex-cli", rc.Provider)
+
+	rc, err = resolver.Resolve(ResolutionInput{
+		Role:          "spawned-role",
+		AgentDefModel: "claude-haiku-4-5-20251001",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "gpt-5.4", rc.Model)
+	assert.Equal(t, "codex-cli", rc.Provider)
+
+	_, err = resolver.Resolve(ResolutionInput{
+		Role:          "spawned-role",
+		AgentDefModel: "sonnet",
+		Policy:        &RoleModelPolicy{Provider: "claude-cli"},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "belongs to provider")
+}
+
+func TestResolverFromCatalogFile_ModelAliasUnknownTarget(t *testing.T) {
+	yaml := `
+model_aliases:
+  sonnet: does-not-exist
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "catalog.yaml")
+	require.NoError(t, os.WriteFile(path, []byte(yaml), 0o644))
+
+	_, err := ResolverFromCatalogFile(path)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "model_aliases target")
+}
+
 func TestResolverFromCatalogFile_BadPath(t *testing.T) {
 	_, err := ResolverFromCatalogFile("/nonexistent/catalog.yaml")
 	require.Error(t, err)
