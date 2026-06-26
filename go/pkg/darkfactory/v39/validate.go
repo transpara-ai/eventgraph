@@ -462,6 +462,72 @@ func (r *AuditReport) Validate() error {
 	return requireStatus(r.CommonNode, "complete", "incomplete", "failed")
 }
 
+func (r *CivilizationAssemblyProjectionStoreRecord) Validate() error {
+	if err := r.CommonNode.validate(TypeCivilizationAssemblyProjectionStoreRecord); err != nil {
+		return err
+	}
+	if err := requireStatus(r.CommonNode, "recorded", "superseded"); err != nil {
+		return err
+	}
+	for field, value := range map[string]string{
+		"projection_id":                              r.ProjectionID,
+		"projection_schema_version":                  r.ProjectionSchemaVersion,
+		"projection_subject":                         r.ProjectionSubject,
+		"source_eventgraph_head_or_state_version":    r.SourceEventGraphHeadOrStateVersion,
+		"authority_decision_ref":                     r.AuthorityDecisionRef,
+		"projection.projection_id":                   r.Projection.ProjectionID,
+		"projection.projection_schema_version":       r.Projection.ProjectionSchemaVersion,
+		"projection.projection_subject":              r.Projection.ProjectionSubject,
+		"projection.source_eventgraph_state_version": r.Projection.SourceEventGraphHeadOrStateVersion,
+	} {
+		if err := requireNonEmpty(TypeCivilizationAssemblyProjectionStoreRecord, field, value); err != nil {
+			return err
+		}
+	}
+	if r.ProjectionSchemaVersion != CivilizationAssemblyProjectionSchemaVersion || r.Projection.ProjectionSchemaVersion != CivilizationAssemblyProjectionSchemaVersion {
+		return fieldError(TypeCivilizationAssemblyProjectionStoreRecord, "projection_schema_version", "must match current Civilization Assembly projection schema")
+	}
+	if r.ProjectionSubject != CivilizationAssemblyProjectionSubject || r.Projection.ProjectionSubject != CivilizationAssemblyProjectionSubject {
+		return fieldError(TypeCivilizationAssemblyProjectionStoreRecord, "projection_subject", "must be "+CivilizationAssemblyProjectionSubject)
+	}
+	if r.GeneratedAt.IsZero() || r.Projection.GeneratedAt.IsZero() {
+		return fieldError(TypeCivilizationAssemblyProjectionStoreRecord, "generated_at", "required")
+	}
+	if !r.GeneratedAt.Equal(r.Projection.GeneratedAt) {
+		return fieldError(TypeCivilizationAssemblyProjectionStoreRecord, "generated_at", "must match embedded projection generated_at")
+	}
+	if r.ProjectionID != r.Projection.ProjectionID {
+		return fieldError(TypeCivilizationAssemblyProjectionStoreRecord, "projection_id", "must match embedded projection")
+	}
+	if r.SourceEventGraphHeadOrStateVersion != r.Projection.SourceEventGraphHeadOrStateVersion {
+		return fieldError(TypeCivilizationAssemblyProjectionStoreRecord, "source_eventgraph_head_or_state_version", "must match embedded projection")
+	}
+	if r.DerivationStatus != r.Projection.DerivationStatus {
+		return fieldError(TypeCivilizationAssemblyProjectionStoreRecord, "derivation_status", "must match embedded projection")
+	}
+	if err := requireOneOf(TypeCivilizationAssemblyProjectionStoreRecord, "derivation_status", string(r.DerivationStatus), string(CivilizationAssemblyDerivationComplete), string(CivilizationAssemblyDerivationPartial)); err != nil {
+		return err
+	}
+	if len(r.SourceEventIDsOrQueryWindow) == 0 || len(r.Projection.SourceEventIDsOrQueryWindow) == 0 {
+		return fieldError(TypeCivilizationAssemblyProjectionStoreRecord, "source_event_ids_or_query_window", "required")
+	}
+	if len(r.ProvenanceRefs) == 0 || len(r.Projection.ProvenanceRefs) == 0 {
+		return fieldError(TypeCivilizationAssemblyProjectionStoreRecord, "provenance_refs", "required")
+	}
+	if len(r.ValidationRefs) == 0 || len(r.Projection.ValidationRefs) == 0 {
+		return fieldError(TypeCivilizationAssemblyProjectionStoreRecord, "validation_refs", "required")
+	}
+	for _, required := range []string{"projection_store_local_only", "no_production_eventgraph_write", "no_runtime_execution", "no_protected_actions", "no_deploy"} {
+		if !containsString(r.BoundaryFlags, required) || !containsString(r.Projection.BoundaryFlags, required) {
+			return fieldError(TypeCivilizationAssemblyProjectionStoreRecord, "boundary_flags", "must include "+required)
+		}
+	}
+	if !containsString(r.ProvenanceRefs, r.AuthorityDecisionRef) || !containsString(r.Projection.ProvenanceRefs, r.AuthorityDecisionRef) {
+		return fieldError(TypeCivilizationAssemblyProjectionStoreRecord, "authority_decision_ref", "must be present in provenance_refs")
+	}
+	return nil
+}
+
 func (r *AuthorityRequest) Validate() error {
 	if err := r.CommonNode.validate(TypeAuthorityRequest); err != nil {
 		return err

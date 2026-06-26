@@ -58,6 +58,8 @@ const (
 	TypePolicyEngineAdapterDecision = "PolicyEngineAdapterDecision"
 )
 
+const TypeCivilizationAssemblyProjectionStoreRecord = "CivilizationAssemblyProjectionStoreRecord"
+
 type Record interface {
 	GetCommon() CommonNode
 	Validate() error
@@ -366,6 +368,22 @@ type AuditReport struct {
 	TargetID     string   `json:"target_id"`
 	MissingLinks []string `json:"missing_links"`
 	TraceScore   float64  `json:"trace_score"`
+}
+
+type CivilizationAssemblyProjectionStoreRecord struct {
+	CommonNode
+	ProjectionID                       string                               `json:"projection_id"`
+	ProjectionSchemaVersion            string                               `json:"projection_schema_version"`
+	ProjectionSubject                  string                               `json:"projection_subject"`
+	GeneratedAt                        time.Time                            `json:"generated_at"`
+	SourceEventGraphHeadOrStateVersion string                               `json:"source_eventgraph_head_or_state_version"`
+	SourceEventIDsOrQueryWindow        []string                             `json:"source_event_ids_or_query_window"`
+	DerivationStatus                   CivilizationAssemblyDerivationStatus `json:"derivation_status"`
+	AuthorityDecisionRef               string                               `json:"authority_decision_ref"`
+	Projection                         CivilizationAssemblyProjection       `json:"projection"`
+	ProvenanceRefs                     []string                             `json:"provenance_refs"`
+	ValidationRefs                     []string                             `json:"validation_refs"`
+	BoundaryFlags                      []string                             `json:"boundary_flags"`
 }
 
 type AuthorityRequest struct {

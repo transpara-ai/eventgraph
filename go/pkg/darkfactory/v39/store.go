@@ -417,6 +417,8 @@ func newRecordForType(typ string) (Record, error) {
 		return &RollbackRecord{}, nil
 	case TypePolicyEngineAdapterDecision:
 		return &PolicyEngineAdapterDecision{}, nil
+	case TypeCivilizationAssemblyProjectionStoreRecord:
+		return &CivilizationAssemblyProjectionStoreRecord{}, nil
 	default:
 		return nil, fmt.Errorf("%w: unknown record type %s", ErrInvalidRecord, typ)
 	}

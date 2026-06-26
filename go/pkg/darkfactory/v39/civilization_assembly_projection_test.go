@@ -1,9 +1,11 @@
 package v39
 
 import (
+	"errors"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCivilizationAssemblyProjectionCompleteDeterministicFixture(t *testing.T) {
@@ -105,6 +107,338 @@ func TestCivilizationAssemblyProjectionDoesNotMutateStore(t *testing.T) {
 	after := civilizationAssemblyStoreFootprint(t, store)
 	if !reflect.DeepEqual(before, after) {
 		t.Fatalf("projection mutated store\nbefore=%+v\nafter=%+v\nprojection=%+v", before, after, projection)
+	}
+}
+
+func TestRecordCivilizationAssemblyProjectionPersistsProjectionStoreRecord(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	authorityDecisionRef := appendCivilizationProjectionStoreAuthority(t, store)
+	before := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
+
+	record, err := store.RecordCivilizationAssemblyProjection(CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime,
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: authorityDecisionRef,
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime,
+			ValidationRefs: []string{"cfar:pr-head", "docs:207-authority-packet"},
+		},
+		AdditionalSourceRefs: []string{"github:transpara-ai/eventgraph#59"},
+	})
+	if err != nil {
+		t.Fatalf("record projection: %v", err)
+	}
+
+	if record.CommonNode.Type != TypeCivilizationAssemblyProjectionStoreRecord {
+		t.Fatalf("record type = %s", record.CommonNode.Type)
+	}
+	if record.DerivationStatus != CivilizationAssemblyDerivationComplete {
+		t.Fatalf("derivation status = %s, want complete", record.DerivationStatus)
+	}
+	if record.ProjectionID != before.ProjectionID ||
+		record.SourceEventGraphHeadOrStateVersion != before.SourceEventGraphHeadOrStateVersion {
+		t.Fatalf("record does not preserve source projection identity: before=%+v record=%+v", before, record)
+	}
+	for _, want := range []string{"projection_store_local_only", "no_production_eventgraph_write", "no_runtime_execution", "no_protected_actions", "no_deploy"} {
+		if !containsString(record.BoundaryFlags, want) || !containsString(record.Projection.BoundaryFlags, want) {
+			t.Fatalf("projection-store boundary %s missing: record=%+v projection=%+v", want, record.BoundaryFlags, record.Projection.BoundaryFlags)
+		}
+	}
+	for _, forbidden := range []string{"no_eventgraph_writes", "no_materialized_projection_store"} {
+		if containsString(record.BoundaryFlags, forbidden) || containsString(record.Projection.BoundaryFlags, forbidden) {
+			t.Fatalf("recorded projection should not retain read-only projection-store blocker %s: record=%+v projection=%+v", forbidden, record.BoundaryFlags, record.Projection.BoundaryFlags)
+		}
+	}
+	for _, want := range []string{authorityDecisionRef, "github:transpara-ai/eventgraph#59"} {
+		if !containsString(record.ProvenanceRefs, want) || !containsString(record.CommonNode.SourceRefs, want) {
+			t.Fatalf("record provenance missing %s: %+v source=%+v", want, record.ProvenanceRefs, record.CommonNode.SourceRefs)
+		}
+	}
+	if !containsString(record.ValidationRefs, "cfar:pr-head") ||
+		!containsString(record.ValidationRefs, "tr_civ_001") ||
+		!containsString(record.ValidationRefs, "gate_civ_pass") {
+		t.Fatalf("record validation refs do not include caller and derived evidence: %+v", record.ValidationRefs)
+	}
+	stored := store.ByType(TypeCivilizationAssemblyProjectionStoreRecord)
+	if len(stored) != 1 {
+		t.Fatalf("projection store record count = %d, want 1", len(stored))
+	}
+	after := store.ProjectCivilizationAssembly(CivilizationAssemblyProjectionOptions{GeneratedAt: fixedTime})
+	if after.SourceEventGraphHeadOrStateVersion != before.SourceEventGraphHeadOrStateVersion ||
+		containsString(after.SourceEventIDsOrQueryWindow, record.CommonNode.ID) {
+		t.Fatalf("projection store records must not recursively alter source projection state: before=%+v after=%+v record=%s", before, after, record.CommonNode.ID)
+	}
+}
+
+func TestRecordCivilizationAssemblyProjectionIdempotentReplay(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	authorityDecisionRef := appendCivilizationProjectionStoreAuthority(t, store)
+	options := CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime,
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: authorityDecisionRef,
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime,
+			ValidationRefs: []string{"cfar:pr-head"},
+		},
+	}
+
+	first, err := store.RecordCivilizationAssemblyProjection(options)
+	if err != nil {
+		t.Fatalf("first record projection: %v", err)
+	}
+	second, err := store.RecordCivilizationAssemblyProjection(options)
+	if err != nil {
+		t.Fatalf("second record projection: %v", err)
+	}
+
+	if !reflect.DeepEqual(first, second) {
+		t.Fatalf("idempotent replay changed record\nfirst=%+v\nsecond=%+v", first, second)
+	}
+	if got := len(store.ByType(TypeCivilizationAssemblyProjectionStoreRecord)); got != 1 {
+		t.Fatalf("projection store record count = %d, want 1", got)
+	}
+}
+
+func TestRecordCivilizationAssemblyProjectionDivergentReplayConflicts(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	authorityDecisionRef := appendCivilizationProjectionStoreAuthority(t, store)
+
+	if _, err := store.RecordCivilizationAssemblyProjection(CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime,
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: authorityDecisionRef,
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime,
+			ValidationRefs: []string{"cfar:first"},
+		},
+	}); err != nil {
+		t.Fatalf("first record projection: %v", err)
+	}
+
+	_, err := store.RecordCivilizationAssemblyProjection(CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime.Add(time.Second),
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: authorityDecisionRef,
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime.Add(time.Second),
+			ValidationRefs: []string{"cfar:second"},
+		},
+	})
+	if !errors.Is(err, ErrIdempotencyConflict) {
+		t.Fatalf("divergent replay error = %v, want ErrIdempotencyConflict", err)
+	}
+	if got := len(store.ByType(TypeCivilizationAssemblyProjectionStoreRecord)); got != 1 {
+		t.Fatalf("projection store record count = %d, want 1", got)
+	}
+}
+
+func TestCivilizationAssemblyProjectionStoreRecordValidateRejectsCrossFieldMismatches(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(*CivilizationAssemblyProjectionStoreRecord)
+	}{
+		{
+			name: "schema version mismatch",
+			mutate: func(record *CivilizationAssemblyProjectionStoreRecord) {
+				record.ProjectionSchemaVersion = "0.0.0"
+			},
+		},
+		{
+			name: "subject mismatch",
+			mutate: func(record *CivilizationAssemblyProjectionStoreRecord) {
+				record.Projection.ProjectionSubject = "other_subject"
+			},
+		},
+		{
+			name: "generated at mismatch",
+			mutate: func(record *CivilizationAssemblyProjectionStoreRecord) {
+				record.Projection.GeneratedAt = record.GeneratedAt.Add(time.Second)
+			},
+		},
+		{
+			name: "projection id mismatch",
+			mutate: func(record *CivilizationAssemblyProjectionStoreRecord) {
+				record.Projection.ProjectionID = record.ProjectionID + ":mismatch"
+			},
+		},
+		{
+			name: "derivation status mismatch",
+			mutate: func(record *CivilizationAssemblyProjectionStoreRecord) {
+				record.Projection.DerivationStatus = CivilizationAssemblyDerivationPartial
+			},
+		},
+		{
+			name: "missing boundary flag",
+			mutate: func(record *CivilizationAssemblyProjectionStoreRecord) {
+				record.BoundaryFlags = withoutString(record.BoundaryFlags, "no_runtime_execution")
+			},
+		},
+		{
+			name: "missing authority provenance",
+			mutate: func(record *CivilizationAssemblyProjectionStoreRecord) {
+				record.ProvenanceRefs = withoutString(record.ProvenanceRefs, record.AuthorityDecisionRef)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			record := validCivilizationAssemblyProjectionStoreRecord(t)
+			tc.mutate(record)
+			if err := ValidateRecord(record); !errors.Is(err, ErrInvalidRecord) {
+				t.Fatalf("ValidateRecord error = %v, want ErrInvalidRecord", err)
+			}
+		})
+	}
+}
+
+func TestRecordCivilizationAssemblyProjectionRequiresScopedAuthorityDecision(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	before := civilizationAssemblyStoreFootprint(t, store)
+
+	_, err := store.RecordCivilizationAssemblyProjection(CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime,
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: "auth_dec_civ_001",
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime,
+			ValidationRefs: []string{"cfar:pr-head"},
+		},
+	})
+	if !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("unscoped authority decision error = %v, want ErrInvalidRecord", err)
+	}
+	after := civilizationAssemblyStoreFootprint(t, store)
+	if !reflect.DeepEqual(before, after) {
+		t.Fatalf("unscoped authority decision mutated store\nbefore=%+v\nafter=%+v", before, after)
+	}
+}
+
+func TestRecordCivilizationAssemblyProjectionRejectsApprovalRequiredAuthorityDecision(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	authorityDecisionRef := appendCivilizationProjectionStoreAuthorityDecision(t, store, "auth_dec_civ_projection_store_approval_required", "ApprovalRequired", nil)
+	before := civilizationAssemblyStoreFootprint(t, store)
+
+	_, err := store.RecordCivilizationAssemblyProjection(CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime,
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: authorityDecisionRef,
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime,
+			ValidationRefs: []string{"cfar:pr-head"},
+		},
+	})
+	if !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("approval-required authority decision error = %v, want ErrInvalidRecord", err)
+	}
+	after := civilizationAssemblyStoreFootprint(t, store)
+	if !reflect.DeepEqual(before, after) {
+		t.Fatalf("approval-required authority decision mutated store\nbefore=%+v\nafter=%+v", before, after)
+	}
+}
+
+func TestRecordCivilizationAssemblyProjectionRejectsExpiredAuthorityDecision(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	expiresAt := fixedTime.Add(-1)
+	authorityDecisionRef := appendCivilizationProjectionStoreAuthorityDecision(t, store, "auth_dec_civ_projection_store_expired", "Autonomous", &expiresAt)
+	before := civilizationAssemblyStoreFootprint(t, store)
+
+	_, err := store.RecordCivilizationAssemblyProjection(CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime,
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: authorityDecisionRef,
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime,
+			ValidationRefs: []string{"cfar:pr-head"},
+		},
+	})
+	if !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("expired authority decision error = %v, want ErrInvalidRecord", err)
+	}
+	after := civilizationAssemblyStoreFootprint(t, store)
+	if !reflect.DeepEqual(before, after) {
+		t.Fatalf("expired authority decision mutated store\nbefore=%+v\nafter=%+v", before, after)
+	}
+}
+
+func TestRecordCivilizationAssemblyProjectionRejectsRevokedAuthorityDecision(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	authorityDecisionRef := appendCivilizationProjectionStoreAuthorityDecision(t, store, "auth_dec_civ_projection_store_revoked", "Autonomous", nil)
+	store.mu.Lock()
+	*store.records[authorityDecisionRef].(*AuthorityDecision).CommonNode.Status = "revoked"
+	store.mu.Unlock()
+	before := civilizationAssemblyStoreFootprint(t, store)
+
+	_, err := store.RecordCivilizationAssemblyProjection(CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime,
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: authorityDecisionRef,
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime,
+			ValidationRefs: []string{"cfar:pr-head"},
+		},
+	})
+	if !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("revoked authority decision error = %v, want ErrInvalidRecord", err)
+	}
+	after := civilizationAssemblyStoreFootprint(t, store)
+	if !reflect.DeepEqual(before, after) {
+		t.Fatalf("revoked authority decision mutated store\nbefore=%+v\nafter=%+v", before, after)
+	}
+}
+
+func TestRecordCivilizationAssemblyProjectionRequiresAuthorityDecision(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	before := civilizationAssemblyStoreFootprint(t, store)
+
+	_, err := store.RecordCivilizationAssemblyProjection(CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime,
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: "auth_dec_civ_missing",
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime,
+			ValidationRefs: []string{"cfar:pr-head"},
+		},
+	})
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing authority decision error = %v, want ErrNotFound", err)
+	}
+	after := civilizationAssemblyStoreFootprint(t, store)
+	if !reflect.DeepEqual(before, after) {
+		t.Fatalf("missing authority decision mutated store\nbefore=%+v\nafter=%+v", before, after)
+	}
+}
+
+func TestRecordCivilizationAssemblyProjectionRejectsFailedProjection(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	authorityDecisionRef := appendCivilizationProjectionStoreAuthority(t, store)
+	appendRecord(t, store, &AuthorityDecision{
+		CommonNode:         common("auth_dec_civ_projection_conflict", TypeAuthorityDecision, "approved"),
+		AuthorityRequestID: "auth_req_civ_001",
+		DeciderActorID:     "act_human",
+		DeciderRole:        "External Committee",
+		Decision:           "Forbidden",
+		Reason:             "negative projection-store conflict fixture",
+		Scope:              []string{CivilizationAssemblyProjectionStoreAction},
+	})
+	before := civilizationAssemblyStoreFootprint(t, store)
+
+	_, err := store.RecordCivilizationAssemblyProjection(CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime,
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: authorityDecisionRef,
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime,
+			ValidationRefs: []string{"cfar:pr-head"},
+		},
+	})
+	if !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("failed projection error = %v, want ErrInvalidRecord", err)
+	}
+	after := civilizationAssemblyStoreFootprint(t, store)
+	if !reflect.DeepEqual(before, after) {
+		t.Fatalf("failed projection append mutated store\nbefore=%+v\nafter=%+v", before, after)
 	}
 }
 
@@ -898,6 +1232,68 @@ func civilizationAssemblyProjectionStore(t *testing.T) *InMemoryStore {
 	appendEdge(t, store, edge("edge_civ_tc_tr", EdgeVerifies, testCaseID, testRunID))
 	appendEdge(t, store, edge("edge_civ_tr_gate", EdgeProduced, testRunID, gateID))
 	return store
+}
+
+func appendCivilizationProjectionStoreAuthority(t *testing.T, store *InMemoryStore) string {
+	t.Helper()
+	return appendCivilizationProjectionStoreAuthorityDecision(t, store, "auth_dec_civ_projection_store", "Autonomous", nil)
+}
+
+func appendCivilizationProjectionStoreAuthorityDecision(t *testing.T, store *InMemoryStore, decisionID, decision string, expiresAt *time.Time) string {
+	t.Helper()
+	requestID := "auth_req_civ_projection_store"
+	appendRecord(t, store, &AuthorityRequest{
+		CommonNode:   common(requestID, TypeAuthorityRequest, "open"),
+		ActorID:      "act_agent",
+		ActorRole:    "ProjectionStoreBuilder",
+		Action:       CivilizationAssemblyProjectionStoreAction,
+		TargetType:   CivilizationAssemblyProjectionSubject,
+		TargetID:     "fo_civ_001",
+		RiskClass:    "high",
+		Reason:       "record local Civilization Assembly projection-store truth",
+		EvidenceRefs: []string{"auth_dec_civ_001", "tr_civ_001", "gate_civ_pass"},
+	})
+	appendRecord(t, store, &AuthorityDecision{
+		CommonNode:         common(decisionID, TypeAuthorityDecision, "approved"),
+		AuthorityRequestID: requestID,
+		DeciderActorID:     "act_human",
+		DeciderRole:        "External Committee",
+		Decision:           decision,
+		Reason:             "bounded local projection-store fixture only",
+		Scope:              []string{CivilizationAssemblyProjectionStoreAction},
+		Conditions:         []string{"projection_store_local_only", "no_production_eventgraph_write", "no_runtime_execution"},
+		ExpiresAt:          expiresAt,
+	})
+	return decisionID
+}
+
+func validCivilizationAssemblyProjectionStoreRecord(t *testing.T) *CivilizationAssemblyProjectionStoreRecord {
+	t.Helper()
+	store := civilizationAssemblyProjectionStore(t)
+	authorityDecisionRef := appendCivilizationProjectionStoreAuthority(t, store)
+	record, err := store.RecordCivilizationAssemblyProjection(CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime,
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: authorityDecisionRef,
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime,
+			ValidationRefs: []string{"cfar:pr-head"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("record projection: %v", err)
+	}
+	return record
+}
+
+func withoutString(values []string, remove string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if value != remove {
+			out = append(out, value)
+		}
+	}
+	return out
 }
 
 type projectionCloneFailureRecord struct {

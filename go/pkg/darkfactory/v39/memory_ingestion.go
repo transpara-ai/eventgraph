@@ -293,6 +293,14 @@ func (s *InMemoryStore) validateRecordRelations(r Record) error {
 		if _, ok := s.memoryIngestedByMemoryID(typed.MemoryID); !ok {
 			return fmt.Errorf("%w: MemoryIngested %s", ErrNotFound, typed.MemoryID)
 		}
+	case *CivilizationAssemblyProjectionStoreRecord:
+		decision, ok := s.mustGetAuthorityDecision(typed.AuthorityDecisionRef)
+		if !ok {
+			return fmt.Errorf("%w: AuthorityDecision %s", ErrNotFound, typed.AuthorityDecisionRef)
+		}
+		if !civilizationAssemblyProjectionStoreDecisionAuthorizesAt(decision, typed.CommonNode.CreatedAt) {
+			return fieldError(TypeAuthorityDecision, "decision", "must be active Autonomous authority scoped for "+CivilizationAssemblyProjectionStoreAction)
+		}
 	case *OptimizationRun:
 		if _, ok := s.mustGetEvolutionOrder(typed.EvolutionOrderID); !ok {
 			return fmt.Errorf("%w: EvolutionOrder %s", ErrNotFound, typed.EvolutionOrderID)
