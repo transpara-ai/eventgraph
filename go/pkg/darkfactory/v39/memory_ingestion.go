@@ -298,8 +298,8 @@ func (s *InMemoryStore) validateRecordRelations(r Record) error {
 		if !ok {
 			return fmt.Errorf("%w: AuthorityDecision %s", ErrNotFound, typed.AuthorityDecisionRef)
 		}
-		if !civilizationAssemblyProjectionStoreDecisionAuthorizes(decision) {
-			return fieldError(TypeAuthorityDecision, "scope", "must include "+CivilizationAssemblyProjectionStoreAction)
+		if !civilizationAssemblyProjectionStoreDecisionAuthorizesAt(decision, typed.CommonNode.CreatedAt) {
+			return fieldError(TypeAuthorityDecision, "decision", "must be active Autonomous authority scoped for "+CivilizationAssemblyProjectionStoreAction)
 		}
 	case *OptimizationRun:
 		if _, ok := s.mustGetEvolutionOrder(typed.EvolutionOrderID); !ok {

@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCivilizationAssemblyProjectionCompleteDeterministicFixture(t *testing.T) {
@@ -218,6 +219,53 @@ func TestRecordCivilizationAssemblyProjectionRequiresScopedAuthorityDecision(t *
 	after := civilizationAssemblyStoreFootprint(t, store)
 	if !reflect.DeepEqual(before, after) {
 		t.Fatalf("unscoped authority decision mutated store\nbefore=%+v\nafter=%+v", before, after)
+	}
+}
+
+func TestRecordCivilizationAssemblyProjectionRejectsApprovalRequiredAuthorityDecision(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	authorityDecisionRef := appendCivilizationProjectionStoreAuthorityDecision(t, store, "auth_dec_civ_projection_store_approval_required", "ApprovalRequired", nil)
+	before := civilizationAssemblyStoreFootprint(t, store)
+
+	_, err := store.RecordCivilizationAssemblyProjection(CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime,
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: authorityDecisionRef,
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime,
+			ValidationRefs: []string{"cfar:pr-head"},
+		},
+	})
+	if !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("approval-required authority decision error = %v, want ErrInvalidRecord", err)
+	}
+	after := civilizationAssemblyStoreFootprint(t, store)
+	if !reflect.DeepEqual(before, after) {
+		t.Fatalf("approval-required authority decision mutated store\nbefore=%+v\nafter=%+v", before, after)
+	}
+}
+
+func TestRecordCivilizationAssemblyProjectionRejectsExpiredAuthorityDecision(t *testing.T) {
+	store := civilizationAssemblyProjectionStore(t)
+	expiresAt := fixedTime.Add(-1)
+	authorityDecisionRef := appendCivilizationProjectionStoreAuthorityDecision(t, store, "auth_dec_civ_projection_store_expired", "Autonomous", &expiresAt)
+	before := civilizationAssemblyStoreFootprint(t, store)
+
+	_, err := store.RecordCivilizationAssemblyProjection(CivilizationAssemblyProjectionStoreRecordOptions{
+		CreatedAt:            fixedTime,
+		CreatedBy:            "act_projection_store",
+		AuthorityDecisionRef: authorityDecisionRef,
+		ProjectionOptions: CivilizationAssemblyProjectionOptions{
+			GeneratedAt:    fixedTime,
+			ValidationRefs: []string{"cfar:pr-head"},
+		},
+	})
+	if !errors.Is(err, ErrInvalidRecord) {
+		t.Fatalf("expired authority decision error = %v, want ErrInvalidRecord", err)
+	}
+	after := civilizationAssemblyStoreFootprint(t, store)
+	if !reflect.DeepEqual(before, after) {
+		t.Fatalf("expired authority decision mutated store\nbefore=%+v\nafter=%+v", before, after)
 	}
 }
 
@@ -1069,8 +1117,12 @@ func civilizationAssemblyProjectionStore(t *testing.T) *InMemoryStore {
 
 func appendCivilizationProjectionStoreAuthority(t *testing.T, store *InMemoryStore) string {
 	t.Helper()
+	return appendCivilizationProjectionStoreAuthorityDecision(t, store, "auth_dec_civ_projection_store", "Autonomous", nil)
+}
+
+func appendCivilizationProjectionStoreAuthorityDecision(t *testing.T, store *InMemoryStore, decisionID, decision string, expiresAt *time.Time) string {
+	t.Helper()
 	requestID := "auth_req_civ_projection_store"
-	decisionID := "auth_dec_civ_projection_store"
 	appendRecord(t, store, &AuthorityRequest{
 		CommonNode:   common(requestID, TypeAuthorityRequest, "open"),
 		ActorID:      "act_agent",
@@ -1087,10 +1139,11 @@ func appendCivilizationProjectionStoreAuthority(t *testing.T, store *InMemorySto
 		AuthorityRequestID: requestID,
 		DeciderActorID:     "act_human",
 		DeciderRole:        "External Committee",
-		Decision:           "Autonomous",
+		Decision:           decision,
 		Reason:             "bounded local projection-store fixture only",
 		Scope:              []string{CivilizationAssemblyProjectionStoreAction},
 		Conditions:         []string{"projection_store_local_only", "no_production_eventgraph_write", "no_runtime_execution"},
+		ExpiresAt:          expiresAt,
 	})
 	return decisionID
 }

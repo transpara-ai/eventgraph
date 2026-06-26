@@ -301,15 +301,25 @@ func (s *InMemoryStore) RecordCivilizationAssemblyProjection(options Civilizatio
 	if authorityDecisionRef == "" {
 		return nil, fieldError(TypeCivilizationAssemblyProjectionStoreRecord, "authority_decision_ref", "required")
 	}
+	recordedAt := options.CreatedAt
+	if recordedAt.IsZero() {
+		recordedAt = options.ProjectionOptions.GeneratedAt
+	}
+	if recordedAt.IsZero() {
+		recordedAt = time.Now().UTC()
+	}
 	decision, ok := s.mustGetAuthorityDecision(authorityDecisionRef)
 	if !ok {
 		return nil, fmt.Errorf("%w: AuthorityDecision %s", ErrNotFound, authorityDecisionRef)
 	}
-	if !civilizationAssemblyProjectionStoreDecisionAuthorizes(decision) {
-		return nil, fieldError(TypeAuthorityDecision, "scope", "must include "+CivilizationAssemblyProjectionStoreAction)
+	if !civilizationAssemblyProjectionStoreDecisionAuthorizesAt(decision, recordedAt) {
+		return nil, fieldError(TypeAuthorityDecision, "decision", "must be active Autonomous authority scoped for "+CivilizationAssemblyProjectionStoreAction)
 	}
 
 	projectionOptions := options.ProjectionOptions
+	if projectionOptions.GeneratedAt.IsZero() {
+		projectionOptions.GeneratedAt = recordedAt
+	}
 	projectionOptions.ProjectionStoreRecord = true
 	projectionOptions.BoundaryFlags = appendSortedUnique(projectionOptions.BoundaryFlags,
 		"projection_store_local_only",
@@ -324,10 +334,6 @@ func (s *InMemoryStore) RecordCivilizationAssemblyProjection(options Civilizatio
 	recordID := strings.TrimSpace(options.RecordID)
 	if recordID == "" {
 		recordID = projection.ProjectionID + ":projection_store_record"
-	}
-	createdAt := options.CreatedAt
-	if createdAt.IsZero() {
-		createdAt = projection.GeneratedAt
 	}
 	correlationID := strings.TrimSpace(options.CorrelationID)
 	if correlationID == "" {
@@ -347,7 +353,7 @@ func (s *InMemoryStore) RecordCivilizationAssemblyProjection(options Civilizatio
 		CommonNode: CommonNode{
 			ID:             recordID,
 			Type:           TypeCivilizationAssemblyProjectionStoreRecord,
-			CreatedAt:      createdAt.UTC(),
+			CreatedAt:      recordedAt.UTC(),
 			CreatedBy:      strings.TrimSpace(options.CreatedBy),
 			Status:         &status,
 			IdempotencyKey: idempotencyKey,
@@ -1163,9 +1169,18 @@ func civilizationAssemblyDerivationStatus(snapshot civilizationAssemblySnapshot,
 	return CivilizationAssemblyDerivationComplete
 }
 
-func civilizationAssemblyProjectionStoreDecisionAuthorizes(decision *AuthorityDecision) bool {
-	if decision == nil || strings.TrimSpace(decision.Decision) == "Forbidden" {
+func civilizationAssemblyProjectionStoreDecisionAuthorizesAt(decision *AuthorityDecision, at time.Time) bool {
+	if decision == nil || strings.TrimSpace(decision.Decision) != "Autonomous" {
 		return false
+	}
+	if decision.ExpiresAt != nil {
+		checkAt := UTC(at)
+		if checkAt.IsZero() {
+			checkAt = UTC(time.Now())
+		}
+		if !decision.ExpiresAt.After(checkAt) {
+			return false
+		}
 	}
 	return containsString(decision.Scope, CivilizationAssemblyProjectionStoreAction)
 }

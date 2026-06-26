@@ -8,7 +8,7 @@ Language-agnostic test vectors for EventGraph implementations. Every language pa
 - `issue-scan-projection.md` — Typed issue-scan projection event contract for Civilization dashboards and monitors
 - `native-evidence-events.md` — Typed TestRun, GateResult, and AuditReport evidence event contract for closeout monitors
 - `authority-evidence-governance.md` — Typed authority decision, protected-action boundary, residual, and store-governance event contract
-- `civilization-assembly-projection-store.md` — Typed Civilization Assembly projection-store record contract
+- `civilization-assembly-projection-store.md` — Typed Civilization Assembly projection-store record contract, currently enforced by the Go v3.9 package before cross-language vectors exist
 
 ## What Conformance Tests Cover
 
