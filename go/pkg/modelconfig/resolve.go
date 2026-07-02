@@ -179,6 +179,9 @@ func (r *Resolver) Resolve(input ResolutionInput) (ResolvedConfig, error) {
 		rc.Mode = SelectionModeAutoTier
 	case modelSource == tokenSourceSystem:
 		// No caller-supplied token won: system/role/tier defaults chose.
+		// D2 rule 3 beats rule 2 here — a defaults-supplied tier-name token
+		// stays system-default even when it resolves through tier fallback:
+		// the source class outranks the resolution mechanics.
 		rc.Mode = SelectionModeSystemDefault
 	}
 

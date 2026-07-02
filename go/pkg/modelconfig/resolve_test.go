@@ -94,10 +94,15 @@ func mixedProviderResolver(t *testing.T) *Resolver {
 
 // modeFromWinningTrace classifies the WINNING (last) model-writing trace entry
 // into the SelectionMode it implies. ModelAliases remap entries preserve the
-// source class of the token they remapped, so they are skipped. Allowlist
+// source class of the token they remapped, and a resolution-point tier
+// fallback entry ("model: tier ...") defers to the SOURCE class of the token
+// that fell through — source class is checked before the tier mechanics, so a
+// system-supplied tier-name token stays system-default (D2 rule 3 beats rule
+// 2 for the system class) while a caller-supplied one is auto-tier. Allowlist
 // form: an unclassifiable winning entry yields SelectionModeUnknown so the
 // cross-check fails loudly instead of blessing an unproven mode.
 func modeFromWinningTrace(trace []string) SelectionMode {
+	tierFallback := false
 	for i := len(trace) - 1; i >= 0; i-- {
 		e := trace[i]
 		if !strings.HasPrefix(e, "model: ") {
@@ -108,16 +113,29 @@ func modeFromWinningTrace(trace []string) SelectionMode {
 			// entry that supplied the remapped token instead.
 			continue
 		}
+		if strings.HasPrefix(e, "model: tier ") {
+			// Resolution-point tier fallback: the mode depends on the
+			// source class of the token that fell through — keep walking.
+			tierFallback = true
+			continue
+		}
 		switch {
+		case strings.Contains(e, "system default"),
+			strings.Contains(e, "role default"):
+			// Source class wins over resolution mechanics: a
+			// defaults-supplied token is system-default even when it
+			// resolved through tier fallback.
+			return SelectionModeSystemDefault
 		case strings.Contains(e, " tier "):
+			// PreferredTier selection ("model: <source> tier <t> → <m>").
 			return SelectionModeAutoTier
 		case strings.Contains(e, "AgentDef.Model"),
 			strings.Contains(e, "explicit"),
 			strings.Contains(e, "profile"):
+			if tierFallback {
+				return SelectionModeAutoTier // caller token was a tier name
+			}
 			return SelectionModeManualExplicit
-		case strings.Contains(e, "system default"),
-			strings.Contains(e, "role default"):
-			return SelectionModeSystemDefault
 		}
 		return SelectionModeUnknown
 	}
@@ -285,6 +303,22 @@ func TestResolve(t *testing.T) {
 			wantModel: "test-haiku",
 			wantProv:  "claude-cli",
 			wantMode:  SelectionModeSystemDefault, // remap preserves the winning source class
+		},
+		{
+			name: "tier-name role default stays system-default",
+			resolver: func(t *testing.T) *Resolver {
+				defaults := testDefaults()
+				defaults.RoleModels["tiered-role"] = "judgment" // a tier name as role default
+				return NewResolver(testCatalog(t), testProfiles(), defaults)
+			},
+			input:     ResolutionInput{Role: "tiered-role"},
+			wantModel: "test-opus",
+			wantProv:  "claude-cli",
+			// D2 rule 3 beats rule 2 for system-supplied tokens: a
+			// defaults-supplied token stays system-default even when it
+			// resolves through tier fallback — no caller input won, so the
+			// SOURCE class outranks the resolution mechanics.
+			wantMode: SelectionModeSystemDefault,
 		},
 		{
 			name: "unknown model returns error",
