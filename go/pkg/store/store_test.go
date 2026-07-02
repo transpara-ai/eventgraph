@@ -30,7 +30,7 @@ func (s testSigner) Sign(data []byte) (types.Signature, error) {
 
 // --- Test helper: build events with correct chain ---
 
-func makeBootstrapEvent(t *testing.T) event.Event {
+func makeBootstrapEvent(t testing.TB) event.Event {
 	t.Helper()
 	registry := event.DefaultRegistry()
 	factory := event.NewBootstrapFactory(registry)

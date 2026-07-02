@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -12,14 +13,14 @@ import (
 // InMemoryStore implements Store with in-memory storage.
 // Safe for concurrent access. Chain head is locked during Append.
 type InMemoryStore struct {
-	mu     sync.RWMutex
-	events  []event.Event                     // ordered by insertion
-	byID    map[types.EventID]int             // eventID → index in events
-	byType  map[string][]int                  // eventType → indices
-	bySrc   map[types.ActorID][]int           // source → indices
-	byConv  map[types.ConversationID][]int    // conversationID → indices
-	byCause map[types.EventID][]int           // causeID → indices of events citing it
-	edges   []event.Edge                      // all edges
+	mu      sync.RWMutex
+	events  []event.Event                  // ordered by insertion
+	byID    map[types.EventID]int          // eventID → index in events
+	byType  map[string][]int               // eventType → indices, ascending
+	bySrc   map[types.ActorID][]int        // source → indices, ascending
+	byConv  map[types.ConversationID][]int // conversationID → indices, ascending
+	byCause map[types.EventID][]int        // causeID → indices of events citing it
+	edges   []event.Edge                   // all edges
 }
 
 // NewInMemoryStore creates a new empty InMemoryStore.
@@ -426,19 +427,11 @@ func (s *InMemoryStore) paginateReverse(indices []int, limit int, after types.Op
 	// Reverse order (most recent first)
 	startPos := len(indices) - 1
 	if after.IsSome() {
-		cursor := after.Unwrap()
-		found := false
-		for i := len(indices) - 1; i >= 0; i-- {
-			if s.events[indices[i]].ID().Value() == cursor.Value() {
-				startPos = i - 1
-				found = true
-				break
-			}
+		pos, err := s.cursorPosition(indices, after.Unwrap())
+		if err != nil {
+			return types.NewPage[event.Event](nil, types.None[types.Cursor](), false), err
 		}
-		if !found {
-			return types.NewPage[event.Event](nil, types.None[types.Cursor](), false),
-				&InvalidCursorError{Cursor: cursor.Value()}
-		}
+		startPos = pos - 1
 	}
 
 	var items []event.Event
@@ -454,4 +447,28 @@ func (s *InMemoryStore) paginateReverse(indices []int, limit int, after types.Op
 	}
 
 	return types.NewPage(items, cursor, hasMore), nil
+}
+
+// cursorPosition resolves a pagination cursor to its position in indices.
+// indices holds positions into s.events in ascending order (the store is
+// append-only, so index slices only ever grow at the high end), which makes
+// the cursor's global position from byID binary-searchable — the in-memory
+// analogue of pgstore's indexed id → seq lookup. Any cursor that does not
+// resolve to an event in this exact index is rejected (fail closed), matching
+// the semantics of the linear scan this replaces: stored IDs are lowercase,
+// so a case-variant cursor string is rejected rather than normalized.
+func (s *InMemoryStore) cursorPosition(indices []int, cursor types.Cursor) (int, error) {
+	id, err := types.NewEventID(cursor.Value())
+	if err != nil || id.Value() != cursor.Value() {
+		return 0, &InvalidCursorError{Cursor: cursor.Value()}
+	}
+	globalIdx, ok := s.byID[id]
+	if !ok {
+		return 0, &InvalidCursorError{Cursor: cursor.Value()}
+	}
+	pos, found := slices.BinarySearch(indices, globalIdx)
+	if !found {
+		return 0, &InvalidCursorError{Cursor: cursor.Value()}
+	}
+	return pos, nil
 }
