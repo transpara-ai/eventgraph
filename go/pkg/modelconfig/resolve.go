@@ -16,6 +16,12 @@ type ResolvedConfig struct {
 	Entry        ModelCatalogEntry `json:"entry"`
 	Trace        []string          `json:"trace"`
 
+	// Mode records how the winning model token resolved (manual-explicit,
+	// auto-tier, system-default). Observational only — it never influences
+	// resolution. Empty (SelectionModeUnknown) when not derived; consumers
+	// must treat empty as not-projected.
+	Mode SelectionMode `json:"mode,omitempty"`
+
 	// ProviderOptions carries provider-specific configuration that the
 	// generic resolver doesn't interpret. The adapter passes these through
 	// to intelligence.Config fields. Known keys:
@@ -41,6 +47,19 @@ type ResolverDefaults struct {
 	RoleModels   map[string]string    // role -> model alias
 	ModelAliases map[string]string    // exact selected token -> replacement alias/ID, applied once
 }
+
+// modelTokenSource classifies WHO supplied the current winning model token as
+// it moves through the precedence chain. It is the input to SelectionMode
+// derivation at the resolution point — the token alone proves nothing about
+// how it resolves (it may be an id, an alias, or a tier name). A ModelAliases
+// remap preserves the source class of the token it remapped.
+type modelTokenSource int
+
+const (
+	tokenSourceSystem modelTokenSource = iota // system default or role default — no caller input
+	tokenSourceCaller                         // AgentDef.Model, profile model, Policy.Model, TaskOverride.Model
+	tokenSourceTier                           // PreferredTier already selected via tier defaults
+)
 
 // Resolver resolves model configuration through a deterministic precedence chain.
 type Resolver struct {
@@ -84,6 +103,7 @@ func (r *Resolver) Resolve(input ResolutionInput) (ResolvedConfig, error) {
 	var modelName string
 	modelOverridden := false // tracks whether a prior layer set an explicit model
 	providerOverridden := false
+	modelSource := tokenSourceSystem // who supplied the current winning token
 
 	// Layer 1: System defaults
 	rc.Provider = r.defaults.Provider
@@ -91,7 +111,7 @@ func (r *Resolver) Resolve(input ResolutionInput) (ResolvedConfig, error) {
 	rc.Trace = append(rc.Trace, fmt.Sprintf("provider: system default → %s", rc.Provider))
 	rc.Trace = append(rc.Trace, fmt.Sprintf("model: system default → %s", modelName))
 
-	// Layer 2: Role defaults
+	// Layer 2: Role defaults (system config — the source class stays system)
 	if alias, ok := r.defaults.RoleModels[input.Role]; ok {
 		modelName = alias
 		modelOverridden = true
@@ -102,37 +122,64 @@ func (r *Resolver) Resolve(input ResolutionInput) (ResolvedConfig, error) {
 	if input.AgentDefModel != "" {
 		modelName = input.AgentDefModel
 		modelOverridden = true
+		modelSource = tokenSourceCaller
 		rc.Trace = append(rc.Trace, fmt.Sprintf("model: AgentDef.Model → %s", modelName))
 	}
 
 	// Layer 4+5: Policy (profile, then explicit fields)
 	if input.Policy != nil {
-		r.applyPolicy(&rc, &modelName, &modelOverridden, &providerOverridden, input.Policy, "policy")
+		r.applyPolicy(&rc, &modelName, &modelSource, &modelOverridden, &providerOverridden, input.Policy, "policy")
 	}
 
 	// Layer 6: Task override
 	if input.TaskOverride != nil {
-		r.applyPolicy(&rc, &modelName, &modelOverridden, &providerOverridden, input.TaskOverride, "task-override")
+		r.applyPolicy(&rc, &modelName, &modelSource, &modelOverridden, &providerOverridden, input.TaskOverride, "task-override")
 	}
 
+	// ModelAliases remap preserves the winning source class — a remapped
+	// explicit pin is still an explicit pin.
 	if replacement, ok := r.defaults.ModelAliases[modelName]; ok {
 		rc.Trace = append(rc.Trace, fmt.Sprintf("model: catalog alias override (%s→%s)", modelName, replacement))
 		modelName = replacement
 	}
 
 	// Resolve model name to catalog entry
+	resolvedViaTierFallback := false
 	entry, ok := r.catalog.Lookup(modelName)
 	if !ok {
 		// If modelName looks like a tier, resolve via tier defaults
 		if tierModel, tierOK := r.defaults.TierModels[ModelTier(modelName)]; tierOK {
 			entry, ok = r.catalog.Lookup(tierModel)
 			if ok {
+				resolvedViaTierFallback = true
 				rc.Trace = append(rc.Trace, fmt.Sprintf("model: tier %s → %s", modelName, tierModel))
 			}
 		}
 		if !ok {
 			return ResolvedConfig{}, fmt.Errorf("model %q not found in catalog", modelName)
 		}
+	}
+
+	// Mode derivation — at the RESOLUTION POINT of the winning token, from
+	// its source class plus how it actually resolved. Allowlist form: every
+	// proven path gets exactly one well-defined mode; NO default branch
+	// assigns a mode — an unproven path leaves SelectionModeUnknown.
+	// RequiredCapabilities, SelectionStrategy, AllowDowngrade,
+	// MaxCostPerCallUSD, and CanOperate filter/veto below — they never
+	// choose, so they never set mode.
+	switch {
+	case modelSource == tokenSourceCaller && !resolvedViaTierFallback:
+		// Concrete catalog id or alias pin (ModelAliases remap included).
+		rc.Mode = SelectionModeManualExplicit
+	case modelSource == tokenSourceCaller && resolvedViaTierFallback:
+		// The caller's token was a tier name — tier resolution chose.
+		rc.Mode = SelectionModeAutoTier
+	case modelSource == tokenSourceTier:
+		// PreferredTier selected via tier defaults.
+		rc.Mode = SelectionModeAutoTier
+	case modelSource == tokenSourceSystem:
+		// No caller-supplied token won: system/role/tier defaults chose.
+		rc.Mode = SelectionModeSystemDefault
 	}
 
 	rc.Model = entry.ID
@@ -212,13 +259,16 @@ func (r *Resolver) Resolve(input ResolutionInput) (ResolvedConfig, error) {
 // applyPolicy merges a RoleModelPolicy into the in-progress resolution.
 // modelOverridden tracks whether a prior layer (role default, AgentDef.Model)
 // already set an explicit model — PreferredTier won't override those.
-func (r *Resolver) applyPolicy(rc *ResolvedConfig, modelName *string, modelOverridden *bool, providerOverridden *bool, policy *RoleModelPolicy, source string) {
+// modelSource tracks the source class of the winning token for SelectionMode
+// derivation at the resolution point.
+func (r *Resolver) applyPolicy(rc *ResolvedConfig, modelName *string, modelSource *modelTokenSource, modelOverridden *bool, providerOverridden *bool, policy *RoleModelPolicy, source string) {
 	// Profile expansion first (lower precedence than explicit fields)
 	if policy.Profile != "" {
 		if profile, ok := r.profiles[policy.Profile]; ok {
 			if profile.Model != "" {
 				*modelName = profile.Model
 				*modelOverridden = true
+				*modelSource = tokenSourceCaller
 				rc.Trace = append(rc.Trace, fmt.Sprintf("model: %s profile %q → %s", source, policy.Profile, profile.Model))
 			}
 			if profile.Provider != "" {
@@ -245,6 +295,7 @@ func (r *Resolver) applyPolicy(rc *ResolvedConfig, modelName *string, modelOverr
 	if policy.Model != "" {
 		*modelName = policy.Model
 		*modelOverridden = true
+		*modelSource = tokenSourceCaller
 		rc.Trace = append(rc.Trace, fmt.Sprintf("model: %s explicit → %s", source, policy.Model))
 	}
 	if policy.Provider != "" {
@@ -260,6 +311,7 @@ func (r *Resolver) applyPolicy(rc *ResolvedConfig, modelName *string, modelOverr
 		if tierModel, ok := r.defaults.TierModels[policy.PreferredTier]; ok {
 			*modelName = tierModel
 			*modelOverridden = true
+			*modelSource = tokenSourceTier
 			rc.Trace = append(rc.Trace, fmt.Sprintf("model: %s tier %s → %s", source, policy.PreferredTier, tierModel))
 		}
 	}

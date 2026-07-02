@@ -1,6 +1,7 @@
 package modelconfig
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -91,12 +92,46 @@ func mixedProviderResolver(t *testing.T) *Resolver {
 	})
 }
 
+// modeFromWinningTrace classifies the WINNING (last) model-writing trace entry
+// into the SelectionMode it implies. ModelAliases remap entries preserve the
+// source class of the token they remapped, so they are skipped. Allowlist
+// form: an unclassifiable winning entry yields SelectionModeUnknown so the
+// cross-check fails loudly instead of blessing an unproven mode.
+func modeFromWinningTrace(trace []string) SelectionMode {
+	for i := len(trace) - 1; i >= 0; i-- {
+		e := trace[i]
+		if !strings.HasPrefix(e, "model: ") {
+			continue
+		}
+		if strings.Contains(e, "catalog alias override") {
+			// Remap preserves the winning source class — classify the
+			// entry that supplied the remapped token instead.
+			continue
+		}
+		switch {
+		case strings.Contains(e, " tier "):
+			return SelectionModeAutoTier
+		case strings.Contains(e, "AgentDef.Model"),
+			strings.Contains(e, "explicit"),
+			strings.Contains(e, "profile"):
+			return SelectionModeManualExplicit
+		case strings.Contains(e, "system default"),
+			strings.Contains(e, "role default"):
+			return SelectionModeSystemDefault
+		}
+		return SelectionModeUnknown
+	}
+	return SelectionModeUnknown
+}
+
 func TestResolve(t *testing.T) {
 	tests := []struct {
 		name       string
+		resolver   func(t *testing.T) *Resolver // nil → testResolver
 		input      ResolutionInput
 		wantModel  string
 		wantProv   string
+		wantMode   SelectionMode
 		wantErr    string
 		checkTrace func(t *testing.T, trace []string)
 	}{
@@ -105,6 +140,7 @@ func TestResolve(t *testing.T) {
 			input:     ResolutionInput{Role: "unknown-role"},
 			wantModel: "test-sonnet",
 			wantProv:  "claude-cli",
+			wantMode:  SelectionModeSystemDefault,
 			checkTrace: func(t *testing.T, trace []string) {
 				assert.Contains(t, trace[0], "system default")
 			},
@@ -117,6 +153,7 @@ func TestResolve(t *testing.T) {
 			},
 			wantModel: "test-opus",
 			wantProv:  "claude-cli",
+			wantMode:  SelectionModeManualExplicit,
 			checkTrace: func(t *testing.T, trace []string) {
 				found := false
 				for _, s := range trace {
@@ -139,6 +176,7 @@ func TestResolve(t *testing.T) {
 			},
 			wantModel: "test-opus",
 			wantProv:  "claude-cli",
+			wantMode:  SelectionModeManualExplicit,
 		},
 		{
 			name: "Policy.Profile expands profile fields",
@@ -150,6 +188,7 @@ func TestResolve(t *testing.T) {
 			},
 			wantModel: "test-opus",
 			wantProv:  "claude-cli",
+			wantMode:  SelectionModeManualExplicit, // profile supplied a concrete alias — still an explicit pin
 			checkTrace: func(t *testing.T, trace []string) {
 				hasProfile := false
 				for _, s := range trace {
@@ -177,6 +216,7 @@ func TestResolve(t *testing.T) {
 			},
 			wantModel: "test-opus",
 			wantProv:  "claude-cli",
+			wantMode:  SelectionModeManualExplicit,
 		},
 		{
 			name: "CanOperate with claude-cli model succeeds",
@@ -186,6 +226,7 @@ func TestResolve(t *testing.T) {
 			},
 			wantModel: "test-sonnet",
 			wantProv:  "claude-cli",
+			wantMode:  SelectionModeSystemDefault, // CanOperate constrains, it never chooses
 		},
 		{
 			name: "PreferredTier resolves to tier model",
@@ -197,6 +238,53 @@ func TestResolve(t *testing.T) {
 			},
 			wantModel: "test-haiku",
 			wantProv:  "claude-cli",
+			wantMode:  SelectionModeAutoTier,
+		},
+		{
+			name:      "role default resolves as system default",
+			input:     ResolutionInput{Role: "guardian"},
+			wantModel: "test-sonnet",
+			wantProv:  "claude-cli",
+			wantMode:  SelectionModeSystemDefault, // role defaults are system config, not caller input
+		},
+		{
+			name: "tier-name token via Policy.Model resolves through tier fallback",
+			input: ResolutionInput{
+				Role: "worker",
+				Policy: &RoleModelPolicy{
+					Model: "judgment", // a tier name, not a model id/alias
+				},
+			},
+			wantModel: "test-opus",
+			wantProv:  "claude-cli",
+			wantMode:  SelectionModeAutoTier, // the token WON as a policy field but RESOLVED via tier
+		},
+		{
+			name: "ModelAliases remap of explicit pin stays manual-explicit",
+			resolver: func(t *testing.T) *Resolver {
+				defaults := testDefaults()
+				defaults.ModelAliases = map[string]string{"opus": "haiku"}
+				return NewResolver(testCatalog(t), testProfiles(), defaults)
+			},
+			input: ResolutionInput{
+				Role:          "worker",
+				AgentDefModel: "opus",
+			},
+			wantModel: "test-haiku",
+			wantProv:  "claude-cli",
+			wantMode:  SelectionModeManualExplicit, // a remapped alias is still an explicit pin
+		},
+		{
+			name: "ModelAliases remap of role default stays system-default",
+			resolver: func(t *testing.T) *Resolver {
+				defaults := testDefaults()
+				defaults.ModelAliases = map[string]string{"sonnet": "haiku"}
+				return NewResolver(testCatalog(t), testProfiles(), defaults)
+			},
+			input:     ResolutionInput{Role: "guardian"},
+			wantModel: "test-haiku",
+			wantProv:  "claude-cli",
+			wantMode:  SelectionModeSystemDefault, // remap preserves the winning source class
 		},
 		{
 			name: "unknown model returns error",
@@ -232,18 +320,29 @@ func TestResolve(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := testResolver(t)
+			if tt.resolver != nil {
+				r = tt.resolver(t)
+			}
 			rc, err := r.Resolve(tt.input)
 
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
+				assert.Equal(t, SelectionModeUnknown, rc.Mode,
+					"error paths must leave mode unknown — fail closed, never coerced")
 				return
 			}
 
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantModel, rc.Model)
 			assert.Equal(t, tt.wantProv, rc.Provider)
+			assert.Equal(t, tt.wantMode, rc.Mode)
 			assert.NotEmpty(t, rc.Trace, "trace should have entries")
+
+			// Trace is the cross-check oracle (IADA-1): the derived mode
+			// must match what the winning trace entry implies.
+			assert.Equal(t, tt.wantMode, modeFromWinningTrace(rc.Trace),
+				"mode inconsistent with winning trace entry: %v", rc.Trace)
 
 			// Final trace entry should be the resolved summary
 			last := rc.Trace[len(rc.Trace)-1]
