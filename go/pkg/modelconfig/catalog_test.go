@@ -85,6 +85,94 @@ func TestNewCatalog_AliasCollidesWithID(t *testing.T) {
 	assert.Contains(t, err.Error(), "collides with model ID")
 }
 
+// TestNewCatalog_CollisionDomain covers the full collision input domain of the
+// duplicate guard: every colliding pair type (id/id, alias/alias, alias/id) in
+// every entry order, so no ordering of entries can slip a collision past the
+// guard. A collision that passes silently lets Lookup shadow an alias with an
+// ID, because Lookup resolves IDs before aliases.
+func TestNewCatalog_CollisionDomain(t *testing.T) {
+	tests := []struct {
+		name    string
+		entries []ModelCatalogEntry
+		wantErr string // "" means the catalog must construct without error
+	}{
+		{
+			name: "id vs id",
+			entries: []ModelCatalogEntry{
+				{ID: "dup"},
+				{ID: "dup"},
+			},
+			wantErr: "duplicate model ID",
+		},
+		{
+			name: "alias vs alias across entries",
+			entries: []ModelCatalogEntry{
+				{ID: "m1", Aliases: []string{"shared"}},
+				{ID: "m2", Aliases: []string{"shared"}},
+			},
+			wantErr: "duplicate alias",
+		},
+		{
+			name: "alias vs alias across entries, reversed order",
+			entries: []ModelCatalogEntry{
+				{ID: "m2", Aliases: []string{"shared"}},
+				{ID: "m1", Aliases: []string{"shared"}},
+			},
+			wantErr: "duplicate alias",
+		},
+		{
+			name: "alias vs alias within one entry",
+			entries: []ModelCatalogEntry{
+				{ID: "m1", Aliases: []string{"twice", "twice"}},
+			},
+			wantErr: "duplicate alias",
+		},
+		{
+			name: "alias after colliding ID",
+			entries: []ModelCatalogEntry{
+				{ID: "m1"},
+				{ID: "m2", Aliases: []string{"m1"}},
+			},
+			wantErr: "collides with model ID",
+		},
+		{
+			name: "alias before colliding ID",
+			entries: []ModelCatalogEntry{
+				{ID: "m1", Aliases: []string{"m2"}},
+				{ID: "m2"},
+			},
+			wantErr: "collides with model ID",
+		},
+		{
+			name: "alias equals own entry ID",
+			entries: []ModelCatalogEntry{
+				{ID: "m1", Aliases: []string{"m1"}},
+			},
+			wantErr: "collides with model ID",
+		},
+		{
+			name: "no collisions",
+			entries: []ModelCatalogEntry{
+				{ID: "m1", Aliases: []string{"a1"}},
+				{ID: "m2", Aliases: []string{"a2"}},
+			},
+			wantErr: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewCatalog(tt.entries)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
 func TestLookup(t *testing.T) {
 	cat, err := NewCatalog(testEntries())
 	require.NoError(t, err)
