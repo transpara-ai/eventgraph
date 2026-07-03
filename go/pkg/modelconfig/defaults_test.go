@@ -170,6 +170,162 @@ func TestDefaultResolverIncludesCodexOperateProfile(t *testing.T) {
 	assert.Empty(t, ValidateCapabilities(rc.Entry, []Capability{CapCoding, CapOperate}))
 }
 
+// opusCapabilitySet is the D1 capability set shared by claude-opus-4-6,
+// claude-opus-4-8, and claude-fable-5.
+var opusCapabilitySet = []Capability{
+	CapTools, CapReasoning, CapCoding, CapVision, CapOperate, CapLargeContext, CapStructuredOut,
+}
+
+func TestDefaultCatalog_NewModelEntries(t *testing.T) {
+	cat := DefaultCatalog()
+
+	tests := []struct {
+		name        string
+		lookups     []string // canonical ID plus every alias — all must resolve
+		wantID      string
+		wantPricing ModelPricing
+	}{
+		{
+			name:    "claude-opus-4-8",
+			lookups: []string{"claude-opus-4-8", "opus-4-8"},
+			wantID:  "claude-opus-4-8",
+			wantPricing: ModelPricing{
+				InputPerMillion:      5.00,
+				OutputPerMillion:     25.00,
+				CacheReadPerMillion:  0.50,
+				CacheWritePerMillion: 6.25,
+			},
+		},
+		{
+			name:    "claude-fable-5",
+			lookups: []string{"claude-fable-5", "fable", "fable-5"},
+			wantID:  "claude-fable-5",
+			wantPricing: ModelPricing{
+				InputPerMillion:      10.00,
+				OutputPerMillion:     50.00,
+				CacheReadPerMillion:  1.00,
+				CacheWritePerMillion: 12.50,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, q := range tt.lookups {
+				entry, ok := cat.Lookup(q)
+				require.True(t, ok, "Lookup(%q) must resolve", q)
+				assert.Equal(t, tt.wantID, entry.ID)
+				assert.Equal(t, "claude-cli", entry.Provider)
+				assert.Equal(t, AuthSubscription, entry.AuthMode)
+				assert.Equal(t, TierJudgment, entry.Tier)
+				assert.Equal(t, opusCapabilitySet, entry.Capabilities)
+				assert.Equal(t, 1_000_000, entry.ContextWindow)
+				assert.Equal(t, 16384, entry.MaxOutputTokens)
+				assert.Equal(t, tt.wantPricing, entry.Pricing)
+			}
+		})
+	}
+}
+
+func TestDefaultCatalog_OpusAliasUnchanged(t *testing.T) {
+	// IADA-4: no silent rebinding of a live alias — "opus" stays on 4-6.
+	entry, ok := DefaultCatalog().Lookup("opus")
+	require.True(t, ok)
+	assert.Equal(t, "claude-opus-4-6", entry.ID)
+}
+
+func TestDefaultCatalog_OpusPricingCorrected(t *testing.T) {
+	// D1a: published Opus 4.6 pricing is $5/$25 (cache $0.50/$6.25) —
+	// the old 15/75/1.50/18.75 entry was stale. Both the claude-cli entry
+	// and its api- variant carry pricing, so both are corrected.
+	want := ModelPricing{
+		InputPerMillion:      5.00,
+		OutputPerMillion:     25.00,
+		CacheReadPerMillion:  0.50,
+		CacheWritePerMillion: 6.25,
+	}
+	for _, id := range []string{"claude-opus-4-6", "api-claude-opus-4-6"} {
+		entry, ok := DefaultCatalog().Lookup(id)
+		require.True(t, ok, id)
+		assert.Equal(t, want, entry.Pricing, id)
+	}
+	// IADA-3: context_window intentionally NOT bumped — pricing was the
+	// flagged dishonesty; capability semantics for an in-use model are a
+	// separate decision.
+	entry, ok := DefaultCatalog().Lookup("claude-opus-4-6")
+	require.True(t, ok)
+	assert.Equal(t, 200_000, entry.ContextWindow)
+}
+
+func TestDefaultCatalog_TierCheapnessOrderUnchanged(t *testing.T) {
+	// IADA-2: the correction must not reorder tier cheapness —
+	// haiku < sonnet < opus-4-6 < fable by output price.
+	order := []string{"claude-haiku-4-5-20251001", "claude-sonnet-4-6", "claude-opus-4-6", "claude-fable-5"}
+	prev := -1.0
+	for _, id := range order {
+		entry, ok := DefaultCatalog().Lookup(id)
+		require.True(t, ok, id)
+		assert.Greater(t, entry.Pricing.OutputPerMillion, prev,
+			"%s must be strictly more expensive than its predecessor", id)
+		prev = entry.Pricing.OutputPerMillion
+	}
+}
+
+func TestDefaultCatalog_CheapestWithCapabilities_OpusTie(t *testing.T) {
+	// CFADA1-adv1: claude-opus-4-6 and claude-opus-4-8 TIE at output 25.00.
+	// CheapestWithCapabilities uses strict < (catalog.go), so on a tie the
+	// FIRST entry in catalog order wins. In defaults_catalog.yaml,
+	// claude-opus-4-6 precedes claude-opus-4-8, so 4-6 wins the tie.
+	cat := DefaultCatalog()
+	opus46, ok := cat.Lookup("claude-opus-4-6")
+	require.True(t, ok)
+	opus48, ok := cat.Lookup("claude-opus-4-8")
+	require.True(t, ok)
+	require.Equal(t, opus46.Pricing.OutputPerMillion, opus48.Pricing.OutputPerMillion,
+		"the tie this test documents: both at output 25.00")
+
+	// Restrict to the two tied entries, preserving default-catalog order,
+	// so the tie is the only thing being decided.
+	var tied []ModelCatalogEntry
+	for _, e := range cat.All() {
+		if e.ID == "claude-opus-4-6" || e.ID == "claude-opus-4-8" {
+			tied = append(tied, e)
+		}
+	}
+	require.Len(t, tied, 2)
+	require.Equal(t, "claude-opus-4-6", tied[0].ID, "4-6 must precede 4-8 in catalog order")
+
+	tiedCat, err := NewCatalog(tied)
+	require.NoError(t, err)
+	best, found := tiedCat.CheapestWithCapabilities(opusCapabilitySet)
+	require.True(t, found)
+	assert.Equal(t, "claude-opus-4-6", best.ID,
+		"strict < keeps first-in-catalog on a price tie")
+}
+
+func TestDefaultCatalog_OpusCorrectionCostGateFlip(t *testing.T) {
+	// IADA-2: the D1a correction is behavior-relevant. At the reference call
+	// size (10k input + 2k output), old pricing (15/75) estimated
+	// $0.30/call; corrected pricing (5/25) estimates $0.10/call. A
+	// MaxCostPerCallUSD of $0.20 excluded claude-opus-4-6 before the
+	// correction and includes it after.
+	costCap := 0.20
+
+	rc, err := DefaultResolver().Resolve(ResolutionInput{
+		Role:          "worker",
+		AgentDefModel: "claude-opus-4-6",
+		Policy:        &RoleModelPolicy{MaxCostPerCallUSD: &costCap},
+	})
+	require.NoError(t, err, "corrected pricing must pass the $0.20 cost gate")
+	assert.Equal(t, "claude-opus-4-6", rc.Model)
+	assert.InDelta(t, 0.10, rc.Entry.Pricing.EstimateCost(10_000, 2_000), 1e-9)
+
+	// The pre-correction pricing would have been rejected by the same gate.
+	oldPricing := ModelPricing{InputPerMillion: 15.00, OutputPerMillion: 75.00}
+	assert.Greater(t, oldPricing.EstimateCost(10_000, 2_000), costCap,
+		"old pricing exceeded the gate — the flip is visible, not silent")
+}
+
 func TestResolverFromCatalogFile_ModelAliases(t *testing.T) {
 	yaml := `
 model_aliases:
