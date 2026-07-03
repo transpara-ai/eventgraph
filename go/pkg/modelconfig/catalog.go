@@ -38,11 +38,15 @@ func NewCatalog(entries []ModelCatalogEntry) (*ModelCatalog, error) {
 	}
 	copy(c.entries, entries)
 
+	// Two passes: index every ID before checking any alias, so an alias
+	// colliding with a later entry's ID is rejected regardless of entry order.
 	for i, e := range c.entries {
 		if _, exists := c.byID[e.ID]; exists {
 			return nil, fmt.Errorf("duplicate model ID: %s", e.ID)
 		}
 		c.byID[e.ID] = i
+	}
+	for i, e := range c.entries {
 		for _, alias := range e.Aliases {
 			if _, exists := c.byAlias[alias]; exists {
 				return nil, fmt.Errorf("duplicate alias %q (model %s)", alias, e.ID)
