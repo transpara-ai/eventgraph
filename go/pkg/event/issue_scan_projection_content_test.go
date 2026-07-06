@@ -11,8 +11,8 @@ import (
 func TestIssueScanProjectionEventTypesRegistered(t *testing.T) {
 	registry := DefaultRegistry()
 	all := AllIssueScanProjectionEventTypes()
-	if len(all) != 4 {
-		t.Fatalf("AllIssueScanProjectionEventTypes returned %d types, want 4", len(all))
+	if len(all) != 5 {
+		t.Fatalf("AllIssueScanProjectionEventTypes returned %d types, want 5", len(all))
 	}
 	for _, eventType := range all {
 		if !registry.IsRegistered(eventType) {
@@ -90,6 +90,11 @@ func TestIssueScanProjectionContentRoundTrip(t *testing.T) {
 				DuplicateOf:      "019c0000-0000-7000-8000-000000000172",
 			},
 		},
+		{
+			name:      "source marker",
+			eventType: EventTypeIssueScanSourceMarkerProjected.Value(),
+			content:   sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired),
+		},
 	}
 
 	for _, tc := range cases {
@@ -109,6 +114,529 @@ func TestIssueScanProjectionContentRoundTrip(t *testing.T) {
 				t.Fatalf("EventTypeName = %q, want %q", got.EventTypeName(), tc.eventType)
 			}
 		})
+	}
+}
+
+func TestIssueScanSourceMarkerProjectionTransitions(t *testing.T) {
+	transitions := []IssueScanSourceMarkerTransition{
+		IssueScanSourceMarkerAcquired,
+		IssueScanSourceMarkerParkedHumanAction,
+		IssueScanSourceMarkerReadyForHuman,
+		IssueScanSourceMarkerCompleted,
+		IssueScanSourceMarkerAbandoned,
+		IssueScanSourceMarkerSuperseded,
+	}
+
+	for _, transition := range transitions {
+		t.Run(string(transition), func(t *testing.T) {
+			content := sourceMarkerProjectionFixture(transition)
+			if transition == IssueScanSourceMarkerParkedHumanAction {
+				content.StaleTarget = true
+				content.WorkRef.Blocked = true
+				content.WorkRef.LifecycleState = "blocked"
+				content.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{
+					Reason:       IssueScanBlockerStaleTarget,
+					Detail:       "source issue was closed after acquisition",
+					EvidenceRefs: []string{"github:transpara-ai/docs#256"},
+				}
+			}
+			if transition == IssueScanSourceMarkerReadyForHuman {
+				content.WorkRef.Ready = true
+				content.WorkRef.LifecycleState = "ready"
+			}
+			if transition == IssueScanSourceMarkerCompleted {
+				content.WorkRef.LifecycleState = "certified"
+				content.WorkRef.MissingGates = nil
+				content.WorkRef.MissingFacts = nil
+				content.WorkRef.LatestGate = &IssueScanMarkerGateRef{Gate: content.Gate, EvidenceRefs: []string{"eventgraph:gate"}}
+			}
+			if transition == IssueScanSourceMarkerAbandoned {
+				content.WorkRef.LifecycleState = "rejected"
+			}
+			if transition == IssueScanSourceMarkerSuperseded {
+				content.SupersededBy = "task:successor"
+				content.WorkRef.SupersededBy = "task:successor"
+				content.WorkRef.LifecycleState = "superseded"
+			}
+			data, err := json.Marshal(content)
+			if err != nil {
+				t.Fatalf("Marshal: %v", err)
+			}
+			got, err := UnmarshalContent(EventTypeIssueScanSourceMarkerProjected.Value(), data)
+			if err != nil {
+				t.Fatalf("UnmarshalContent: %v", err)
+			}
+			if !reflect.DeepEqual(got, content) {
+				t.Fatalf("round trip mismatch\n got: %#v\nwant: %#v", got, content)
+			}
+			if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err != nil {
+				t.Fatalf("Validate: %v", err)
+			}
+		})
+	}
+}
+
+func TestIssueScanSourceMarkerProjectionLifecycleVariants(t *testing.T) {
+	readyStates := []string{"ready", "verified", "repaired"}
+	for _, state := range readyStates {
+		t.Run("ready_for_human_"+state, func(t *testing.T) {
+			content := sourceMarkerProjectionFixture(IssueScanSourceMarkerReadyForHuman)
+			content.WorkRef.Ready = true
+			content.WorkRef.LifecycleState = state
+			if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err != nil {
+				t.Fatalf("Validate ready_for_human/%s: %v", state, err)
+			}
+		})
+	}
+
+	acquiredStates := []string{"created", "running", "repair_running", "verification_running"}
+	for _, state := range acquiredStates {
+		t.Run("acquired_"+state, func(t *testing.T) {
+			content := sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+			content.WorkRef.LifecycleState = state
+			if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err != nil {
+				t.Fatalf("Validate acquired/%s: %v", state, err)
+			}
+		})
+	}
+
+	parkedStates := []struct {
+		state  string
+		reason IssueScanBlockerType
+	}{
+		{state: "blocked", reason: IssueScanBlockerNeedsHumanScope},
+		{state: "policy_blocked", reason: IssueScanBlockerProtectedAction},
+		{state: "failed", reason: IssueScanBlockerDuplicateChain},
+		{state: "repair_required", reason: IssueScanBlockerMissingGateEvidence},
+	}
+	for _, tc := range parkedStates {
+		t.Run("parked_"+tc.state, func(t *testing.T) {
+			content := sourceMarkerProjectionFixture(IssueScanSourceMarkerParkedHumanAction)
+			content.WorkRef.Blocked = true
+			content.WorkRef.LifecycleState = tc.state
+			content.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: tc.reason}
+			if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err != nil {
+				t.Fatalf("Validate parked/%s: %v", tc.state, err)
+			}
+		})
+	}
+}
+
+func TestIssueScanSourceMarkerProjectionRejectsCanonicalGitHubMarkers(t *testing.T) {
+	content := sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+	content.GitHubMarker.DerivedOutput = false
+	if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err == nil {
+		t.Fatal("registry accepted a GitHub marker that was not a derived output")
+	}
+
+	content = sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+	content.GitHubMarker.ProjectionSink = false
+	if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err == nil {
+		t.Fatal("registry accepted a GitHub marker that was not a projection sink")
+	}
+
+	content = sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+	content.GitHubMarker.System = "GitHub"
+	if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err == nil {
+		t.Fatal("registry accepted a GitHub marker with a non-canonical system")
+	}
+
+	content = sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+	content.GitHubMarker.Repository = "transpara-ai/site"
+	if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err == nil {
+		t.Fatal("registry accepted a GitHub marker repository mismatch")
+	}
+
+	content = sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+	content.GitHubMarker.IssueNumber = 999
+	if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err == nil {
+		t.Fatal("registry accepted a GitHub marker issue-number mismatch")
+	}
+
+	content = sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+	content.GitHubMarker = nil
+	if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err != nil {
+		t.Fatalf("registry rejected absent GitHub marker: %v", err)
+	}
+}
+
+func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
+	cases := []struct {
+		name string
+		edit func(*IssueScanSourceMarkerProjectedContent)
+	}{
+		{
+			name: "invalid transition",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerTransition("parsed_from_github_comment")
+			},
+		},
+		{
+			name: "target mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.Target.IssueNumber = 999
+			},
+		},
+		{
+			name: "invalid top-level schema version",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.SchemaVersion = "2"
+			},
+		},
+		{
+			name: "work schema mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.SchemaVersion = "2"
+			},
+		},
+		{
+			name: "stage mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.Stage = "github_comment_body"
+			},
+		},
+		{
+			name: "stage number mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.StageNumber = 2
+			},
+		},
+		{
+			name: "gate mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.Gate = "different_gate"
+			},
+		},
+		{
+			name: "missing gate",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Gate = ""
+				c.WorkRef.Gate = ""
+			},
+		},
+		{
+			name: "zero stage number",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.StageNumber = 0
+				c.WorkRef.StageNumber = 0
+			},
+		},
+		{
+			name: "top-level projection kind mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.ProjectionKind = "work.issue_scan.source_marker_ref"
+			},
+		},
+		{
+			name: "top-level canonical source mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.CanonicalSource = "github"
+			},
+		},
+		{
+			name: "top-level projection_only false",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.ProjectionOnly = false
+			},
+		},
+		{
+			name: "work projection_only false",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.ProjectionOnly = false
+			},
+		},
+		{
+			name: "work canonical source mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.CanonicalSource = "github"
+			},
+		},
+		{
+			name: "empty authority exclusions",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.AuthorityExclusions = nil
+			},
+		},
+		{
+			name: "empty work authority exclusions",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.AuthorityExclusions = nil
+			},
+		},
+		{
+			name: "missing required authority exclusion",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.AuthorityExclusions = []string{"none"}
+			},
+		},
+		{
+			name: "missing required work authority exclusion",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.AuthorityExclusions = []string{"none"}
+			},
+		},
+		{
+			name: "empty actor id",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.ActorID = ""
+			},
+		},
+		{
+			name: "empty actor role",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.ActorRole = ""
+			},
+		},
+		{
+			name: "invalid timestamp",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.OccurredAt = "yesterday-ish"
+			},
+		},
+		{
+			name: "empty idempotency key",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.IdempotencyKey = ""
+			},
+		},
+		{
+			name: "empty authority boundary",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.AuthorityBoundary = ""
+			},
+		},
+		{
+			name: "empty run id",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.RunID = ""
+			},
+		},
+		{
+			name: "empty stage id",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.StageID = ""
+			},
+		},
+		{
+			name: "invalid target number",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Target.Number = 0
+			},
+		},
+		{
+			name: "missing work lineage task",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.TaskID = ""
+			},
+		},
+		{
+			name: "missing work lifecycle state",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.LifecycleState = ""
+			},
+		},
+		{
+			name: "invalid work lifecycle state",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.LifecycleState = "done per github comment"
+			},
+		},
+		{
+			name: "invalid nested blocker reason",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: IssueScanBlockerType("github_comment")}
+			},
+		},
+		{
+			name: "empty latest gate",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.LatestGate = &IssueScanMarkerGateRef{}
+			},
+		},
+		{
+			name: "latest gate mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerCompleted
+				c.WorkRef.LifecycleState = "certified"
+				c.WorkRef.MissingGates = nil
+				c.WorkRef.MissingFacts = nil
+				c.WorkRef.LatestGate = &IssueScanMarkerGateRef{Gate: "other_gate"}
+			},
+		},
+		{
+			name: "ready and blocked",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.Ready = true
+				c.WorkRef.Blocked = true
+			},
+		},
+		{
+			name: "superseded without successor",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerSuperseded
+			},
+		},
+		{
+			name: "superseded successor on acquired transition",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.SupersededBy = "task:successor"
+			},
+		},
+		{
+			name: "superseded lifecycle on acquired transition",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.LifecycleState = "superseded"
+			},
+		},
+		{
+			name: "certified lifecycle on acquired transition",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.LifecycleState = "certified"
+				c.WorkRef.MissingGates = nil
+			},
+		},
+		{
+			name: "work superseded successor mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerSuperseded
+				c.SupersededBy = "task:successor"
+				c.WorkRef.SupersededBy = "task:other"
+				c.WorkRef.LifecycleState = "superseded"
+			},
+		},
+		{
+			name: "superseded without superseded lifecycle",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerSuperseded
+				c.SupersededBy = "task:successor"
+				c.WorkRef.SupersededBy = "task:successor"
+			},
+		},
+		{
+			name: "parked without blocker",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerParkedHumanAction
+			},
+		},
+		{
+			name: "blocked acquired with blocker",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.Blocked = true
+				c.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: IssueScanBlockerNeedsHumanScope}
+			},
+		},
+		{
+			name: "stale parked with non-stale blocker",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerParkedHumanAction
+				c.StaleTarget = true
+				c.WorkRef.Blocked = true
+				c.WorkRef.LifecycleState = "blocked"
+				c.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: IssueScanBlockerNeedsHumanScope}
+			},
+		},
+		{
+			name: "stale blocker without stale flag",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerParkedHumanAction
+				c.WorkRef.Blocked = true
+				c.WorkRef.LifecycleState = "blocked"
+				c.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: IssueScanBlockerStaleTarget}
+			},
+		},
+		{
+			name: "unblocked stale blocker without stale flag",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: IssueScanBlockerStaleTarget}
+			},
+		},
+		{
+			name: "superseded stale target with non-stale blocker",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerSuperseded
+				c.SupersededBy = "task:successor"
+				c.StaleTarget = true
+				c.WorkRef.LifecycleState = "superseded"
+				c.WorkRef.SupersededBy = "task:successor"
+				c.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: IssueScanBlockerNeedsHumanScope}
+			},
+		},
+		{
+			name: "ready for human while not ready",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerReadyForHuman
+			},
+		},
+		{
+			name: "ready acquired",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.Ready = true
+			},
+		},
+		{
+			name: "completed while not certified",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerCompleted
+			},
+		},
+		{
+			name: "completed with missing gates",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerCompleted
+				c.WorkRef.LifecycleState = "certified"
+				c.WorkRef.LatestGate = &IssueScanMarkerGateRef{Gate: c.Gate}
+			},
+		},
+		{
+			name: "completed without latest gate",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerCompleted
+				c.WorkRef.LifecycleState = "certified"
+				c.WorkRef.MissingGates = nil
+				c.WorkRef.MissingFacts = nil
+			},
+		},
+		{
+			name: "stale target advanced",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerCompleted
+				c.StaleTarget = true
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			content := sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+			tc.edit(&content)
+			if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err == nil {
+				t.Fatalf("registry accepted invalid source marker projection: %+v", content)
+			}
+		})
+	}
+}
+
+func TestIssueScanSourceMarkerProjectionRejectsInvalidJSON(t *testing.T) {
+	content := sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+	content.WorkRef.RunID = "different-run"
+	data, err := json.Marshal(content)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if _, err := UnmarshalContent(EventTypeIssueScanSourceMarkerProjected.Value(), data); err == nil {
+		t.Fatal("UnmarshalContent accepted mismatched work_ref run_id")
+	}
+
+	data, err = json.Marshal(sourceMarkerProjectionFixture(IssueScanSourceMarkerTransition("github_comment")))
+	if err != nil {
+		t.Fatalf("Marshal invalid transition: %v", err)
+	}
+	if _, err := UnmarshalContent(EventTypeIssueScanSourceMarkerProjected.Value(), data); err == nil {
+		t.Fatal("UnmarshalContent accepted invalid transition enum")
+	}
+
+	if _, err := UnmarshalContent(EventTypeIssueScanSourceMarkerProjected.Value(), []byte(`{"run_id":"run"}`)); err == nil {
+		t.Fatal("UnmarshalContent accepted missing transition")
 	}
 }
 
@@ -268,5 +796,75 @@ func TestIssueScanProjectionDocs172Site115FixtureHasTypedKanbanFields(t *testing
 	}
 	if len(wantBlockers) != 0 {
 		t.Fatalf("fixture missing blocker types: %+v", wantBlockers)
+	}
+}
+
+func sourceMarkerProjectionFixture(transition IssueScanSourceMarkerTransition) IssueScanSourceMarkerProjectedContent {
+	workRef := IssueScanMarkerWorkRef{
+		SchemaVersion:          "1",
+		ProjectionKind:         "work.issue_scan.source_marker_ref",
+		CanonicalSource:        "work",
+		ProjectionOnly:         true,
+		RunID:                  "2026-07-06-docs-256",
+		Target:                 IssueScanMarkerTargetRef{Repository: "transpara-ai/docs", IssueNumber: 256},
+		Stage:                  "research_issue_and_repo_context",
+		StageNumber:            1,
+		Gate:                   "research_packet_posted",
+		TaskID:                 "019f5000-0000-7000-8000-000000000256",
+		CanonicalTaskID:        "tsk_issue_scan_2026_07_06_docs_256_transpara_ai_docs_256_research_issue_and_repo_context_cc56864a0bb3",
+		FactoryOrderID:         "fo_issue_scan_2026_07_06_docs_256",
+		RequirementIDs:         []string{"req_issue_scan_2026_07_06_docs_256_transpara_ai_docs_256_research_issue_and_repo_context_cc56864a0bb3"},
+		AcceptanceCriterionIDs: []string{"ac_issue_scan_2026_07_06_docs_256_transpara_ai_docs_256_research_issue_and_repo_context_cc56864a0bb3"},
+		LifecycleState:         "created",
+		Ready:                  false,
+		Blocked:                false,
+		MissingGates:           []string{"definition_of_done", "acceptance_criteria", "test_plan"},
+		VerificationRefs:       IssueScanMarkerEvidenceRefs{TestCaseIDs: []string{"eventgraph:issuescan-source-marker-projection"}},
+		FailureRepairRefs:      IssueScanMarkerEvidenceRefs{},
+		SourceIssueRefs:        []string{"github:transpara-ai/docs#256"},
+		AuthorityExclusions: []string{
+			"github_issue_markers_are_projection_only",
+			"github_comments_are_not_work_lifecycle_truth",
+			"github_labels_are_not_work_lifecycle_truth",
+			"no_live_github_mutation_authority",
+			"no_eventgraph_production_write",
+			"no_hive_write_action_or_authority_api",
+			"no_deployment",
+			"no_test_001_green",
+			"no_merge_authority",
+			"no_issue_closure",
+			"no_autonomy_increase",
+			"no_value_allocation",
+		},
+	}
+	return IssueScanSourceMarkerProjectedContent{
+		SchemaVersion:       "1",
+		ProjectionKind:      "eventgraph.issue_scan.source_marker_projection",
+		Transition:          transition,
+		RunID:               workRef.RunID,
+		Target:              IssueScanIssueRef{Repo: workRef.Target.Repository, Number: workRef.Target.IssueNumber, URL: "https://github.com/transpara-ai/docs/issues/256", State: "open"},
+		StageID:             workRef.Stage,
+		StageNumber:         workRef.StageNumber,
+		Gate:                workRef.Gate,
+		WorkRef:             workRef,
+		ActorID:             "agent:eventgraph-projection",
+		ActorRole:           "projection_recorder",
+		OccurredAt:          "2026-07-06T14:00:00Z",
+		IdempotencyKey:      "issuescan-source-marker:2026-07-06-docs-256:research_issue_and_repo_context:" + string(transition),
+		AuthorityBoundary:   "projection only; no production EventGraph write or GitHub mutation",
+		AuthorityExclusions: append([]string(nil), workRef.AuthorityExclusions...),
+		EvidenceRefs:        IssueScanMarkerEvidenceRefs{TestCaseIDs: []string{"eventgraph:issuescan-source-marker-projection"}},
+		SourceRefs:          []string{"work:fo_issue_scan_2026_07_06_docs_256", "github:transpara-ai/docs#256"},
+		GitHubMarker: &IssueScanSourceMarkerOutputRef{
+			System:         "github",
+			Repository:     "transpara-ai/docs",
+			IssueNumber:    256,
+			CommentID:      "planned-marker-comment",
+			LabelNames:     []string{"cc:civilization-presence"},
+			DerivedOutput:  true,
+			ProjectionSink: true,
+		},
+		CanonicalSource: "work_eventgraph_projection",
+		ProjectionOnly:  true,
 	}
 }
