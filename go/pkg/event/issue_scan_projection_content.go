@@ -371,7 +371,7 @@ type IssueScanSourceMarkerProjectedContent struct {
 	AuthorityExclusions []string                        `json:"authority_exclusions"`
 	EvidenceRefs        IssueScanMarkerEvidenceRefs     `json:"evidence_refs"`
 	SourceRefs          []string                        `json:"source_refs,omitempty"`
-	GitHubMarker        IssueScanSourceMarkerOutputRef  `json:"github_marker,omitempty"`
+	GitHubMarker        *IssueScanSourceMarkerOutputRef `json:"github_marker,omitempty"`
 	CanonicalSource     string                          `json:"canonical_source"`
 	ProjectionOnly      bool                            `json:"projection_only"`
 	SupersededBy        string                          `json:"superseded_by,omitempty"`
@@ -435,6 +435,12 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 	if c.StageID == "" {
 		return fmt.Errorf("issue-scan source-marker stage_id is required")
 	}
+	if c.SchemaVersion != "1" {
+		return fmt.Errorf("issue-scan source-marker schema_version must be 1")
+	}
+	if c.ProjectionKind != "eventgraph.issue_scan.source_marker_projection" {
+		return fmt.Errorf("issue-scan source-marker projection_kind must be eventgraph.issue_scan.source_marker_projection")
+	}
 	if c.WorkRef.ProjectionKind != "work.issue_scan.source_marker_ref" {
 		return fmt.Errorf("issue-scan source-marker work_ref projection_kind must be work.issue_scan.source_marker_ref")
 	}
@@ -453,6 +459,21 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 	if c.WorkRef.Stage != c.StageID {
 		return fmt.Errorf("issue-scan source-marker work_ref stage mismatch")
 	}
+	if c.WorkRef.StageNumber != c.StageNumber {
+		return fmt.Errorf("issue-scan source-marker work_ref stage_number mismatch")
+	}
+	if c.Gate != "" && c.WorkRef.Gate != c.Gate {
+		return fmt.Errorf("issue-scan source-marker work_ref gate mismatch")
+	}
+	if c.WorkRef.LatestBlocker != nil && !c.WorkRef.LatestBlocker.Reason.IsValid() {
+		return fmt.Errorf("invalid issue-scan source-marker work_ref latest_blocker reason %q", c.WorkRef.LatestBlocker.Reason)
+	}
+	if len(c.WorkRef.AuthorityExclusions) == 0 {
+		return fmt.Errorf("issue-scan source-marker work_ref authority_exclusions are required")
+	}
+	if c.ActorID == "" {
+		return fmt.Errorf("issue-scan source-marker actor_id is required")
+	}
 	if c.ActorRole == "" {
 		return fmt.Errorf("issue-scan source-marker actor_role is required")
 	}
@@ -465,14 +486,22 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 	if c.AuthorityBoundary == "" {
 		return fmt.Errorf("issue-scan source-marker authority_boundary is required")
 	}
+	if len(c.AuthorityExclusions) == 0 {
+		return fmt.Errorf("issue-scan source-marker authority_exclusions are required")
+	}
 	if c.CanonicalSource != "work_eventgraph_projection" {
 		return fmt.Errorf("issue-scan source-marker canonical_source must be work_eventgraph_projection")
 	}
 	if !c.ProjectionOnly {
 		return fmt.Errorf("issue-scan source-marker projection_only must be true")
 	}
-	if c.GitHubMarker.System == "github" && (!c.GitHubMarker.DerivedOutput || !c.GitHubMarker.ProjectionSink) {
-		return fmt.Errorf("issue-scan source-marker github marker must be a derived projection sink")
+	if c.GitHubMarker != nil {
+		if c.GitHubMarker.System != "github" {
+			return fmt.Errorf("issue-scan source-marker github marker system must be github")
+		}
+		if !c.GitHubMarker.DerivedOutput || !c.GitHubMarker.ProjectionSink {
+			return fmt.Errorf("issue-scan source-marker github marker must be a derived projection sink")
+		}
 	}
 	if c.Transition == IssueScanSourceMarkerSuperseded && c.SupersededBy == "" && c.WorkRef.SupersededBy == "" {
 		return fmt.Errorf("issue-scan source-marker superseded transition requires superseded_by")

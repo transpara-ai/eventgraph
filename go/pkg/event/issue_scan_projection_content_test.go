@@ -172,6 +172,18 @@ func TestIssueScanSourceMarkerProjectionRejectsCanonicalGitHubMarkers(t *testing
 	if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err == nil {
 		t.Fatal("registry accepted a GitHub marker that was not a projection sink")
 	}
+
+	content = sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+	content.GitHubMarker.System = "GitHub"
+	if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err == nil {
+		t.Fatal("registry accepted a GitHub marker with a non-canonical system")
+	}
+
+	content = sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+	content.GitHubMarker = nil
+	if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err != nil {
+		t.Fatalf("registry rejected absent GitHub marker: %v", err)
+	}
 }
 
 func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
@@ -198,6 +210,66 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 			},
 		},
 		{
+			name: "stage number mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.StageNumber = 2
+			},
+		},
+		{
+			name: "gate mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.Gate = "different_gate"
+			},
+		},
+		{
+			name: "top-level projection kind mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.ProjectionKind = "work.issue_scan.source_marker_ref"
+			},
+		},
+		{
+			name: "top-level projection_only false",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.ProjectionOnly = false
+			},
+		},
+		{
+			name: "work projection_only false",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.ProjectionOnly = false
+			},
+		},
+		{
+			name: "work canonical source mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.CanonicalSource = "github"
+			},
+		},
+		{
+			name: "empty authority exclusions",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.AuthorityExclusions = nil
+			},
+		},
+		{
+			name: "empty work authority exclusions",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.AuthorityExclusions = nil
+			},
+		},
+		{
+			name: "empty actor id",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.ActorID = ""
+			},
+		},
+		{
+			name: "invalid nested blocker reason",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: IssueScanBlockerType("github_comment")}
+			},
+		},
+		{
 			name: "superseded without successor",
 			edit: func(c *IssueScanSourceMarkerProjectedContent) {
 				c.Transition = IssueScanSourceMarkerSuperseded
@@ -220,6 +292,18 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 				t.Fatalf("registry accepted invalid source marker projection: %+v", content)
 			}
 		})
+	}
+}
+
+func TestIssueScanSourceMarkerProjectionRejectsInvalidJSON(t *testing.T) {
+	content := sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+	content.WorkRef.RunID = "different-run"
+	data, err := json.Marshal(content)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if _, err := UnmarshalContent(EventTypeIssueScanSourceMarkerProjected.Value(), data); err == nil {
+		t.Fatal("UnmarshalContent accepted mismatched work_ref run_id")
 	}
 }
 
@@ -438,7 +522,7 @@ func sourceMarkerProjectionFixture(transition IssueScanSourceMarkerTransition) I
 		AuthorityExclusions: append([]string(nil), workRef.AuthorityExclusions...),
 		EvidenceRefs:        IssueScanMarkerEvidenceRefs{TestCaseIDs: []string{"eventgraph:issuescan-source-marker-projection"}},
 		SourceRefs:          []string{"work:fo_issue_scan_2026_07_06_docs_256", "github:transpara-ai/docs#256"},
-		GitHubMarker: IssueScanSourceMarkerOutputRef{
+		GitHubMarker: &IssueScanSourceMarkerOutputRef{
 			System:         "github",
 			Repository:     "transpara-ai/docs",
 			IssueNumber:    256,

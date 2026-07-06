@@ -98,5 +98,7 @@ show:
 - explicit `duplicate_chain`, `needs_human_scope`, `protected_action`, or
   `stale_target` blockers when those conditions are present,
 - a clear `required_action` string for the human or upstream repair step,
-- source-marker projections for acquired, parked/human-action,
-  ready-for-human, completed, abandoned, and superseded marker states.
+
+Separate source-marker transition fixtures should cover acquired,
+parked/human-action, ready-for-human, completed, abandoned, and superseded
+marker states.
