@@ -133,6 +133,7 @@ func TestIssueScanSourceMarkerProjectionTransitions(t *testing.T) {
 			if transition == IssueScanSourceMarkerParkedHumanAction {
 				content.StaleTarget = true
 				content.WorkRef.Blocked = true
+				content.WorkRef.LifecycleState = "blocked"
 				content.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{
 					Reason:       IssueScanBlockerStaleTarget,
 					Detail:       "source issue was closed after acquisition",
@@ -141,12 +142,16 @@ func TestIssueScanSourceMarkerProjectionTransitions(t *testing.T) {
 			}
 			if transition == IssueScanSourceMarkerReadyForHuman {
 				content.WorkRef.Ready = true
+				content.WorkRef.LifecycleState = "ready"
 			}
 			if transition == IssueScanSourceMarkerCompleted {
 				content.WorkRef.LifecycleState = "certified"
 				content.WorkRef.MissingGates = nil
 				content.WorkRef.MissingFacts = nil
 				content.WorkRef.LatestGate = &IssueScanMarkerGateRef{Gate: content.Gate, EvidenceRefs: []string{"eventgraph:gate"}}
+			}
+			if transition == IssueScanSourceMarkerAbandoned {
+				content.WorkRef.LifecycleState = "rejected"
 			}
 			if transition == IssueScanSourceMarkerSuperseded {
 				content.SupersededBy = "task:successor"
@@ -227,6 +232,12 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 			},
 		},
 		{
+			name: "invalid top-level schema version",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.SchemaVersion = "2"
+			},
+		},
+		{
 			name: "work schema mismatch",
 			edit: func(c *IssueScanSourceMarkerProjectedContent) {
 				c.WorkRef.SchemaVersion = "2"
@@ -268,6 +279,12 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 			name: "top-level projection kind mismatch",
 			edit: func(c *IssueScanSourceMarkerProjectedContent) {
 				c.ProjectionKind = "work.issue_scan.source_marker_ref"
+			},
+		},
+		{
+			name: "top-level canonical source mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.CanonicalSource = "github"
 			},
 		},
 		{
@@ -319,9 +336,45 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 			},
 		},
 		{
+			name: "empty actor role",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.ActorRole = ""
+			},
+		},
+		{
 			name: "invalid timestamp",
 			edit: func(c *IssueScanSourceMarkerProjectedContent) {
 				c.OccurredAt = "yesterday-ish"
+			},
+		},
+		{
+			name: "empty idempotency key",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.IdempotencyKey = ""
+			},
+		},
+		{
+			name: "empty authority boundary",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.AuthorityBoundary = ""
+			},
+		},
+		{
+			name: "empty run id",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.RunID = ""
+			},
+		},
+		{
+			name: "empty stage id",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.StageID = ""
+			},
+		},
+		{
+			name: "invalid target number",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Target.Number = 0
 			},
 		},
 		{
@@ -357,6 +410,10 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 		{
 			name: "latest gate mismatch",
 			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerCompleted
+				c.WorkRef.LifecycleState = "certified"
+				c.WorkRef.MissingGates = nil
+				c.WorkRef.MissingFacts = nil
 				c.WorkRef.LatestGate = &IssueScanMarkerGateRef{Gate: "other_gate"}
 			},
 		},
@@ -428,7 +485,17 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 				c.Transition = IssueScanSourceMarkerParkedHumanAction
 				c.StaleTarget = true
 				c.WorkRef.Blocked = true
+				c.WorkRef.LifecycleState = "blocked"
 				c.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: IssueScanBlockerNeedsHumanScope}
+			},
+		},
+		{
+			name: "stale blocker without stale flag",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerParkedHumanAction
+				c.WorkRef.Blocked = true
+				c.WorkRef.LifecycleState = "blocked"
+				c.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: IssueScanBlockerStaleTarget}
 			},
 		},
 		{

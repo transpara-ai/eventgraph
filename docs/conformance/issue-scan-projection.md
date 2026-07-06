@@ -86,10 +86,12 @@ value allocation, autonomy increase, Test 001 GREEN, merge, issue closure, or
 wiki work.
 
 Source-marker transitions must remain coherent with the embedded Work ref:
-`parked_human_action` requires a blocked Work ref with `latest_blocker`,
-`ready_for_human` requires a ready, unblocked Work ref, `completed` requires a
-certified, unblocked Work ref with no missing gates/facts and the matching
-latest gate, and `superseded` requires matching top-level and Work
+`acquired` requires `created` or `running`, `parked_human_action` requires a
+blocked Work ref with `latest_blocker` and a blocked lifecycle state,
+`ready_for_human` requires a ready, unblocked Work ref with `ready`, `verified`,
+or `repaired` lifecycle state, `completed` requires a certified, unblocked Work
+ref with no missing gates/facts and the matching latest gate, `abandoned`
+requires `rejected`, and `superseded` requires matching top-level and Work
 `superseded_by` values plus `work_ref.lifecycle_state: "superseded"`.
 The Work lifecycle state is closed over the current Work status vocabulary:
 `created`, `ready`, `running`, `blocked`, `policy_blocked`, `failed`,
@@ -97,7 +99,8 @@ The Work lifecycle state is closed over the current Work status vocabulary:
 `verified`, `certified`, `rejected`, and `superseded`.
 Parked states may cite `needs_human_scope`, `protected_action`,
 `stale_target`, `duplicate_chain`, or `missing_gate_evidence`; when
-`stale_target` is true, the latest blocker reason must be `stale_target`.
+`stale_target` is true, the latest blocker reason must be `stale_target`, and a
+`stale_target` blocker must set `stale_target: true`.
 
 Unlike sibling run/stage/blocker projection events, the source-marker
 `evidence_refs` field is the structured `IssueScanMarkerEvidenceRefs` object
