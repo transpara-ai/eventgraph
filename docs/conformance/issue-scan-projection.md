@@ -88,8 +88,16 @@ wiki work.
 Source-marker transitions must remain coherent with the embedded Work ref:
 `parked_human_action` requires a blocked Work ref with `latest_blocker`,
 `ready_for_human` requires a ready, unblocked Work ref, `completed` requires a
-certified, unblocked Work ref, and `superseded` requires top-level
-`superseded_by` plus `work_ref.lifecycle_state: "superseded"`.
+certified, unblocked Work ref with no missing gates/facts and the matching
+latest gate, and `superseded` requires matching top-level and Work
+`superseded_by` values plus `work_ref.lifecycle_state: "superseded"`.
+The Work lifecycle state is closed over the current Work status vocabulary:
+`created`, `ready`, `running`, `blocked`, `policy_blocked`, `failed`,
+`repair_required`, `repair_running`, `repaired`, `verification_running`,
+`verified`, `certified`, `rejected`, and `superseded`.
+Parked states may cite `needs_human_scope`, `protected_action`,
+`stale_target`, `duplicate_chain`, or `missing_gate_evidence`; when
+`stale_target` is true, the latest blocker reason must be `stale_target`.
 
 Unlike sibling run/stage/blocker projection events, the source-marker
 `evidence_refs` field is the structured `IssueScanMarkerEvidenceRefs` object

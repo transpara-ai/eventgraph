@@ -144,6 +144,8 @@ func TestIssueScanSourceMarkerProjectionTransitions(t *testing.T) {
 			}
 			if transition == IssueScanSourceMarkerCompleted {
 				content.WorkRef.LifecycleState = "certified"
+				content.WorkRef.MissingGates = nil
+				content.WorkRef.MissingFacts = nil
 				content.WorkRef.LatestGate = &IssueScanMarkerGateRef{Gate: content.Gate, EvidenceRefs: []string{"eventgraph:gate"}}
 			}
 			if transition == IssueScanSourceMarkerSuperseded {
@@ -335,6 +337,12 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 			},
 		},
 		{
+			name: "invalid work lifecycle state",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.LifecycleState = "done per github comment"
+			},
+		},
+		{
 			name: "invalid nested blocker reason",
 			edit: func(c *IssueScanSourceMarkerProjectedContent) {
 				c.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: IssueScanBlockerType("github_comment")}
@@ -344,6 +352,12 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 			name: "empty latest gate",
 			edit: func(c *IssueScanSourceMarkerProjectedContent) {
 				c.WorkRef.LatestGate = &IssueScanMarkerGateRef{}
+			},
+		},
+		{
+			name: "latest gate mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.LatestGate = &IssueScanMarkerGateRef{Gate: "other_gate"}
 			},
 		},
 		{
@@ -363,6 +377,19 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 			name: "superseded successor on acquired transition",
 			edit: func(c *IssueScanSourceMarkerProjectedContent) {
 				c.SupersededBy = "task:successor"
+			},
+		},
+		{
+			name: "superseded lifecycle on acquired transition",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.LifecycleState = "superseded"
+			},
+		},
+		{
+			name: "certified lifecycle on acquired transition",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.LifecycleState = "certified"
+				c.WorkRef.MissingGates = nil
 			},
 		},
 		{
@@ -389,15 +416,54 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 			},
 		},
 		{
+			name: "blocked acquired with blocker",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.Blocked = true
+				c.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: IssueScanBlockerNeedsHumanScope}
+			},
+		},
+		{
+			name: "stale parked with non-stale blocker",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerParkedHumanAction
+				c.StaleTarget = true
+				c.WorkRef.Blocked = true
+				c.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: IssueScanBlockerNeedsHumanScope}
+			},
+		},
+		{
 			name: "ready for human while not ready",
 			edit: func(c *IssueScanSourceMarkerProjectedContent) {
 				c.Transition = IssueScanSourceMarkerReadyForHuman
 			},
 		},
 		{
+			name: "ready acquired",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.Ready = true
+			},
+		},
+		{
 			name: "completed while not certified",
 			edit: func(c *IssueScanSourceMarkerProjectedContent) {
 				c.Transition = IssueScanSourceMarkerCompleted
+			},
+		},
+		{
+			name: "completed with missing gates",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerCompleted
+				c.WorkRef.LifecycleState = "certified"
+				c.WorkRef.LatestGate = &IssueScanMarkerGateRef{Gate: c.Gate}
+			},
+		},
+		{
+			name: "completed without latest gate",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerCompleted
+				c.WorkRef.LifecycleState = "certified"
+				c.WorkRef.MissingGates = nil
+				c.WorkRef.MissingFacts = nil
 			},
 		},
 		{

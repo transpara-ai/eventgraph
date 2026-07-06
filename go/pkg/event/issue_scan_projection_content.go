@@ -481,11 +481,17 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 	if c.WorkRef.LifecycleState == "" {
 		return fmt.Errorf("issue-scan source-marker work_ref lifecycle_state is required")
 	}
+	if !validIssueScanMarkerLifecycleState(c.WorkRef.LifecycleState) {
+		return fmt.Errorf("invalid issue-scan source-marker work_ref lifecycle_state %q", c.WorkRef.LifecycleState)
+	}
 	if c.WorkRef.LatestBlocker != nil && !c.WorkRef.LatestBlocker.Reason.IsValid() {
 		return fmt.Errorf("invalid issue-scan source-marker work_ref latest_blocker reason %q", c.WorkRef.LatestBlocker.Reason)
 	}
 	if c.WorkRef.LatestGate != nil && c.WorkRef.LatestGate.Gate == "" {
 		return fmt.Errorf("issue-scan source-marker work_ref latest_gate gate is required")
+	}
+	if c.WorkRef.LatestGate != nil && c.WorkRef.LatestGate.Gate != c.Gate {
+		return fmt.Errorf("issue-scan source-marker work_ref latest_gate gate mismatch")
 	}
 	if len(c.WorkRef.AuthorityExclusions) == 0 {
 		return fmt.Errorf("issue-scan source-marker work_ref authority_exclusions are required")
@@ -495,6 +501,9 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 	}
 	if c.WorkRef.Ready && c.WorkRef.Blocked {
 		return fmt.Errorf("issue-scan source-marker work_ref cannot be both ready and blocked")
+	}
+	if c.WorkRef.Blocked && c.WorkRef.LatestBlocker == nil {
+		return fmt.Errorf("issue-scan source-marker blocked work_ref requires latest_blocker")
 	}
 	if c.ActorID == "" {
 		return fmt.Errorf("issue-scan source-marker actor_id is required")
@@ -541,7 +550,10 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 		if c.SupersededBy == "" {
 			return fmt.Errorf("issue-scan source-marker superseded transition requires top-level superseded_by")
 		}
-		if c.WorkRef.SupersededBy != "" && c.WorkRef.SupersededBy != c.SupersededBy {
+		if c.WorkRef.SupersededBy == "" {
+			return fmt.Errorf("issue-scan source-marker superseded transition requires work_ref superseded_by")
+		}
+		if c.WorkRef.SupersededBy != c.SupersededBy {
 			return fmt.Errorf("issue-scan source-marker work_ref superseded_by mismatch")
 		}
 		if c.WorkRef.LifecycleState != "superseded" {
@@ -549,6 +561,12 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 		}
 	} else if c.SupersededBy != "" || c.WorkRef.SupersededBy != "" {
 		return fmt.Errorf("issue-scan source-marker superseded_by is only valid for superseded transitions")
+	}
+	if c.WorkRef.LifecycleState == "superseded" && c.Transition != IssueScanSourceMarkerSuperseded {
+		return fmt.Errorf("issue-scan source-marker superseded work_ref requires superseded transition")
+	}
+	if c.WorkRef.LifecycleState == "certified" && c.Transition != IssueScanSourceMarkerCompleted {
+		return fmt.Errorf("issue-scan source-marker certified work_ref requires completed transition")
 	}
 	if c.StaleTarget && c.Transition != IssueScanSourceMarkerParkedHumanAction && c.Transition != IssueScanSourceMarkerSuperseded {
 		return fmt.Errorf("issue-scan source-marker stale targets must park or supersede")
@@ -558,6 +576,9 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 		if !c.WorkRef.Blocked || c.WorkRef.LatestBlocker == nil {
 			return fmt.Errorf("issue-scan source-marker parked_human_action requires blocked work_ref with latest_blocker")
 		}
+		if c.StaleTarget && c.WorkRef.LatestBlocker.Reason != IssueScanBlockerStaleTarget {
+			return fmt.Errorf("issue-scan source-marker stale parked transition requires stale_target blocker")
+		}
 	case IssueScanSourceMarkerReadyForHuman:
 		if !c.WorkRef.Ready || c.WorkRef.Blocked {
 			return fmt.Errorf("issue-scan source-marker ready_for_human requires ready, unblocked work_ref")
@@ -566,8 +587,32 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 		if c.WorkRef.LifecycleState != "certified" || c.WorkRef.Blocked {
 			return fmt.Errorf("issue-scan source-marker completed requires certified, unblocked work_ref")
 		}
+		if len(c.WorkRef.MissingGates) > 0 || len(c.WorkRef.MissingFacts) > 0 {
+			return fmt.Errorf("issue-scan source-marker completed requires no missing gates or facts")
+		}
+		if c.WorkRef.LatestGate == nil {
+			return fmt.Errorf("issue-scan source-marker completed requires latest_gate")
+		}
+	default:
+		if c.WorkRef.Blocked {
+			return fmt.Errorf("issue-scan source-marker blocked work_ref requires parked_human_action transition")
+		}
+		if c.WorkRef.Ready {
+			return fmt.Errorf("issue-scan source-marker ready work_ref requires ready_for_human transition")
+		}
 	}
 	return nil
+}
+
+func validIssueScanMarkerLifecycleState(state string) bool {
+	switch state {
+	case "created", "ready", "running", "blocked", "failed", "repair_required",
+		"repair_running", "repaired", "verification_running", "verified",
+		"certified", "rejected", "superseded", "policy_blocked":
+		return true
+	default:
+		return false
+	}
 }
 
 func requireIssueScanSourceMarkerAuthorityExclusions(scope string, got []string) error {
