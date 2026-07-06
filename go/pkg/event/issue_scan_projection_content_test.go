@@ -180,6 +180,18 @@ func TestIssueScanSourceMarkerProjectionRejectsCanonicalGitHubMarkers(t *testing
 	}
 
 	content = sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+	content.GitHubMarker.Repository = "transpara-ai/site"
+	if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err == nil {
+		t.Fatal("registry accepted a GitHub marker repository mismatch")
+	}
+
+	content = sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+	content.GitHubMarker.IssueNumber = 999
+	if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err == nil {
+		t.Fatal("registry accepted a GitHub marker issue-number mismatch")
+	}
+
+	content = sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
 	content.GitHubMarker = nil
 	if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err != nil {
 		t.Fatalf("registry rejected absent GitHub marker: %v", err)
@@ -204,6 +216,12 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 			},
 		},
 		{
+			name: "work schema mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.SchemaVersion = "2"
+			},
+		},
+		{
 			name: "stage mismatch",
 			edit: func(c *IssueScanSourceMarkerProjectedContent) {
 				c.WorkRef.Stage = "github_comment_body"
@@ -219,6 +237,20 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 			name: "gate mismatch",
 			edit: func(c *IssueScanSourceMarkerProjectedContent) {
 				c.WorkRef.Gate = "different_gate"
+			},
+		},
+		{
+			name: "missing gate",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Gate = ""
+				c.WorkRef.Gate = ""
+			},
+		},
+		{
+			name: "zero stage number",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.StageNumber = 0
+				c.WorkRef.StageNumber = 0
 			},
 		},
 		{
@@ -264,6 +296,24 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 			},
 		},
 		{
+			name: "invalid timestamp",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.OccurredAt = "yesterday-ish"
+			},
+		},
+		{
+			name: "missing work lineage task",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.TaskID = ""
+			},
+		},
+		{
+			name: "missing work lifecycle state",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.LifecycleState = ""
+			},
+		},
+		{
 			name: "invalid nested blocker reason",
 			edit: func(c *IssueScanSourceMarkerProjectedContent) {
 				c.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: IssueScanBlockerType("github_comment")}
@@ -273,6 +323,20 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 			name: "superseded without successor",
 			edit: func(c *IssueScanSourceMarkerProjectedContent) {
 				c.Transition = IssueScanSourceMarkerSuperseded
+			},
+		},
+		{
+			name: "superseded successor on acquired transition",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.SupersededBy = "task:successor"
+			},
+		},
+		{
+			name: "work superseded successor mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerSuperseded
+				c.SupersededBy = "task:successor"
+				c.WorkRef.SupersededBy = "task:other"
 			},
 		},
 		{
@@ -304,6 +368,18 @@ func TestIssueScanSourceMarkerProjectionRejectsInvalidJSON(t *testing.T) {
 	}
 	if _, err := UnmarshalContent(EventTypeIssueScanSourceMarkerProjected.Value(), data); err == nil {
 		t.Fatal("UnmarshalContent accepted mismatched work_ref run_id")
+	}
+
+	data, err = json.Marshal(sourceMarkerProjectionFixture(IssueScanSourceMarkerTransition("github_comment")))
+	if err != nil {
+		t.Fatalf("Marshal invalid transition: %v", err)
+	}
+	if _, err := UnmarshalContent(EventTypeIssueScanSourceMarkerProjected.Value(), data); err == nil {
+		t.Fatal("UnmarshalContent accepted invalid transition enum")
+	}
+
+	if _, err := UnmarshalContent(EventTypeIssueScanSourceMarkerProjected.Value(), []byte(`{"run_id":"run"}`)); err == nil {
+		t.Fatal("UnmarshalContent accepted missing transition")
 	}
 }
 

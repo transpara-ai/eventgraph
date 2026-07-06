@@ -35,10 +35,10 @@ Kanban and monitor consumers should render from these typed fields:
   `duplicate_task_ids`, `duplicate_of`, and `superseded_task_ids` from
   `issuescan.lineage.projected`.
 - Source-marker views use `transition`, `work_ref`, `actor_id`, `actor_role`,
-  `occurred_at`, `idempotency_key`, `authority_boundary`,
-  `authority_exclusions`, `evidence_refs`, `github_marker`,
-  `canonical_source`, and `projection_only` from
-  `issuescan.source.marker.projected`.
+  `run_id`, `target`, `stage_id`, `stage_number`, `occurred_at`,
+  `idempotency_key`, `authority_boundary`, `authority_exclusions`,
+  `evidence_refs`, `github_marker`, `canonical_source`, and `projection_only`
+  from `issuescan.source.marker.projected`.
 
 Consumers must treat `blocked`, `parked`, `human_action`, `ready_for_human`,
 `superseded`, and `projection_only` as terminal or non-running dashboard states
@@ -68,10 +68,11 @@ The `work_ref` field mirrors the Work-owned
 projection run, target, and stage match the Work ref, that the Work ref is
 `projection_only`, and that the Work ref declares `canonical_source: "work"`.
 
-The `github_marker` field is an output reference only. When `system` is
-`github`, it must be marked with `derived_output: true` and
-`projection_sink: true`. Consumers must not parse GitHub marker comments or
-labels back into canonical Work or EventGraph truth.
+The `github_marker` field is an output reference only. When present, `system`
+must be `github`, its repository and issue number must match the source target,
+and it must be marked with `derived_output: true` and `projection_sink: true`.
+Consumers must not parse GitHub marker comments or labels back into canonical
+Work or EventGraph truth.
 
 Source-marker projections carry `authority_boundary` and
 `authority_exclusions` explicitly. This conformance contract does not authorize
@@ -97,7 +98,7 @@ show:
 - no running workers for parked, blocked, stale, or human-scope runs,
 - explicit `duplicate_chain`, `needs_human_scope`, `protected_action`, or
   `stale_target` blockers when those conditions are present,
-- a clear `required_action` string for the human or upstream repair step,
+- a clear `required_action` string for the human or upstream repair step.
 
 Separate source-marker transition fixtures should cover acquired,
 parked/human-action, ready-for-human, completed, abandoned, and superseded

@@ -3,6 +3,7 @@ package event
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 type issueScanProjectionContent struct{}
@@ -444,6 +445,9 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 	if c.WorkRef.ProjectionKind != "work.issue_scan.source_marker_ref" {
 		return fmt.Errorf("issue-scan source-marker work_ref projection_kind must be work.issue_scan.source_marker_ref")
 	}
+	if c.WorkRef.SchemaVersion != "1" {
+		return fmt.Errorf("issue-scan source-marker work_ref schema_version must be 1")
+	}
 	if c.WorkRef.CanonicalSource != "work" {
 		return fmt.Errorf("issue-scan source-marker work_ref canonical_source must be work")
 	}
@@ -459,11 +463,23 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 	if c.WorkRef.Stage != c.StageID {
 		return fmt.Errorf("issue-scan source-marker work_ref stage mismatch")
 	}
+	if c.StageNumber < 1 {
+		return fmt.Errorf("issue-scan source-marker stage_number must be positive")
+	}
+	if c.Gate == "" {
+		return fmt.Errorf("issue-scan source-marker gate is required")
+	}
 	if c.WorkRef.StageNumber != c.StageNumber {
 		return fmt.Errorf("issue-scan source-marker work_ref stage_number mismatch")
 	}
-	if c.Gate != "" && c.WorkRef.Gate != c.Gate {
+	if c.WorkRef.Gate != c.Gate {
 		return fmt.Errorf("issue-scan source-marker work_ref gate mismatch")
+	}
+	if c.WorkRef.TaskID == "" || c.WorkRef.CanonicalTaskID == "" || c.WorkRef.FactoryOrderID == "" {
+		return fmt.Errorf("issue-scan source-marker work_ref task_id, canonical_task_id, and factory_order_id are required")
+	}
+	if c.WorkRef.LifecycleState == "" {
+		return fmt.Errorf("issue-scan source-marker work_ref lifecycle_state is required")
 	}
 	if c.WorkRef.LatestBlocker != nil && !c.WorkRef.LatestBlocker.Reason.IsValid() {
 		return fmt.Errorf("invalid issue-scan source-marker work_ref latest_blocker reason %q", c.WorkRef.LatestBlocker.Reason)
@@ -479,6 +495,9 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 	}
 	if c.OccurredAt == "" {
 		return fmt.Errorf("issue-scan source-marker occurred_at is required")
+	}
+	if _, err := time.Parse(time.RFC3339, c.OccurredAt); err != nil {
+		return fmt.Errorf("issue-scan source-marker occurred_at must be RFC3339: %w", err)
 	}
 	if c.IdempotencyKey == "" {
 		return fmt.Errorf("issue-scan source-marker idempotency_key is required")
@@ -499,12 +518,22 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 		if c.GitHubMarker.System != "github" {
 			return fmt.Errorf("issue-scan source-marker github marker system must be github")
 		}
+		if c.GitHubMarker.Repository != c.Target.Repo || c.GitHubMarker.IssueNumber != c.Target.Number {
+			return fmt.Errorf("issue-scan source-marker github marker target mismatch")
+		}
 		if !c.GitHubMarker.DerivedOutput || !c.GitHubMarker.ProjectionSink {
 			return fmt.Errorf("issue-scan source-marker github marker must be a derived projection sink")
 		}
 	}
-	if c.Transition == IssueScanSourceMarkerSuperseded && c.SupersededBy == "" && c.WorkRef.SupersededBy == "" {
-		return fmt.Errorf("issue-scan source-marker superseded transition requires superseded_by")
+	if c.Transition == IssueScanSourceMarkerSuperseded {
+		if c.SupersededBy == "" {
+			return fmt.Errorf("issue-scan source-marker superseded transition requires top-level superseded_by")
+		}
+		if c.WorkRef.SupersededBy != "" && c.WorkRef.SupersededBy != c.SupersededBy {
+			return fmt.Errorf("issue-scan source-marker work_ref superseded_by mismatch")
+		}
+	} else if c.SupersededBy != "" || c.WorkRef.SupersededBy != "" {
+		return fmt.Errorf("issue-scan source-marker superseded_by is only valid for superseded transitions")
 	}
 	if c.StaleTarget && c.Transition != IssueScanSourceMarkerParkedHumanAction && c.Transition != IssueScanSourceMarkerSuperseded {
 		return fmt.Errorf("issue-scan source-marker stale targets must park or supersede")
