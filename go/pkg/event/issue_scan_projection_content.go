@@ -562,6 +562,12 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 	if c.StaleTarget && c.Transition != IssueScanSourceMarkerParkedHumanAction && c.Transition != IssueScanSourceMarkerSuperseded {
 		return fmt.Errorf("issue-scan source-marker stale targets must park or supersede")
 	}
+	if c.StaleTarget && (c.WorkRef.LatestBlocker == nil || c.WorkRef.LatestBlocker.Reason != IssueScanBlockerStaleTarget) {
+		return fmt.Errorf("issue-scan source-marker stale_target requires stale_target latest_blocker")
+	}
+	if c.WorkRef.LatestBlocker != nil && c.WorkRef.LatestBlocker.Reason == IssueScanBlockerStaleTarget && !c.StaleTarget {
+		return fmt.Errorf("issue-scan source-marker stale_target blocker requires stale_target flag")
+	}
 	if err := validateIssueScanSourceMarkerLifecycleCoherence(c); err != nil {
 		return err
 	}
@@ -572,9 +578,6 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 		}
 		if c.StaleTarget && c.WorkRef.LatestBlocker.Reason != IssueScanBlockerStaleTarget {
 			return fmt.Errorf("issue-scan source-marker stale parked transition requires stale_target blocker")
-		}
-		if c.WorkRef.LatestBlocker.Reason == IssueScanBlockerStaleTarget && !c.StaleTarget {
-			return fmt.Errorf("issue-scan source-marker stale_target blocker requires stale_target flag")
 		}
 	case IssueScanSourceMarkerReadyForHuman:
 		if !c.WorkRef.Ready || c.WorkRef.Blocked {
@@ -607,8 +610,9 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 func validateIssueScanSourceMarkerLifecycleCoherence(c IssueScanSourceMarkerProjectedContent) error {
 	switch c.Transition {
 	case IssueScanSourceMarkerAcquired:
-		if c.WorkRef.LifecycleState != "created" && c.WorkRef.LifecycleState != "running" {
-			return fmt.Errorf("issue-scan source-marker acquired requires created or running work_ref lifecycle_state")
+		if c.WorkRef.LifecycleState != "created" && c.WorkRef.LifecycleState != "running" &&
+			c.WorkRef.LifecycleState != "repair_running" && c.WorkRef.LifecycleState != "verification_running" {
+			return fmt.Errorf("issue-scan source-marker acquired requires created, running, repair_running, or verification_running work_ref lifecycle_state")
 		}
 	case IssueScanSourceMarkerParkedHumanAction:
 		if !isIssueScanSourceMarkerBlockedLifecycle(c.WorkRef.LifecycleState) {
@@ -634,10 +638,19 @@ func validateIssueScanSourceMarkerLifecycleCoherence(c IssueScanSourceMarkerProj
 	if isIssueScanSourceMarkerBlockedLifecycle(c.WorkRef.LifecycleState) != c.WorkRef.Blocked {
 		return fmt.Errorf("issue-scan source-marker work_ref blocked flag does not match lifecycle_state")
 	}
-	if (c.WorkRef.LifecycleState == "ready") != c.WorkRef.Ready {
+	if isIssueScanSourceMarkerReadyLifecycle(c.WorkRef.LifecycleState) != c.WorkRef.Ready {
 		return fmt.Errorf("issue-scan source-marker work_ref ready flag does not match lifecycle_state")
 	}
 	return nil
+}
+
+func isIssueScanSourceMarkerReadyLifecycle(state string) bool {
+	switch state {
+	case "ready", "verified", "repaired":
+		return true
+	default:
+		return false
+	}
 }
 
 func isIssueScanSourceMarkerBlockedLifecycle(state string) bool {

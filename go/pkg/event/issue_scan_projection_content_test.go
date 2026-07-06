@@ -176,6 +176,52 @@ func TestIssueScanSourceMarkerProjectionTransitions(t *testing.T) {
 	}
 }
 
+func TestIssueScanSourceMarkerProjectionLifecycleVariants(t *testing.T) {
+	readyStates := []string{"ready", "verified", "repaired"}
+	for _, state := range readyStates {
+		t.Run("ready_for_human_"+state, func(t *testing.T) {
+			content := sourceMarkerProjectionFixture(IssueScanSourceMarkerReadyForHuman)
+			content.WorkRef.Ready = true
+			content.WorkRef.LifecycleState = state
+			if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err != nil {
+				t.Fatalf("Validate ready_for_human/%s: %v", state, err)
+			}
+		})
+	}
+
+	acquiredStates := []string{"created", "running", "repair_running", "verification_running"}
+	for _, state := range acquiredStates {
+		t.Run("acquired_"+state, func(t *testing.T) {
+			content := sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+			content.WorkRef.LifecycleState = state
+			if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err != nil {
+				t.Fatalf("Validate acquired/%s: %v", state, err)
+			}
+		})
+	}
+
+	parkedStates := []struct {
+		state  string
+		reason IssueScanBlockerType
+	}{
+		{state: "blocked", reason: IssueScanBlockerNeedsHumanScope},
+		{state: "policy_blocked", reason: IssueScanBlockerProtectedAction},
+		{state: "failed", reason: IssueScanBlockerDuplicateChain},
+		{state: "repair_required", reason: IssueScanBlockerMissingGateEvidence},
+	}
+	for _, tc := range parkedStates {
+		t.Run("parked_"+tc.state, func(t *testing.T) {
+			content := sourceMarkerProjectionFixture(IssueScanSourceMarkerParkedHumanAction)
+			content.WorkRef.Blocked = true
+			content.WorkRef.LifecycleState = tc.state
+			content.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: tc.reason}
+			if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err != nil {
+				t.Fatalf("Validate parked/%s: %v", tc.state, err)
+			}
+		})
+	}
+}
+
 func TestIssueScanSourceMarkerProjectionRejectsCanonicalGitHubMarkers(t *testing.T) {
 	content := sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
 	content.GitHubMarker.DerivedOutput = false
@@ -496,6 +542,23 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 				c.WorkRef.Blocked = true
 				c.WorkRef.LifecycleState = "blocked"
 				c.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: IssueScanBlockerStaleTarget}
+			},
+		},
+		{
+			name: "unblocked stale blocker without stale flag",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: IssueScanBlockerStaleTarget}
+			},
+		},
+		{
+			name: "superseded stale target with non-stale blocker",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerSuperseded
+				c.SupersededBy = "task:successor"
+				c.StaleTarget = true
+				c.WorkRef.LifecycleState = "superseded"
+				c.WorkRef.SupersededBy = "task:successor"
+				c.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{Reason: IssueScanBlockerNeedsHumanScope}
 			},
 		},
 		{

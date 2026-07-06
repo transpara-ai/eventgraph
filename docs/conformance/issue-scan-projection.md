@@ -35,10 +35,12 @@ Kanban and monitor consumers should render from these typed fields:
   `duplicate_task_ids`, `duplicate_of`, and `superseded_task_ids` from
   `issuescan.lineage.projected`.
 - Source-marker views use `transition`, `work_ref`, `actor_id`, `actor_role`,
-  `run_id`, `target`, `stage_id`, `stage_number`, `occurred_at`,
-  `idempotency_key`, `authority_boundary`, `authority_exclusions`,
-  `evidence_refs`, `github_marker`, `canonical_source`, and `projection_only`
-  from `issuescan.source.marker.projected`.
+  `schema_version`, `projection_kind`, `run_id`, `target`, `stage_id`,
+  `stage_number`, `gate`, `occurred_at`, `idempotency_key`,
+  `authority_boundary`, `authority_exclusions`, `evidence_refs`,
+  `source_refs`, `github_marker`, `canonical_source`, `projection_only`,
+  `superseded_by`, and `stale_target` from
+  `issuescan.source.marker.projected`.
 
 Consumers must treat `blocked`, `parked`, `human_action`, `ready_for_human`,
 `superseded`, and `projection_only` as terminal or non-running dashboard states
@@ -86,8 +88,9 @@ value allocation, autonomy increase, Test 001 GREEN, merge, issue closure, or
 wiki work.
 
 Source-marker transitions must remain coherent with the embedded Work ref:
-`acquired` requires `created` or `running`, `parked_human_action` requires a
-blocked Work ref with `latest_blocker` and a blocked lifecycle state,
+`acquired` requires `created`, `running`, `repair_running`, or
+`verification_running`, `parked_human_action` requires a blocked Work ref with
+`latest_blocker` and a blocked lifecycle state,
 `ready_for_human` requires a ready, unblocked Work ref with `ready`, `verified`,
 or `repaired` lifecycle state, `completed` requires a certified, unblocked Work
 ref with no missing gates/facts and the matching latest gate, `abandoned`
