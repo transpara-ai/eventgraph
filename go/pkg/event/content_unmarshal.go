@@ -185,10 +185,11 @@ func init() {
 		"refinery.state.transitioned": unmarshal[RefineryStateTransitionedContent],
 
 		// Issue-scan projections
-		"issuescan.run.projected":     unmarshal[IssueScanRunProjectedContent],
-		"issuescan.stage.projected":   unmarshal[IssueScanStageProjectedContent],
-		"issuescan.blocker.projected": unmarshal[IssueScanBlockerProjectedContent],
-		"issuescan.lineage.projected": unmarshal[IssueScanLineageProjectedContent],
+		"issuescan.run.projected":           unmarshal[IssueScanRunProjectedContent],
+		"issuescan.stage.projected":         unmarshal[IssueScanStageProjectedContent],
+		"issuescan.blocker.projected":       unmarshal[IssueScanBlockerProjectedContent],
+		"issuescan.lineage.projected":       unmarshal[IssueScanLineageProjectedContent],
+		"issuescan.source.marker.projected": unmarshal[IssueScanSourceMarkerProjectedContent],
 
 		// Native evidence records
 		"evidence.testrun.recorded":     unmarshal[NativeTestRunRecordedContent],

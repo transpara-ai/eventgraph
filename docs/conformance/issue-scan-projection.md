@@ -13,6 +13,7 @@ and lineage state durable without authorizing Hive runtime work.
 | `issuescan.stage.projected` | Current state for one canonical lifecycle stage, including gate, authority boundary, and agent assignment/touch data. |
 | `issuescan.blocker.projected` | Structured blocker reason and required human or system action. |
 | `issuescan.lineage.projected` | Canonical task lineage, primary task, duplicates, and superseded task IDs. |
+| `issuescan.source.marker.projected` | Work/EventGraph source-marker projection state for the derived GitHub source issue marker. |
 
 The `issuescan` prefix is intentionally unseparated. It is the valid EventGraph
 event-type token for the issue-scan domain.
@@ -33,11 +34,50 @@ Kanban and monitor consumers should render from these typed fields:
 - Duplicate-chain views use `canonical_task_id`, `primary_task_id`, `task_ids`,
   `duplicate_task_ids`, `duplicate_of`, and `superseded_task_ids` from
   `issuescan.lineage.projected`.
+- Source-marker views use `transition`, `work_ref`, `actor_id`, `actor_role`,
+  `occurred_at`, `idempotency_key`, `authority_boundary`,
+  `authority_exclusions`, `evidence_refs`, `github_marker`,
+  `canonical_source`, and `projection_only` from
+  `issuescan.source.marker.projected`.
 
 Consumers must treat `blocked`, `parked`, `human_action`, `ready_for_human`,
 `superseded`, and `projection_only` as terminal or non-running dashboard states
 unless a later projection event changes the state. A monitor or dashboard must
 not wake Hive runtime work from these projection events.
+
+## Source-Issue Marker Boundary
+
+`issuescan.source.marker.projected` is the EventGraph side of the
+`work.issue_scan.source_marker_ref` contract. It records the projection state
+for the compact marker that Hive may later write to a source GitHub issue and
+that Site may render as operator evidence.
+
+The valid source-marker transitions are:
+
+| Transition | Meaning |
+|---|---|
+| `acquired` | A Work issue-scan stage acquired a source issue and emitted canonical refs. |
+| `parked_human_action` | The marker is parked because human scope, protected-action, stale-target, or gate evidence is required. |
+| `ready_for_human` | The Work/EventGraph projection is ready for human review without granting merge or mutation authority. |
+| `completed` | The Work-local source-marker stage completed. |
+| `abandoned` | The source-marker path was intentionally abandoned without making GitHub canonical. |
+| `superseded` | A newer Work task/projection replaces this marker state. |
+
+The `work_ref` field mirrors the Work-owned
+`work.issue_scan.source_marker_ref` packet. EventGraph validates that the
+projection run, target, and stage match the Work ref, that the Work ref is
+`projection_only`, and that the Work ref declares `canonical_source: "work"`.
+
+The `github_marker` field is an output reference only. When `system` is
+`github`, it must be marked with `derived_output: true` and
+`projection_sink: true`. Consumers must not parse GitHub marker comments or
+labels back into canonical Work or EventGraph truth.
+
+Source-marker projections carry `authority_boundary` and
+`authority_exclusions` explicitly. This conformance contract does not authorize
+production EventGraph writes, Hive action APIs, live GitHub mutation, deploy,
+value allocation, autonomy increase, Test 001 GREEN, merge, issue closure, or
+wiki work.
 
 ## Language Coverage
 
@@ -57,4 +97,6 @@ show:
 - no running workers for parked, blocked, stale, or human-scope runs,
 - explicit `duplicate_chain`, `needs_human_scope`, `protected_action`, or
   `stale_target` blockers when those conditions are present,
-- a clear `required_action` string for the human or upstream repair step.
+- a clear `required_action` string for the human or upstream repair step,
+- source-marker projections for acquired, parked/human-action,
+  ready-for-human, completed, abandoned, and superseded marker states.

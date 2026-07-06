@@ -120,6 +120,41 @@ func (t *IssueScanBlockerType) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+type IssueScanSourceMarkerTransition string
+
+const (
+	IssueScanSourceMarkerAcquired          IssueScanSourceMarkerTransition = "acquired"
+	IssueScanSourceMarkerParkedHumanAction IssueScanSourceMarkerTransition = "parked_human_action"
+	IssueScanSourceMarkerReadyForHuman     IssueScanSourceMarkerTransition = "ready_for_human"
+	IssueScanSourceMarkerCompleted         IssueScanSourceMarkerTransition = "completed"
+	IssueScanSourceMarkerAbandoned         IssueScanSourceMarkerTransition = "abandoned"
+	IssueScanSourceMarkerSuperseded        IssueScanSourceMarkerTransition = "superseded"
+)
+
+func (t IssueScanSourceMarkerTransition) IsValid() bool {
+	switch t {
+	case IssueScanSourceMarkerAcquired, IssueScanSourceMarkerParkedHumanAction,
+		IssueScanSourceMarkerReadyForHuman, IssueScanSourceMarkerCompleted,
+		IssueScanSourceMarkerAbandoned, IssueScanSourceMarkerSuperseded:
+		return true
+	default:
+		return false
+	}
+}
+
+func (t *IssueScanSourceMarkerTransition) UnmarshalJSON(data []byte) error {
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	transition := IssueScanSourceMarkerTransition(value)
+	if !transition.IsValid() {
+		return fmt.Errorf("invalid issue-scan source-marker transition %q", value)
+	}
+	*t = transition
+	return nil
+}
+
 type IssueScanIssueRef struct {
 	Repo        string   `json:"repo"`
 	Number      int      `json:"number"`
@@ -251,6 +286,118 @@ func (c IssueScanLineageProjectedContent) EventTypeName() string {
 	return EventTypeIssueScanLineageProjected.Value()
 }
 
+type IssueScanMarkerTargetRef struct {
+	Repository  string `json:"repository"`
+	IssueNumber int    `json:"issue_number"`
+}
+
+type IssueScanMarkerBlockerRef struct {
+	Reason       IssueScanBlockerType `json:"reason"`
+	Detail       string               `json:"detail,omitempty"`
+	EvidenceRefs []string             `json:"evidence_refs,omitempty"`
+}
+
+type IssueScanMarkerGateRef struct {
+	Gate         string   `json:"gate"`
+	EvidenceRefs []string `json:"evidence_refs,omitempty"`
+}
+
+type IssueScanMarkerEvidenceRefs struct {
+	TestCaseIDs      []string `json:"test_case_ids,omitempty"`
+	TestRunIDs       []string `json:"test_run_ids,omitempty"`
+	GateResultIDs    []string `json:"gate_result_ids,omitempty"`
+	FailureIDs       []string `json:"failure_ids,omitempty"`
+	RepairAttemptIDs []string `json:"repair_attempt_ids,omitempty"`
+	WaiverIDs        []string `json:"waiver_ids,omitempty"`
+}
+
+type IssueScanMarkerWorkRef struct {
+	SchemaVersion          string                      `json:"schema_version"`
+	ProjectionKind         string                      `json:"projection_kind"`
+	CanonicalSource        string                      `json:"canonical_source"`
+	ProjectionOnly         bool                        `json:"projection_only"`
+	RunID                  string                      `json:"run_id"`
+	Target                 IssueScanMarkerTargetRef    `json:"target"`
+	Stage                  string                      `json:"stage"`
+	StageNumber            int                         `json:"stage_number"`
+	Gate                   string                      `json:"gate"`
+	TaskID                 string                      `json:"task_id"`
+	CanonicalTaskID        string                      `json:"canonical_task_id"`
+	FactoryOrderID         string                      `json:"factory_order_id"`
+	RequirementIDs         []string                    `json:"requirement_ids,omitempty"`
+	AcceptanceCriterionIDs []string                    `json:"acceptance_criterion_ids,omitempty"`
+	LifecycleState         string                      `json:"lifecycle_state"`
+	Ready                  bool                        `json:"ready"`
+	Blocked                bool                        `json:"blocked"`
+	MissingGates           []string                    `json:"missing_gates,omitempty"`
+	MissingFacts           []string                    `json:"missing_facts,omitempty"`
+	SupersededBy           string                      `json:"superseded_by,omitempty"`
+	LastTransitionEvent    string                      `json:"last_transition_event,omitempty"`
+	LatestBlocker          *IssueScanMarkerBlockerRef  `json:"latest_blocker,omitempty"`
+	LatestGate             *IssueScanMarkerGateRef     `json:"latest_gate,omitempty"`
+	VerificationRefs       IssueScanMarkerEvidenceRefs `json:"verification_refs"`
+	FailureRepairRefs      IssueScanMarkerEvidenceRefs `json:"failure_repair_refs"`
+	SourceIssueRefs        []string                    `json:"source_issue_refs,omitempty"`
+	AuthorityExclusions    []string                    `json:"authority_exclusions"`
+}
+
+type IssueScanSourceMarkerOutputRef struct {
+	System         string   `json:"system"`
+	Repository     string   `json:"repository,omitempty"`
+	IssueNumber    int      `json:"issue_number,omitempty"`
+	CommentID      string   `json:"comment_id,omitempty"`
+	CommentURL     string   `json:"comment_url,omitempty"`
+	LabelNames     []string `json:"label_names,omitempty"`
+	DerivedOutput  bool     `json:"derived_output"`
+	ProjectionSink bool     `json:"projection_sink"`
+}
+
+type IssueScanSourceMarkerProjectedContent struct {
+	issueScanProjectionContent
+	SchemaVersion       string                          `json:"schema_version"`
+	ProjectionKind      string                          `json:"projection_kind"`
+	Transition          IssueScanSourceMarkerTransition `json:"transition"`
+	RunID               string                          `json:"run_id"`
+	Target              IssueScanIssueRef               `json:"target"`
+	StageID             string                          `json:"stage_id"`
+	StageNumber         int                             `json:"stage_number"`
+	Gate                string                          `json:"gate,omitempty"`
+	WorkRef             IssueScanMarkerWorkRef          `json:"work_ref"`
+	ActorID             string                          `json:"actor_id"`
+	ActorRole           string                          `json:"actor_role"`
+	OccurredAt          string                          `json:"occurred_at"`
+	IdempotencyKey      string                          `json:"idempotency_key"`
+	AuthorityBoundary   string                          `json:"authority_boundary"`
+	AuthorityExclusions []string                        `json:"authority_exclusions"`
+	EvidenceRefs        IssueScanMarkerEvidenceRefs     `json:"evidence_refs"`
+	SourceRefs          []string                        `json:"source_refs,omitempty"`
+	GitHubMarker        IssueScanSourceMarkerOutputRef  `json:"github_marker,omitempty"`
+	CanonicalSource     string                          `json:"canonical_source"`
+	ProjectionOnly      bool                            `json:"projection_only"`
+	SupersededBy        string                          `json:"superseded_by,omitempty"`
+	StaleTarget         bool                            `json:"stale_target,omitempty"`
+}
+
+func (c *IssueScanSourceMarkerProjectedContent) UnmarshalJSON(data []byte) error {
+	if err := requireIssueScanProjectionJSONField(data, "transition"); err != nil {
+		return err
+	}
+	type alias IssueScanSourceMarkerProjectedContent
+	var out alias
+	if err := json.Unmarshal(data, &out); err != nil {
+		return err
+	}
+	if err := validateIssueScanSourceMarkerProjection(IssueScanSourceMarkerProjectedContent(out)); err != nil {
+		return err
+	}
+	*c = IssueScanSourceMarkerProjectedContent(out)
+	return nil
+}
+
+func (c IssueScanSourceMarkerProjectedContent) EventTypeName() string {
+	return EventTypeIssueScanSourceMarkerProjected.Value()
+}
+
 func validateIssueScanProjectionContent(content EventContent) error {
 	switch c := content.(type) {
 	case IssueScanRunProjectedContent:
@@ -267,8 +414,71 @@ func validateIssueScanProjectionContent(content EventContent) error {
 		}
 	case IssueScanLineageProjectedContent:
 		return nil
+	case IssueScanSourceMarkerProjectedContent:
+		return validateIssueScanSourceMarkerProjection(c)
 	default:
 		return fmt.Errorf("unexpected issue-scan projection content %T", content)
+	}
+	return nil
+}
+
+func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedContent) error {
+	if !c.Transition.IsValid() {
+		return fmt.Errorf("invalid issue-scan source-marker transition %q", c.Transition)
+	}
+	if c.RunID == "" {
+		return fmt.Errorf("issue-scan source-marker run_id is required")
+	}
+	if c.Target.Repo == "" || c.Target.Number <= 0 {
+		return fmt.Errorf("issue-scan source-marker target repo and number are required")
+	}
+	if c.StageID == "" {
+		return fmt.Errorf("issue-scan source-marker stage_id is required")
+	}
+	if c.WorkRef.ProjectionKind != "work.issue_scan.source_marker_ref" {
+		return fmt.Errorf("issue-scan source-marker work_ref projection_kind must be work.issue_scan.source_marker_ref")
+	}
+	if c.WorkRef.CanonicalSource != "work" {
+		return fmt.Errorf("issue-scan source-marker work_ref canonical_source must be work")
+	}
+	if !c.WorkRef.ProjectionOnly {
+		return fmt.Errorf("issue-scan source-marker work_ref must be projection_only")
+	}
+	if c.WorkRef.RunID != c.RunID {
+		return fmt.Errorf("issue-scan source-marker work_ref run_id mismatch")
+	}
+	if c.WorkRef.Target.Repository != c.Target.Repo || c.WorkRef.Target.IssueNumber != c.Target.Number {
+		return fmt.Errorf("issue-scan source-marker work_ref target mismatch")
+	}
+	if c.WorkRef.Stage != c.StageID {
+		return fmt.Errorf("issue-scan source-marker work_ref stage mismatch")
+	}
+	if c.ActorRole == "" {
+		return fmt.Errorf("issue-scan source-marker actor_role is required")
+	}
+	if c.OccurredAt == "" {
+		return fmt.Errorf("issue-scan source-marker occurred_at is required")
+	}
+	if c.IdempotencyKey == "" {
+		return fmt.Errorf("issue-scan source-marker idempotency_key is required")
+	}
+	if c.AuthorityBoundary == "" {
+		return fmt.Errorf("issue-scan source-marker authority_boundary is required")
+	}
+	if c.CanonicalSource != "work_eventgraph_projection" {
+		return fmt.Errorf("issue-scan source-marker canonical_source must be work_eventgraph_projection")
+	}
+	if !c.ProjectionOnly {
+		return fmt.Errorf("issue-scan source-marker projection_only must be true")
+	}
+	if c.GitHubMarker.System == "github" && (!c.GitHubMarker.DerivedOutput || !c.GitHubMarker.ProjectionSink) {
+		return fmt.Errorf("issue-scan source-marker github marker must be a derived projection sink")
+	}
+	if c.Transition == IssueScanSourceMarkerSuperseded && c.SupersededBy == "" && c.WorkRef.SupersededBy == "" {
+		return fmt.Errorf("issue-scan source-marker superseded transition requires superseded_by")
+	}
+	if c.StaleTarget && c.Transition != IssueScanSourceMarkerParkedHumanAction && c.Transition != IssueScanSourceMarkerSuperseded {
+		return fmt.Errorf("issue-scan source-marker stale targets must park or supersede")
 	}
 	return nil
 }

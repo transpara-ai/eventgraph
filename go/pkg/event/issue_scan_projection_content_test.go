@@ -11,8 +11,8 @@ import (
 func TestIssueScanProjectionEventTypesRegistered(t *testing.T) {
 	registry := DefaultRegistry()
 	all := AllIssueScanProjectionEventTypes()
-	if len(all) != 4 {
-		t.Fatalf("AllIssueScanProjectionEventTypes returned %d types, want 4", len(all))
+	if len(all) != 5 {
+		t.Fatalf("AllIssueScanProjectionEventTypes returned %d types, want 5", len(all))
 	}
 	for _, eventType := range all {
 		if !registry.IsRegistered(eventType) {
@@ -90,6 +90,11 @@ func TestIssueScanProjectionContentRoundTrip(t *testing.T) {
 				DuplicateOf:      "019c0000-0000-7000-8000-000000000172",
 			},
 		},
+		{
+			name:      "source marker",
+			eventType: EventTypeIssueScanSourceMarkerProjected.Value(),
+			content:   sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired),
+		},
 	}
 
 	for _, tc := range cases {
@@ -107,6 +112,112 @@ func TestIssueScanProjectionContentRoundTrip(t *testing.T) {
 			}
 			if got.EventTypeName() != tc.eventType {
 				t.Fatalf("EventTypeName = %q, want %q", got.EventTypeName(), tc.eventType)
+			}
+		})
+	}
+}
+
+func TestIssueScanSourceMarkerProjectionTransitions(t *testing.T) {
+	transitions := []IssueScanSourceMarkerTransition{
+		IssueScanSourceMarkerAcquired,
+		IssueScanSourceMarkerParkedHumanAction,
+		IssueScanSourceMarkerReadyForHuman,
+		IssueScanSourceMarkerCompleted,
+		IssueScanSourceMarkerAbandoned,
+		IssueScanSourceMarkerSuperseded,
+	}
+
+	for _, transition := range transitions {
+		t.Run(string(transition), func(t *testing.T) {
+			content := sourceMarkerProjectionFixture(transition)
+			if transition == IssueScanSourceMarkerParkedHumanAction {
+				content.StaleTarget = true
+				content.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{
+					Reason:       IssueScanBlockerStaleTarget,
+					Detail:       "source issue was closed after acquisition",
+					EvidenceRefs: []string{"github:transpara-ai/docs#256"},
+				}
+			}
+			if transition == IssueScanSourceMarkerSuperseded {
+				content.SupersededBy = "task:successor"
+				content.WorkRef.SupersededBy = "task:successor"
+			}
+			data, err := json.Marshal(content)
+			if err != nil {
+				t.Fatalf("Marshal: %v", err)
+			}
+			got, err := UnmarshalContent(EventTypeIssueScanSourceMarkerProjected.Value(), data)
+			if err != nil {
+				t.Fatalf("UnmarshalContent: %v", err)
+			}
+			if !reflect.DeepEqual(got, content) {
+				t.Fatalf("round trip mismatch\n got: %#v\nwant: %#v", got, content)
+			}
+			if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err != nil {
+				t.Fatalf("Validate: %v", err)
+			}
+		})
+	}
+}
+
+func TestIssueScanSourceMarkerProjectionRejectsCanonicalGitHubMarkers(t *testing.T) {
+	content := sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+	content.GitHubMarker.DerivedOutput = false
+	if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err == nil {
+		t.Fatal("registry accepted a GitHub marker that was not a derived output")
+	}
+
+	content = sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+	content.GitHubMarker.ProjectionSink = false
+	if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err == nil {
+		t.Fatal("registry accepted a GitHub marker that was not a projection sink")
+	}
+}
+
+func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
+	cases := []struct {
+		name string
+		edit func(*IssueScanSourceMarkerProjectedContent)
+	}{
+		{
+			name: "invalid transition",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerTransition("parsed_from_github_comment")
+			},
+		},
+		{
+			name: "target mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.Target.IssueNumber = 999
+			},
+		},
+		{
+			name: "stage mismatch",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.Stage = "github_comment_body"
+			},
+		},
+		{
+			name: "superseded without successor",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerSuperseded
+			},
+		},
+		{
+			name: "stale target advanced",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerCompleted
+				c.StaleTarget = true
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			content := sourceMarkerProjectionFixture(IssueScanSourceMarkerAcquired)
+			tc.edit(&content)
+			if err := DefaultRegistry().Validate(EventTypeIssueScanSourceMarkerProjected, content); err == nil {
+				t.Fatalf("registry accepted invalid source marker projection: %+v", content)
 			}
 		})
 	}
@@ -268,5 +379,75 @@ func TestIssueScanProjectionDocs172Site115FixtureHasTypedKanbanFields(t *testing
 	}
 	if len(wantBlockers) != 0 {
 		t.Fatalf("fixture missing blocker types: %+v", wantBlockers)
+	}
+}
+
+func sourceMarkerProjectionFixture(transition IssueScanSourceMarkerTransition) IssueScanSourceMarkerProjectedContent {
+	workRef := IssueScanMarkerWorkRef{
+		SchemaVersion:          "1",
+		ProjectionKind:         "work.issue_scan.source_marker_ref",
+		CanonicalSource:        "work",
+		ProjectionOnly:         true,
+		RunID:                  "2026-07-06-docs-256",
+		Target:                 IssueScanMarkerTargetRef{Repository: "transpara-ai/docs", IssueNumber: 256},
+		Stage:                  "research_issue_and_repo_context",
+		StageNumber:            1,
+		Gate:                   "research_packet_posted",
+		TaskID:                 "019f5000-0000-7000-8000-000000000256",
+		CanonicalTaskID:        "tsk_issue_scan_2026_07_06_docs_256_transpara_ai_docs_256_research_issue_and_repo_context_cc56864a0bb3",
+		FactoryOrderID:         "fo_issue_scan_2026_07_06_docs_256",
+		RequirementIDs:         []string{"req_issue_scan_2026_07_06_docs_256_transpara_ai_docs_256_research_issue_and_repo_context_cc56864a0bb3"},
+		AcceptanceCriterionIDs: []string{"ac_issue_scan_2026_07_06_docs_256_transpara_ai_docs_256_research_issue_and_repo_context_cc56864a0bb3"},
+		LifecycleState:         "created",
+		Ready:                  false,
+		Blocked:                false,
+		MissingGates:           []string{"definition_of_done", "acceptance_criteria", "test_plan"},
+		VerificationRefs:       IssueScanMarkerEvidenceRefs{TestCaseIDs: []string{"eventgraph:issuescan-source-marker-projection"}},
+		FailureRepairRefs:      IssueScanMarkerEvidenceRefs{},
+		SourceIssueRefs:        []string{"github:transpara-ai/docs#256"},
+		AuthorityExclusions: []string{
+			"github_issue_markers_are_projection_only",
+			"github_comments_are_not_work_lifecycle_truth",
+			"github_labels_are_not_work_lifecycle_truth",
+			"no_live_github_mutation_authority",
+			"no_eventgraph_production_write",
+			"no_hive_write_action_or_authority_api",
+			"no_deployment",
+			"no_test_001_green",
+			"no_merge_authority",
+			"no_issue_closure",
+			"no_autonomy_increase",
+			"no_value_allocation",
+		},
+	}
+	return IssueScanSourceMarkerProjectedContent{
+		SchemaVersion:       "1",
+		ProjectionKind:      "eventgraph.issue_scan.source_marker_projection",
+		Transition:          transition,
+		RunID:               workRef.RunID,
+		Target:              IssueScanIssueRef{Repo: workRef.Target.Repository, Number: workRef.Target.IssueNumber, URL: "https://github.com/transpara-ai/docs/issues/256", State: "open"},
+		StageID:             workRef.Stage,
+		StageNumber:         workRef.StageNumber,
+		Gate:                workRef.Gate,
+		WorkRef:             workRef,
+		ActorID:             "agent:eventgraph-projection",
+		ActorRole:           "projection_recorder",
+		OccurredAt:          "2026-07-06T14:00:00Z",
+		IdempotencyKey:      "issuescan-source-marker:2026-07-06-docs-256:research_issue_and_repo_context:" + string(transition),
+		AuthorityBoundary:   "projection only; no production EventGraph write or GitHub mutation",
+		AuthorityExclusions: append([]string(nil), workRef.AuthorityExclusions...),
+		EvidenceRefs:        IssueScanMarkerEvidenceRefs{TestCaseIDs: []string{"eventgraph:issuescan-source-marker-projection"}},
+		SourceRefs:          []string{"work:fo_issue_scan_2026_07_06_docs_256", "github:transpara-ai/docs#256"},
+		GitHubMarker: IssueScanSourceMarkerOutputRef{
+			System:         "github",
+			Repository:     "transpara-ai/docs",
+			IssueNumber:    256,
+			CommentID:      "planned-marker-comment",
+			LabelNames:     []string{"cc:civilization-presence"},
+			DerivedOutput:  true,
+			ProjectionSink: true,
+		},
+		CanonicalSource: "work_eventgraph_projection",
+		ProjectionOnly:  true,
 	}
 }
