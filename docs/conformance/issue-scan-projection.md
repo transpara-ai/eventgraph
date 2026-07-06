@@ -75,10 +75,25 @@ Consumers must not parse GitHub marker comments or labels back into canonical
 Work or EventGraph truth.
 
 Source-marker projections carry `authority_boundary` and
-`authority_exclusions` explicitly. This conformance contract does not authorize
+`authority_exclusions` explicitly. Both the projection and embedded Work ref
+must include the required exclusion tokens for GitHub projection-only status,
+comments/labels not being lifecycle truth, no live GitHub mutation authority,
+no production EventGraph write, no Hive write/action/authority API, no deploy,
+no Test 001 GREEN, no merge authority, no issue closure, no autonomy increase,
+and no value allocation. This conformance contract does not authorize
 production EventGraph writes, Hive action APIs, live GitHub mutation, deploy,
 value allocation, autonomy increase, Test 001 GREEN, merge, issue closure, or
 wiki work.
+
+Source-marker transitions must remain coherent with the embedded Work ref:
+`parked_human_action` requires a blocked Work ref with `latest_blocker`,
+`ready_for_human` requires a ready, unblocked Work ref, `completed` requires a
+certified, unblocked Work ref, and `superseded` requires top-level
+`superseded_by` plus `work_ref.lifecycle_state: "superseded"`.
+
+Unlike sibling run/stage/blocker projection events, the source-marker
+`evidence_refs` field is the structured `IssueScanMarkerEvidenceRefs` object
+that mirrors Work marker evidence buckets rather than a flat string list.
 
 ## Language Coverage
 

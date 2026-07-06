@@ -362,7 +362,7 @@ type IssueScanSourceMarkerProjectedContent struct {
 	Target              IssueScanIssueRef               `json:"target"`
 	StageID             string                          `json:"stage_id"`
 	StageNumber         int                             `json:"stage_number"`
-	Gate                string                          `json:"gate,omitempty"`
+	Gate                string                          `json:"gate"`
 	WorkRef             IssueScanMarkerWorkRef          `json:"work_ref"`
 	ActorID             string                          `json:"actor_id"`
 	ActorRole           string                          `json:"actor_role"`
@@ -484,8 +484,17 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 	if c.WorkRef.LatestBlocker != nil && !c.WorkRef.LatestBlocker.Reason.IsValid() {
 		return fmt.Errorf("invalid issue-scan source-marker work_ref latest_blocker reason %q", c.WorkRef.LatestBlocker.Reason)
 	}
+	if c.WorkRef.LatestGate != nil && c.WorkRef.LatestGate.Gate == "" {
+		return fmt.Errorf("issue-scan source-marker work_ref latest_gate gate is required")
+	}
 	if len(c.WorkRef.AuthorityExclusions) == 0 {
 		return fmt.Errorf("issue-scan source-marker work_ref authority_exclusions are required")
+	}
+	if err := requireIssueScanSourceMarkerAuthorityExclusions("work_ref", c.WorkRef.AuthorityExclusions); err != nil {
+		return err
+	}
+	if c.WorkRef.Ready && c.WorkRef.Blocked {
+		return fmt.Errorf("issue-scan source-marker work_ref cannot be both ready and blocked")
 	}
 	if c.ActorID == "" {
 		return fmt.Errorf("issue-scan source-marker actor_id is required")
@@ -507,6 +516,9 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 	}
 	if len(c.AuthorityExclusions) == 0 {
 		return fmt.Errorf("issue-scan source-marker authority_exclusions are required")
+	}
+	if err := requireIssueScanSourceMarkerAuthorityExclusions("projection", c.AuthorityExclusions); err != nil {
+		return err
 	}
 	if c.CanonicalSource != "work_eventgraph_projection" {
 		return fmt.Errorf("issue-scan source-marker canonical_source must be work_eventgraph_projection")
@@ -532,11 +544,55 @@ func validateIssueScanSourceMarkerProjection(c IssueScanSourceMarkerProjectedCon
 		if c.WorkRef.SupersededBy != "" && c.WorkRef.SupersededBy != c.SupersededBy {
 			return fmt.Errorf("issue-scan source-marker work_ref superseded_by mismatch")
 		}
+		if c.WorkRef.LifecycleState != "superseded" {
+			return fmt.Errorf("issue-scan source-marker superseded transition requires superseded work_ref lifecycle_state")
+		}
 	} else if c.SupersededBy != "" || c.WorkRef.SupersededBy != "" {
 		return fmt.Errorf("issue-scan source-marker superseded_by is only valid for superseded transitions")
 	}
 	if c.StaleTarget && c.Transition != IssueScanSourceMarkerParkedHumanAction && c.Transition != IssueScanSourceMarkerSuperseded {
 		return fmt.Errorf("issue-scan source-marker stale targets must park or supersede")
+	}
+	switch c.Transition {
+	case IssueScanSourceMarkerParkedHumanAction:
+		if !c.WorkRef.Blocked || c.WorkRef.LatestBlocker == nil {
+			return fmt.Errorf("issue-scan source-marker parked_human_action requires blocked work_ref with latest_blocker")
+		}
+	case IssueScanSourceMarkerReadyForHuman:
+		if !c.WorkRef.Ready || c.WorkRef.Blocked {
+			return fmt.Errorf("issue-scan source-marker ready_for_human requires ready, unblocked work_ref")
+		}
+	case IssueScanSourceMarkerCompleted:
+		if c.WorkRef.LifecycleState != "certified" || c.WorkRef.Blocked {
+			return fmt.Errorf("issue-scan source-marker completed requires certified, unblocked work_ref")
+		}
+	}
+	return nil
+}
+
+func requireIssueScanSourceMarkerAuthorityExclusions(scope string, got []string) error {
+	required := []string{
+		"github_issue_markers_are_projection_only",
+		"github_comments_are_not_work_lifecycle_truth",
+		"github_labels_are_not_work_lifecycle_truth",
+		"no_live_github_mutation_authority",
+		"no_eventgraph_production_write",
+		"no_hive_write_action_or_authority_api",
+		"no_deployment",
+		"no_test_001_green",
+		"no_merge_authority",
+		"no_issue_closure",
+		"no_autonomy_increase",
+		"no_value_allocation",
+	}
+	seen := make(map[string]bool, len(got))
+	for _, exclusion := range got {
+		seen[exclusion] = true
+	}
+	for _, exclusion := range required {
+		if !seen[exclusion] {
+			return fmt.Errorf("issue-scan source-marker %s authority_exclusions missing %q", scope, exclusion)
+		}
 	}
 	return nil
 }

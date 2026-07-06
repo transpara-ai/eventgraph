@@ -132,15 +132,24 @@ func TestIssueScanSourceMarkerProjectionTransitions(t *testing.T) {
 			content := sourceMarkerProjectionFixture(transition)
 			if transition == IssueScanSourceMarkerParkedHumanAction {
 				content.StaleTarget = true
+				content.WorkRef.Blocked = true
 				content.WorkRef.LatestBlocker = &IssueScanMarkerBlockerRef{
 					Reason:       IssueScanBlockerStaleTarget,
 					Detail:       "source issue was closed after acquisition",
 					EvidenceRefs: []string{"github:transpara-ai/docs#256"},
 				}
 			}
+			if transition == IssueScanSourceMarkerReadyForHuman {
+				content.WorkRef.Ready = true
+			}
+			if transition == IssueScanSourceMarkerCompleted {
+				content.WorkRef.LifecycleState = "certified"
+				content.WorkRef.LatestGate = &IssueScanMarkerGateRef{Gate: content.Gate, EvidenceRefs: []string{"eventgraph:gate"}}
+			}
 			if transition == IssueScanSourceMarkerSuperseded {
 				content.SupersededBy = "task:successor"
 				content.WorkRef.SupersededBy = "task:successor"
+				content.WorkRef.LifecycleState = "superseded"
 			}
 			data, err := json.Marshal(content)
 			if err != nil {
@@ -290,6 +299,18 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 			},
 		},
 		{
+			name: "missing required authority exclusion",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.AuthorityExclusions = []string{"none"}
+			},
+		},
+		{
+			name: "missing required work authority exclusion",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.AuthorityExclusions = []string{"none"}
+			},
+		},
+		{
 			name: "empty actor id",
 			edit: func(c *IssueScanSourceMarkerProjectedContent) {
 				c.ActorID = ""
@@ -320,6 +341,19 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 			},
 		},
 		{
+			name: "empty latest gate",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.LatestGate = &IssueScanMarkerGateRef{}
+			},
+		},
+		{
+			name: "ready and blocked",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.WorkRef.Ready = true
+				c.WorkRef.Blocked = true
+			},
+		},
+		{
 			name: "superseded without successor",
 			edit: func(c *IssueScanSourceMarkerProjectedContent) {
 				c.Transition = IssueScanSourceMarkerSuperseded
@@ -337,6 +371,33 @@ func TestIssueScanSourceMarkerProjectionRejectsMismatchedWorkRef(t *testing.T) {
 				c.Transition = IssueScanSourceMarkerSuperseded
 				c.SupersededBy = "task:successor"
 				c.WorkRef.SupersededBy = "task:other"
+				c.WorkRef.LifecycleState = "superseded"
+			},
+		},
+		{
+			name: "superseded without superseded lifecycle",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerSuperseded
+				c.SupersededBy = "task:successor"
+				c.WorkRef.SupersededBy = "task:successor"
+			},
+		},
+		{
+			name: "parked without blocker",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerParkedHumanAction
+			},
+		},
+		{
+			name: "ready for human while not ready",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerReadyForHuman
+			},
+		},
+		{
+			name: "completed while not certified",
+			edit: func(c *IssueScanSourceMarkerProjectedContent) {
+				c.Transition = IssueScanSourceMarkerCompleted
 			},
 		},
 		{
