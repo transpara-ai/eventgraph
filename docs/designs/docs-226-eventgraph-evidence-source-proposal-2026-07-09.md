@@ -29,13 +29,16 @@ production go-live, value allocation, autonomy increase, or wiki work.
 | `docs#226` issuecomment-4922119091 | Human AuthorityDecision approving one future, separately reviewed EventGraph evidence-source child proposal packet; authored by `MichaelSaucier`, created and last updated at `2026-07-09T06:15:50Z`, body hash `sha256:e2f7c968c1efe5f18fa30b87cb933f50af165a2d82f41c8a06dd1d3dcbfd1517`. |
 | `docs#226` issuecomment-4922122423 | Successor handoff naming `transpara-ai/eventgraph#79` as the child tracker; authored by `MichaelSaucier`, created and last updated at `2026-07-09T06:16:26Z`, body hash `sha256:3a49590ca2615457fa1d9a61e0dd04f4747556d9a9d22bb6b80b06ca87016552`. |
 | `docs#226` issuecomment-4922462961 | Closure receipt for `docs#226`; remaining proposal/design work is owned by `eventgraph#79`; authored by `MichaelSaucier`, created and last updated at `2026-07-09T06:58:53Z`, body hash `sha256:2d4c7799b9ac35a2925350023bfd01de6fcf4131c80a109804a8a9c31ea277e8`. |
-| `operation#61` | Merged proposal-only authority-path packet; reviewed head `1b06968dfcfb518d4022ca15d5fe9833ce490992`. |
+| `operation#61` | Merged proposal-only authority-path packet; reviewed head `1b06968dfcfb518d4022ca15d5fe9833ce490992`, merge commit `ea739d82494ab09df2d02378e0b53b00b4ba30fb`. |
 | `operation#62` | Merged EventGraph evidence-source AuthorityRequest packet; reviewed head `9d99accb0c2a7f916b4888d5d12b01192c3aa57b`, merge commit `28b48c429bb9c07346ccebce7d1272de5c24c8de`. |
 | `operation#26` | Open Test 001 YELLOW/live-evidence tracker; no closure or GREEN state is authorized here. |
 | `operation#45` | Closed MVP private/firewalled proof tracker; no disposition change is authorized here. |
 
 The GitHub issue comments above are source records. This reviewed packet is the
 canonical EventGraph-side proposal-shape record for the field and audit shape.
+`operation#61` and `operation#62` are authority-routing and AuthorityRequest
+source records; neither consumed the one child-proposal slot authorized by
+`docs#226` issuecomment-4922119091.
 
 ## 3. Authority Boundary
 
@@ -46,8 +49,10 @@ Authorize one future, separately reviewed EventGraph evidence-source child
 proposal packet.
 ```
 
-This packet consumes that one authorized child-proposal slot for `eventgraph#79`
-and satisfies that proposal/design lane only. Any downstream EventGraph
+On merge, this packet consumes that one authorized child-proposal slot for
+`eventgraph#79` and satisfies that proposal/design lane only. If this PR is
+closed unmerged, the slot remains unconsumed until a successor `eventgraph#79`
+proposal packet is separately reviewed. Any downstream EventGraph
 evidence-source proposal, implementation, live evidence collection, or closure
 claim requires a fresh AuthorityRequest and human AuthorityDecision. This packet
 authorizes no later action by implication.
