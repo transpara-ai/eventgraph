@@ -25,7 +25,7 @@ production go-live, value allocation, autonomy increase, or wiki work.
 | Record | Role |
 | --- | --- |
 | `transpara-ai/docs#226` | Closed authority-routing tracker for the EventGraph/runtime operation path. |
-| `docs#226` issuecomment-4921675575 | Source-of-intent for the proposal-only EventGraph evidence-source AuthorityRequest lane. |
+| `docs#226` issuecomment-4921675575 | Source-of-intent for the proposal-only EventGraph evidence-source AuthorityRequest lane; authored by `MichaelSaucier`, created and last updated at `2026-07-09T04:51:18Z`, body hash `sha256:4838e29a69d2a0ace9e597d7dbe9fbf547a20d77e56cd7115954f3b399098d92`. |
 | `docs#226` issuecomment-4922119091 | Human AuthorityDecision approving one future, separately reviewed EventGraph evidence-source child proposal packet. |
 | `docs#226` issuecomment-4922122423 | Successor handoff naming `transpara-ai/eventgraph#79` as the child tracker. |
 | `docs#226` issuecomment-4922462961 | Closure receipt for `docs#226`; remaining proposal/design work is owned by `eventgraph#79`. |
@@ -34,7 +34,7 @@ production go-live, value allocation, autonomy increase, or wiki work.
 | `operation#26` | Open Test 001 YELLOW/live-evidence tracker; no closure or GREEN state is authorized here. |
 
 The GitHub issue comments above are source records. This reviewed packet is the
-canonical EventGraph-side proposal record for the field and audit shape.
+canonical EventGraph-side proposal-shape record for the field and audit shape.
 
 ## 3. Authority Boundary
 
@@ -242,6 +242,9 @@ Minimum validation for a proposal/design-only PR:
 - run the read-only change-control aggregation scan;
 - run `make verify` when feasible, or the narrow validation target justified by
   touched files;
+- when validating from a linked worktree where Go VCS stamping cannot read VCS
+  status, rerun the same validation as `GOFLAGS=-buildvcs=false make verify`
+  and record the original failure and workaround in PR evidence;
 - run CFADA because the packet records authority and evidence boundaries;
 - run draft-state CFAR;
 - after ready transition, run ready-state exact-head CFAR;
