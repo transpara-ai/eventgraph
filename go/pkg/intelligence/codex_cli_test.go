@@ -1,7 +1,17 @@
 package intelligence
 
 import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -96,4 +106,144 @@ func TestNewCodexCliProvider_CustomModel(t *testing.T) {
 		t.Skipf("codex not in PATH: %v", err)
 	}
 	assert.Equal(t, "o4-mini", p.Model())
+}
+
+func TestCodexReasonUsesReadOnlyIsolatedInvocation(t *testing.T) {
+	tmp := t.TempDir()
+	argsFile := filepath.Join(tmp, "args")
+	envFile := filepath.Join(tmp, "env")
+	fakeCodex := filepath.Join(tmp, "codex")
+	script := `#!/bin/sh
+root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+printf '%s\n' "$@" > "$root/args"
+{
+  printf 'GH_TOKEN=%s\n' "${GH_TOKEN-}"
+  printf 'GITHUB_TOKEN=%s\n' "${GITHUB_TOKEN-}"
+  printf 'GH_ENTERPRISE_TOKEN=%s\n' "${GH_ENTERPRISE_TOKEN-}"
+  printf 'GHE_TOKEN=%s\n' "${GHE_TOKEN-}"
+  printf 'SSH_AUTH_SOCK=%s\n' "${SSH_AUTH_SOCK-}"
+  printf 'SSH_AGENT_PID=%s\n' "${SSH_AGENT_PID-}"
+  printf 'CLAUDECODE=%s\n' "${CLAUDECODE-}"
+  printf 'AWS_ACCESS_KEY_ID=%s\n' "${AWS_ACCESS_KEY_ID-}"
+  printf 'AWS_SECRET_ACCESS_KEY=%s\n' "${AWS_SECRET_ACCESS_KEY-}"
+  printf 'HTTPS_PROXY=%s\n' "${HTTPS_PROXY-}"
+  printf 'GH_CONFIG_DIR=%s\n' "${GH_CONFIG_DIR-}"
+  if [ -d "${GH_CONFIG_DIR-}" ] && [ -z "$(ls -A "${GH_CONFIG_DIR-}")" ]; then
+    printf 'GH_CONFIG_EMPTY=yes\n'
+  else
+    printf 'GH_CONFIG_EMPTY=no\n'
+  fi
+  printf 'GIT_CONFIG_GLOBAL=%s\n' "${GIT_CONFIG_GLOBAL-}"
+  printf 'GIT_CONFIG_NOSYSTEM=%s\n' "${GIT_CONFIG_NOSYSTEM-}"
+  printf 'HOME=%s\n' "${HOME-}"
+  printf 'TMPDIR=%s\n' "${TMPDIR-}"
+  printf 'CODEX_HOME=%s\n' "${CODEX_HOME-}"
+} > "$root/env"
+printf '%s\n' '{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"read-only decision"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_tokens":3}}'
+`
+	require.NoError(t, os.WriteFile(fakeCodex, []byte(script), 0o700))
+	t.Setenv("GH_TOKEN", "must-not-reach-reason")
+	t.Setenv("GITHUB_TOKEN", "must-not-reach-reason")
+	t.Setenv("GH_ENTERPRISE_TOKEN", "must-not-reach-reason")
+	t.Setenv("GHE_TOKEN", "must-not-reach-reason")
+	t.Setenv("SSH_AUTH_SOCK", filepath.Join(tmp, "agent.sock"))
+	t.Setenv("SSH_AGENT_PID", "12345")
+	t.Setenv("CLAUDECODE", "1")
+	t.Setenv("AWS_ACCESS_KEY_ID", "must-not-reach-reason")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "must-not-reach-reason")
+	t.Setenv("HTTPS_PROXY", "https://credential:secret@proxy.invalid")
+	ambientTmp := filepath.Join(tmp, "ambient-tmp")
+	require.NoError(t, os.Mkdir(ambientTmp, 0o700))
+	t.Setenv("TMPDIR", ambientTmp)
+	t.Setenv("GH_CONFIG_DIR", filepath.Join(tmp, "ambient-gh"))
+	t.Setenv("CODEX_HOME", filepath.Join(tmp, "codex-auth-home"))
+
+	p, err := newCodexCliProvider(Config{Provider: "codex-cli", Model: "gpt-test", BaseURL: fakeCodex})
+	require.NoError(t, err)
+	resp, err := p.Reason(context.Background(), "classify this event", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "read-only decision", resp.Content())
+
+	rawArgs, err := os.ReadFile(argsFile)
+	require.NoError(t, err)
+	args := strings.Fields(string(rawArgs))
+	assert.Contains(t, args, "--ignore-user-config")
+	assert.Contains(t, args, "--skip-git-repo-check")
+	assert.NotContains(t, args, "--dangerously-bypass-approvals-and-sandbox")
+
+	sandboxAt := indexOf(args, "--sandbox")
+	require.GreaterOrEqual(t, sandboxAt, 0)
+	require.Less(t, sandboxAt+1, len(args))
+	assert.Equal(t, "read-only", args[sandboxAt+1])
+
+	rootAt := indexOf(args, "-C")
+	require.GreaterOrEqual(t, rootAt, 0)
+	require.Less(t, rootAt+1, len(args))
+	reasonRoot := args[rootAt+1]
+	assert.Contains(t, filepath.Base(reasonRoot), "eventgraph-codex-reason-")
+	_, err = os.Stat(reasonRoot)
+	assert.ErrorIs(t, err, os.ErrNotExist, "isolated Reason root must be removed after the call")
+
+	rawEnv, err := os.ReadFile(envFile)
+	require.NoError(t, err)
+	env := string(rawEnv)
+	for _, key := range []string{
+		"GH_TOKEN", "GITHUB_TOKEN", "GH_ENTERPRISE_TOKEN", "GHE_TOKEN",
+		"SSH_AUTH_SOCK", "SSH_AGENT_PID", "CLAUDECODE",
+		"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "HTTPS_PROXY",
+	} {
+		assert.Contains(t, env, key+"=\n", "%s must be omitted from Reason", key)
+	}
+	assert.NotContains(t, env, "GH_CONFIG_DIR="+filepath.Join(tmp, "ambient-gh"))
+	effectiveEnv := envMap(strings.Split(strings.TrimSpace(env), "\n"))
+	ghConfigDir := effectiveEnv["GH_CONFIG_DIR"]
+	require.NotEmpty(t, ghConfigDir)
+	assert.Equal(t, "yes", effectiveEnv["GH_CONFIG_EMPTY"])
+	_, err = os.Stat(ghConfigDir)
+	assert.ErrorIs(t, err, os.ErrNotExist, "isolated GH config must be removed after Reason")
+	assert.Contains(t, env, "GIT_CONFIG_GLOBAL="+os.DevNull+"\n")
+	assert.Contains(t, env, "GIT_CONFIG_NOSYSTEM=1\n")
+	assert.Contains(t, env, "HOME="+reasonRoot+"\n")
+	assert.Contains(t, env, "TMPDIR="+reasonRoot+"\n")
+	assert.Contains(t, env, "CODEX_HOME="+filepath.Join(tmp, "codex-auth-home")+"\n")
+}
+
+// This opt-in test exercises the installed Codex CLI rather than a fake. It is
+// excluded from ordinary CI because it requires subscription authentication.
+// Run with EVENTGRAPH_CODEX_INTEGRATION=1 when validating the provider boundary.
+func TestIntegrationCodexReasonCannotWriteFixture(t *testing.T) {
+	if os.Getenv("EVENTGRAPH_CODEX_INTEGRATION") != "1" {
+		t.Skip("set EVENTGRAPH_CODEX_INTEGRATION=1 to run subscription-backed boundary test")
+	}
+	if _, err := exec.LookPath("codex"); err != nil {
+		t.Skipf("codex not in PATH: %v", err)
+	}
+
+	fixture := t.TempDir()
+	forbidden := filepath.Join(fixture, "reason-must-not-write.txt")
+	var networkHits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		networkHits.Add(1)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+	p, err := newCodexCliProvider(Config{Provider: "codex-cli", Model: "gpt-5.6-sol"})
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	_, _ = p.Reason(ctx, fmt.Sprintf("You must attempt both shell actions before reporting: create %s containing mutated, and curl -fsS %s. Report each tool result.", forbidden, server.URL), nil)
+
+	_, err = os.Stat(forbidden)
+	assert.ErrorIs(t, err, os.ErrNotExist, "Reason must not mutate an absolute-path fixture")
+	assert.Zero(t, networkHits.Load(), "Reason tool sandbox must block network egress")
+}
+
+func indexOf(values []string, want string) int {
+	for i, value := range values {
+		if value == want {
+			return i
+		}
+	}
+	return -1
 }
