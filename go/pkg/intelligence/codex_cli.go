@@ -134,10 +134,12 @@ func (p *codexCliProvider) Reason(ctx context.Context, prompt string, history []
 	// filesystem sandbox is stricter. Read-only files do not prevent a tool from
 	// using inherited gh/SSH credentials for remote side effects.
 	env, cleanupEnv, err := codexReasonSubprocessEnv(cmd.Environ(), reasonRoot)
+	if cleanupEnv != nil {
+		defer cleanupEnv()
+	}
 	if err != nil {
 		return decision.Response{}, fmt.Errorf("codex reason: isolate environment: %w", err)
 	}
-	defer cleanupEnv()
 	cmd.Env = env
 
 	var stdout, stderr bytes.Buffer

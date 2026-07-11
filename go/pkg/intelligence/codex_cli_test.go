@@ -3,10 +3,13 @@ package intelligence
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -125,6 +128,11 @@ printf '%s\n' "$@" > "$root/args"
   printf 'AWS_SECRET_ACCESS_KEY=%s\n' "${AWS_SECRET_ACCESS_KEY-}"
   printf 'HTTPS_PROXY=%s\n' "${HTTPS_PROXY-}"
   printf 'GH_CONFIG_DIR=%s\n' "${GH_CONFIG_DIR-}"
+  if [ -d "${GH_CONFIG_DIR-}" ] && [ -z "$(ls -A "${GH_CONFIG_DIR-}")" ]; then
+    printf 'GH_CONFIG_EMPTY=yes\n'
+  else
+    printf 'GH_CONFIG_EMPTY=no\n'
+  fi
   printf 'GIT_CONFIG_GLOBAL=%s\n' "${GIT_CONFIG_GLOBAL-}"
   printf 'GIT_CONFIG_NOSYSTEM=%s\n' "${GIT_CONFIG_NOSYSTEM-}"
   printf 'HOME=%s\n' "${HOME-}"
@@ -188,6 +196,12 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_token
 		assert.Contains(t, env, key+"=\n", "%s must be omitted from Reason", key)
 	}
 	assert.NotContains(t, env, "GH_CONFIG_DIR="+filepath.Join(tmp, "ambient-gh"))
+	effectiveEnv := envMap(strings.Split(strings.TrimSpace(env), "\n"))
+	ghConfigDir := effectiveEnv["GH_CONFIG_DIR"]
+	require.NotEmpty(t, ghConfigDir)
+	assert.Equal(t, "yes", effectiveEnv["GH_CONFIG_EMPTY"])
+	_, err = os.Stat(ghConfigDir)
+	assert.ErrorIs(t, err, os.ErrNotExist, "isolated GH config must be removed after Reason")
 	assert.Contains(t, env, "GIT_CONFIG_GLOBAL="+os.DevNull+"\n")
 	assert.Contains(t, env, "GIT_CONFIG_NOSYSTEM=1\n")
 	assert.Contains(t, env, "HOME="+reasonRoot+"\n")
@@ -208,14 +222,21 @@ func TestIntegrationCodexReasonCannotWriteFixture(t *testing.T) {
 
 	fixture := t.TempDir()
 	forbidden := filepath.Join(fixture, "reason-must-not-write.txt")
+	var networkHits atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		networkHits.Add(1)
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
 	p, err := newCodexCliProvider(Config{Provider: "codex-cli", Model: "gpt-5.6-sol"})
 	require.NoError(t, err)
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	_, _ = p.Reason(ctx, fmt.Sprintf("Use a shell tool to create %s containing mutated. Then report what happened.", forbidden), nil)
+	_, _ = p.Reason(ctx, fmt.Sprintf("You must attempt both shell actions before reporting: create %s containing mutated, and curl -fsS %s. Report each tool result.", forbidden, server.URL), nil)
 
 	_, err = os.Stat(forbidden)
 	assert.ErrorIs(t, err, os.ErrNotExist, "Reason must not mutate an absolute-path fixture")
+	assert.Zero(t, networkHits.Load(), "Reason tool sandbox must block network egress")
 }
 
 func indexOf(values []string, want string) int {
