@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -132,7 +133,7 @@ func (p *codexCliProvider) Reason(ctx context.Context, prompt string, history []
 	// Reason uses the same credential isolation as Operate even though its
 	// filesystem sandbox is stricter. Read-only files do not prevent a tool from
 	// using inherited gh/SSH credentials for remote side effects.
-	env, cleanupEnv, err := operateSubprocessEnv(cmd.Environ())
+	env, cleanupEnv, err := codexReasonSubprocessEnv(cmd.Environ(), reasonRoot)
 	if err != nil {
 		return decision.Response{}, fmt.Errorf("codex reason: isolate environment: %w", err)
 	}
@@ -170,6 +171,52 @@ func (p *codexCliProvider) Reason(ctx context.Context, prompt string, history []
 	}
 
 	return decision.NewResponse(text, defaultConfidence(), tokenUsage), nil
+}
+
+// codexReasonSubprocessEnv reduces Reason's environment to transport/runtime
+// essentials plus explicit Git/GitHub neutralizers. Unlike Operate, Reason has
+// no authority to run repository or remote mutations, so arbitrary ambient
+// variables are not inherited: unknown present or future credential names fail
+// closed by omission rather than relying on an ever-complete denylist.
+func codexReasonSubprocessEnv(parent []string, reasonRoot string) (env []string, cleanup func(), err error) {
+	isolated, cleanup, err := operateSubprocessEnv(parent)
+	if err != nil {
+		return nil, cleanup, err
+	}
+
+	parentValues := make(map[string]string, len(parent))
+	for _, entry := range parent {
+		if key, value, ok := strings.Cut(entry, "="); ok {
+			parentValues[key] = value
+		}
+	}
+	codexHome := parentValues["CODEX_HOME"]
+	if codexHome == "" && parentValues["HOME"] != "" {
+		codexHome = filepath.Join(parentValues["HOME"], ".codex")
+	}
+
+	allowed := map[string]bool{
+		"PATH": true,
+		"LANG": true, "LANGUAGE": true, "TZ": true, "TERM": true, "NO_COLOR": true,
+		"SSL_CERT_FILE": true, "SSL_CERT_DIR": true, "CURL_CA_BUNDLE": true, "REQUESTS_CA_BUNDLE": true,
+		"GH_CONFIG_DIR": true, "GIT_CONFIG_GLOBAL": true, "GIT_CONFIG_NOSYSTEM": true,
+		"GIT_TERMINAL_PROMPT": true, "GIT_SSH_COMMAND": true,
+	}
+	for _, entry := range isolated {
+		key, _, ok := strings.Cut(entry, "=")
+		if ok && (allowed[key] || strings.HasPrefix(key, "LC_")) {
+			env = append(env, entry)
+		}
+	}
+
+	// A temporary HOME hides default credential stores (~/.ssh, ~/.aws,
+	// ~/.config/gh). CODEX_HOME names the subscription-auth home explicitly;
+	// --ignore-user-config prevents its config/MCP settings from becoming tools.
+	env = append(env, "HOME="+reasonRoot, "TMPDIR="+reasonRoot)
+	if codexHome != "" {
+		env = append(env, "CODEX_HOME="+codexHome)
+	}
+	return env, cleanup, nil
 }
 
 func (p *codexCliProvider) Operate(ctx context.Context, task decision.OperateTask) (decision.OperateResult, error) {
