@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 	"time"
@@ -40,10 +41,10 @@ type codexItem struct {
 }
 
 type codexUsage struct {
-	InputTokens         int `json:"input_tokens"`
-	CachedInputTokens   int `json:"cached_input_tokens"`
-	OutputTokens        int `json:"output_tokens"`
-	ReasoningTokens     int `json:"reasoning_output_tokens"`
+	InputTokens       int `json:"input_tokens"`
+	CachedInputTokens int `json:"cached_input_tokens"`
+	OutputTokens      int `json:"output_tokens"`
+	ReasoningTokens   int `json:"reasoning_output_tokens"`
 }
 
 type codexTurnError struct {
@@ -90,6 +91,18 @@ func (p *codexCliProvider) Reason(ctx context.Context, prompt string, history []
 	ctx, cancel = context.WithTimeout(ctx, defaultCodexReasonTimeout)
 	defer cancel()
 
+	// Reason is a decision call, never an execution authority. Codex CLI is an
+	// agentic client even for `exec`: without explicit constraints it can honor
+	// ambient user config, inspect the caller's repository, run tools, and write
+	// or commit files while the caller records only agent.evaluated. Run it from
+	// an empty non-repository root under the CLI's read-only sandbox so every
+	// filesystem mutation remains exclusive to the governed Operate path.
+	reasonRoot, err := os.MkdirTemp("", "eventgraph-codex-reason-")
+	if err != nil {
+		return decision.Response{}, fmt.Errorf("codex reason: create isolated root: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(reasonRoot) }()
+
 	var fullPrompt strings.Builder
 	historyText := eventsToMessages(history)
 	if historyText != "" {
@@ -102,6 +115,10 @@ func (p *codexCliProvider) Reason(ctx context.Context, prompt string, history []
 		"exec",
 		"--json",
 		"--ephemeral",
+		"--ignore-user-config",
+		"--sandbox", "read-only",
+		"--skip-git-repo-check",
+		"-C", reasonRoot,
 		"-m", p.model,
 	}
 	if p.systemPrompt != "" {
@@ -112,7 +129,14 @@ func (p *codexCliProvider) Reason(ctx context.Context, prompt string, history []
 	cmd := exec.CommandContext(ctx, p.codexPath, args...)
 	cmd.Stdin = strings.NewReader(fullPrompt.String())
 
-	env := removeEnv(cmd.Environ(), "CLAUDECODE")
+	// Reason uses the same credential isolation as Operate even though its
+	// filesystem sandbox is stricter. Read-only files do not prevent a tool from
+	// using inherited gh/SSH credentials for remote side effects.
+	env, cleanupEnv, err := operateSubprocessEnv(cmd.Environ())
+	if err != nil {
+		return decision.Response{}, fmt.Errorf("codex reason: isolate environment: %w", err)
+	}
+	defer cleanupEnv()
 	cmd.Env = env
 
 	var stdout, stderr bytes.Buffer
@@ -271,6 +295,6 @@ func parseCodexJSONL(data []byte) (string, codexUsage, error) {
 
 // Compile-time checks.
 var (
-	_ Provider          = (*codexCliProvider)(nil)
+	_ Provider           = (*codexCliProvider)(nil)
 	_ decision.IOperator = (*codexCliProvider)(nil)
 )

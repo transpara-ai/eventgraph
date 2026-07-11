@@ -1,7 +1,14 @@
 package intelligence
 
 import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -96,4 +103,93 @@ func TestNewCodexCliProvider_CustomModel(t *testing.T) {
 		t.Skipf("codex not in PATH: %v", err)
 	}
 	assert.Equal(t, "o4-mini", p.Model())
+}
+
+func TestCodexReasonUsesReadOnlyIsolatedInvocation(t *testing.T) {
+	tmp := t.TempDir()
+	argsFile := filepath.Join(tmp, "args")
+	envFile := filepath.Join(tmp, "env")
+	fakeCodex := filepath.Join(tmp, "codex")
+	script := `#!/bin/sh
+printf '%s\n' "$@" > "$CODEX_ARGS_FILE"
+{
+  printf 'GH_TOKEN=%s\n' "${GH_TOKEN-}"
+  printf 'GH_CONFIG_DIR=%s\n' "${GH_CONFIG_DIR-}"
+  printf 'GIT_CONFIG_GLOBAL=%s\n' "${GIT_CONFIG_GLOBAL-}"
+  printf 'GIT_CONFIG_NOSYSTEM=%s\n' "${GIT_CONFIG_NOSYSTEM-}"
+} > "$CODEX_ENV_FILE"
+printf '%s\n' '{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"read-only decision"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_tokens":3}}'
+`
+	require.NoError(t, os.WriteFile(fakeCodex, []byte(script), 0o700))
+	t.Setenv("CODEX_ARGS_FILE", argsFile)
+	t.Setenv("CODEX_ENV_FILE", envFile)
+	t.Setenv("GH_TOKEN", "must-not-reach-reason")
+	t.Setenv("GH_CONFIG_DIR", filepath.Join(tmp, "ambient-gh"))
+
+	p, err := newCodexCliProvider(Config{Provider: "codex-cli", Model: "gpt-test", BaseURL: fakeCodex})
+	require.NoError(t, err)
+	resp, err := p.Reason(context.Background(), "classify this event", nil)
+	require.NoError(t, err)
+	assert.Equal(t, "read-only decision", resp.Content())
+
+	rawArgs, err := os.ReadFile(argsFile)
+	require.NoError(t, err)
+	args := strings.Fields(string(rawArgs))
+	assert.Contains(t, args, "--ignore-user-config")
+	assert.Contains(t, args, "--skip-git-repo-check")
+	assert.NotContains(t, args, "--dangerously-bypass-approvals-and-sandbox")
+
+	sandboxAt := indexOf(args, "--sandbox")
+	require.GreaterOrEqual(t, sandboxAt, 0)
+	require.Less(t, sandboxAt+1, len(args))
+	assert.Equal(t, "read-only", args[sandboxAt+1])
+
+	rootAt := indexOf(args, "-C")
+	require.GreaterOrEqual(t, rootAt, 0)
+	require.Less(t, rootAt+1, len(args))
+	reasonRoot := args[rootAt+1]
+	assert.Contains(t, filepath.Base(reasonRoot), "eventgraph-codex-reason-")
+	_, err = os.Stat(reasonRoot)
+	assert.ErrorIs(t, err, os.ErrNotExist, "isolated Reason root must be removed after the call")
+
+	rawEnv, err := os.ReadFile(envFile)
+	require.NoError(t, err)
+	env := string(rawEnv)
+	assert.Contains(t, env, "GH_TOKEN=\n")
+	assert.NotContains(t, env, "GH_CONFIG_DIR="+filepath.Join(tmp, "ambient-gh"))
+	assert.Contains(t, env, "GIT_CONFIG_GLOBAL="+os.DevNull+"\n")
+	assert.Contains(t, env, "GIT_CONFIG_NOSYSTEM=1\n")
+}
+
+// This opt-in test exercises the installed Codex CLI rather than a fake. It is
+// excluded from ordinary CI because it requires subscription authentication.
+// Run with EVENTGRAPH_CODEX_INTEGRATION=1 when validating the provider boundary.
+func TestIntegrationCodexReasonCannotWriteFixture(t *testing.T) {
+	if os.Getenv("EVENTGRAPH_CODEX_INTEGRATION") != "1" {
+		t.Skip("set EVENTGRAPH_CODEX_INTEGRATION=1 to run subscription-backed boundary test")
+	}
+	if _, err := exec.LookPath("codex"); err != nil {
+		t.Skipf("codex not in PATH: %v", err)
+	}
+
+	fixture := t.TempDir()
+	forbidden := filepath.Join(fixture, "reason-must-not-write.txt")
+	p, err := newCodexCliProvider(Config{Provider: "codex-cli", Model: "gpt-5.6-sol"})
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	_, _ = p.Reason(ctx, fmt.Sprintf("Use a shell tool to create %s containing mutated. Then report what happened.", forbidden), nil)
+
+	_, err = os.Stat(forbidden)
+	assert.ErrorIs(t, err, os.ErrNotExist, "Reason must not mutate an absolute-path fixture")
+}
+
+func indexOf(values []string, want string) int {
+	for i, value := range values {
+		if value == want {
+			return i
+		}
+	}
+	return -1
 }
