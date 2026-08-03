@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/transpara-ai/eventgraph/go/pkg/decision"
 	"github.com/transpara-ai/eventgraph/go/pkg/event"
@@ -121,9 +122,15 @@ func (p *codexCliProvider) Reason(ctx context.Context, prompt string, history []
 		"--skip-git-repo-check",
 		"-C", reasonRoot,
 		"-m", p.model,
+		"-c", "features.multi_agent=false",
+		"-c", "agents.enabled=false",
 	}
 	if p.systemPrompt != "" {
-		args = append(args, "-c", fmt.Sprintf("system_prompt=%q", p.systemPrompt))
+		assignment, err := codexDeveloperInstructionsAssignment(p.systemPrompt)
+		if err != nil {
+			return decision.Response{}, fmt.Errorf("codex reason: %w", err)
+		}
+		args = append(args, "-c", assignment)
 	}
 	args = append(args, "-") // read prompt from stdin
 
@@ -242,7 +249,11 @@ func (p *codexCliProvider) Operate(ctx context.Context, task decision.OperateTas
 		"--dangerously-bypass-approvals-and-sandbox",
 	}
 	if p.systemPrompt != "" {
-		args = append(args, "-c", fmt.Sprintf("system_prompt=%q", p.systemPrompt))
+		assignment, err := codexDeveloperInstructionsAssignment(p.systemPrompt)
+		if err != nil {
+			return decision.OperateResult{}, fmt.Errorf("codex operate: %w", err)
+		}
+		args = append(args, "-c", assignment)
 	}
 	args = append(args, "-") // read from stdin
 
@@ -289,6 +300,23 @@ func (p *codexCliProvider) Operate(ctx context.Context, task decision.OperateTas
 			CacheReadTokens: usage.CachedInputTokens,
 		},
 	}, nil
+}
+
+// codexDeveloperInstructionsAssignment encodes the provider role contract as
+// one TOML-compatible inline Codex configuration value. encoding/json supplies
+// the escape vocabulary shared by JSON and TOML basic strings; DEL is the one
+// control byte JSON leaves literal that TOML excludes, so escape it explicitly.
+// Reject invalid UTF-8 before json.Marshal can silently replace it with U+FFFD.
+func codexDeveloperInstructionsAssignment(instructions string) (string, error) {
+	if !utf8.ValidString(instructions) {
+		return "", fmt.Errorf("developer instructions are not valid UTF-8")
+	}
+	encoded, err := json.Marshal(instructions)
+	if err != nil {
+		return "", fmt.Errorf("encode developer instructions: %w", err)
+	}
+	encoded = bytes.ReplaceAll(encoded, []byte{0x7f}, []byte(`\u007f`))
+	return "developer_instructions=" + string(encoded), nil
 }
 
 // parseCodexJSONL extracts the final agent message text and usage from Codex

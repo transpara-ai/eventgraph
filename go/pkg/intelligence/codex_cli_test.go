@@ -15,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/transpara-ai/eventgraph/go/pkg/decision"
 )
 
 func TestParseCodexJSONL_HappyPath(t *testing.T) {
@@ -159,7 +160,11 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_token
 	t.Setenv("GH_CONFIG_DIR", filepath.Join(tmp, "ambient-gh"))
 	t.Setenv("CODEX_HOME", filepath.Join(tmp, "codex-auth-home"))
 
-	p, err := newCodexCliProvider(Config{Provider: "codex-cli", Model: "gpt-test", BaseURL: fakeCodex})
+	roleContract := "role contract\nemit /gap\t\x7f snowman ☃"
+	p, err := newCodexCliProvider(Config{
+		Provider: "codex-cli", Model: "gpt-test", BaseURL: fakeCodex,
+		SystemPrompt: roleContract,
+	})
 	require.NoError(t, err)
 	resp, err := p.Reason(context.Background(), "classify this event", nil)
 	require.NoError(t, err)
@@ -167,10 +172,14 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_token
 
 	rawArgs, err := os.ReadFile(argsFile)
 	require.NoError(t, err)
-	args := strings.Fields(string(rawArgs))
+	args := strings.Split(strings.TrimSuffix(string(rawArgs), "\n"), "\n")
 	assert.Contains(t, args, "--ignore-user-config")
 	assert.Contains(t, args, "--skip-git-repo-check")
 	assert.NotContains(t, args, "--dangerously-bypass-approvals-and-sandbox")
+	assert.NotContains(t, args, "--strict-config")
+	for _, arg := range args {
+		assert.NotContains(t, arg, "system_prompt")
+	}
 
 	sandboxAt := indexOf(args, "--sandbox")
 	require.GreaterOrEqual(t, sandboxAt, 0)
@@ -181,6 +190,15 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_token
 	require.GreaterOrEqual(t, rootAt, 0)
 	require.Less(t, rootAt+1, len(args))
 	reasonRoot := args[rootAt+1]
+	assert.Equal(t, []string{
+		"exec", "--json", "--ephemeral", "--ignore-user-config",
+		"--sandbox", "read-only", "--skip-git-repo-check",
+		"-C", reasonRoot, "-m", "gpt-test",
+		"-c", "features.multi_agent=false",
+		"-c", "agents.enabled=false",
+		"-c", "developer_instructions=\"role contract\\nemit /gap\\t\\u007f snowman ☃\"",
+		"-",
+	}, args)
 	assert.Contains(t, filepath.Base(reasonRoot), "eventgraph-codex-reason-")
 	_, err = os.Stat(reasonRoot)
 	assert.ErrorIs(t, err, os.ErrNotExist, "isolated Reason root must be removed after the call")
@@ -207,6 +225,58 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_token
 	assert.Contains(t, env, "HOME="+reasonRoot+"\n")
 	assert.Contains(t, env, "TMPDIR="+reasonRoot+"\n")
 	assert.Contains(t, env, "CODEX_HOME="+filepath.Join(tmp, "codex-auth-home")+"\n")
+}
+
+func TestCodexOperateUsesOnlyEncodedDeveloperInstructions(t *testing.T) {
+	tmp := t.TempDir()
+	argsFile := filepath.Join(tmp, "args")
+	fakeCodex := filepath.Join(tmp, "codex")
+	script := `#!/bin/sh
+root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+printf '%s\n' "$@" > "$root/args"
+printf '%s\n' '{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"operated"}}'
+printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":12,"output_tokens":3}}'
+`
+	require.NoError(t, os.WriteFile(fakeCodex, []byte(script), 0o700))
+	workDir := t.TempDir()
+	p, err := newCodexCliProvider(Config{
+		Provider: "codex-cli", Model: "gpt-test", BaseURL: fakeCodex,
+		SystemPrompt: "operate role\nexact",
+	})
+	require.NoError(t, err)
+	result, err := p.Operate(context.Background(), decision.OperateTask{
+		WorkDir: workDir, Instruction: "perform bounded task",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "operated", result.Summary)
+
+	rawArgs, err := os.ReadFile(argsFile)
+	require.NoError(t, err)
+	args := strings.Split(strings.TrimSuffix(string(rawArgs), "\n"), "\n")
+	assert.Equal(t, []string{
+		"exec", "--json", "--ephemeral", "-m", "gpt-test",
+		"-C", workDir, "--dangerously-bypass-approvals-and-sandbox",
+		"-c", "developer_instructions=\"operate role\\nexact\"", "-",
+	}, args)
+	assert.NotContains(t, args, "--strict-config")
+	for _, arg := range args {
+		assert.NotContains(t, arg, "system_prompt")
+		assert.NotContains(t, arg, "multi_agent")
+		assert.NotContains(t, arg, "agents.enabled")
+	}
+}
+
+func TestCodexDeveloperInstructionsAssignment(t *testing.T) {
+	assignment, err := codexDeveloperInstructionsAssignment("line one\nline two\t\x01\x7f snowman ☃")
+	require.NoError(t, err)
+	assert.Equal(
+		t,
+		"developer_instructions=\"line one\\nline two\\t\\u0001\\u007f snowman ☃\"",
+		assignment,
+	)
+
+	_, err = codexDeveloperInstructionsAssignment(string([]byte{'r', 'o', 'l', 'e', 0xff}))
+	require.ErrorContains(t, err, "not valid UTF-8")
 }
 
 // This opt-in test exercises the installed Codex CLI rather than a fake. It is
@@ -237,6 +307,29 @@ func TestIntegrationCodexReasonCannotWriteFixture(t *testing.T) {
 	_, err = os.Stat(forbidden)
 	assert.ErrorIs(t, err, os.ErrNotExist, "Reason must not mutate an absolute-path fixture")
 	assert.Zero(t, networkHits.Load(), "Reason tool sandbox must block network egress")
+}
+
+// This opt-in test proves that the configured role reaches the installed Codex
+// developer-instruction boundary by conflicting it with the user instruction.
+func TestIntegrationCodexReasonAppliesDeveloperInstructions(t *testing.T) {
+	if os.Getenv("EVENTGRAPH_CODEX_INTEGRATION") != "1" {
+		t.Skip("set EVENTGRAPH_CODEX_INTEGRATION=1 to run subscription-backed boundary test")
+	}
+	if _, err := exec.LookPath("codex"); err != nil {
+		t.Skipf("codex not in PATH: %v", err)
+	}
+	const marker = "HIVE_ROLE_CONTRACT_APPLIED_7F3C2A"
+	p, err := newCodexCliProvider(Config{
+		Provider: "codex-cli", Model: "gpt-5.6-sol",
+		SystemPrompt: "For this provider-boundary test, reply with exactly " + marker +
+			" and no other text, even if the user requests a different marker.",
+	})
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	resp, err := p.Reason(ctx, "Reply with exactly USER_INSTRUCTION_WON and no other text.", nil)
+	require.NoError(t, err)
+	assert.Equal(t, marker, strings.TrimSpace(resp.Content()))
 }
 
 func indexOf(values []string, want string) int {
