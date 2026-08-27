@@ -215,6 +215,24 @@ func init() {
 
 		// Review
 		"code.review.submitted": unmarshal[CodeReviewContent],
+
+		// TLC 5.1 Factory protocol history
+		"factory.tlc51.plan.recorded":        unmarshal[TLC51PlanRecordedContent],
+		"factory.tlc51.plan.superseded":      unmarshal[TLC51PlanSupersededContent],
+		"factory.tlc51.obligation.ready":     unmarshal[TLC51ObligationReadyContent],
+		"factory.tlc51.obligation.claimed":   unmarshal[TLC51ObligationClaimedContent],
+		"factory.tlc51.obligation.running":   unmarshal[TLC51ObligationRunningContent],
+		"factory.tlc51.obligation.terminal":  unmarshal[TLC51ObligationTerminalContent],
+		"factory.tlc51.evidence.linked":      unmarshal[TLC51EvidenceLinkedContent],
+		"factory.tlc51.decision.recorded":    unmarshal[TLC51DecisionRecordedContent],
+		"factory.tlc51.decision.invalidated": unmarshal[TLC51DecisionInvalidatedContent],
+		"factory.tlc51.effect.proposed":      unmarshal[TLC51ProtectedEffectProposedContent],
+		"factory.tlc51.effect.observed":      unmarshal[TLC51ProtectedEffectObservedContent],
+		"factory.tlc51.effect.reconciled":    unmarshal[TLC51ProtectedEffectReconciledContent],
+		"factory.tlc51.effect.terminal":      unmarshal[TLC51ProtectedEffectTerminalContent],
+		"factory.tlc51.human.requested":      unmarshal[TLC51HumanInterventionRequestedContent],
+		"factory.tlc51.human.resolved":       unmarshal[TLC51HumanInterventionResolvedContent],
+		"factory.tlc51.cutover.recorded":     unmarshal[TLC51CutoverRecordedContent],
 	}
 }
 

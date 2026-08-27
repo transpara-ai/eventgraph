@@ -790,5 +790,9 @@ func DefaultRegistry() *EventTypeRegistry {
 	for _, et := range AllReviewEventTypes() {
 		r.Register(et, nil)
 	}
+	// TLC 5.1 Factory protocol event types
+	for _, et := range AllTLC51EventTypes() {
+		r.Register(et, validateTLC51Content)
+	}
 	return r
 }
