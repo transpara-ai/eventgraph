@@ -11,6 +11,7 @@ EventGraph substrate: hash-chained, append-only, causal event infrastructure for
 - Full verify: `make verify`
 
 ## Rules
+- Use the installed canonical `transpara-tlc` skill for software changes; do not copy its policy or implementation into this repository.
 - Preserve hash-chain integrity, declared causality, signatures, typed IDs, and constrained domain values.
 - Do not add untyped event content, magic strings, or partially valid domain models.
 - Store implementations must pass conformance tests when touched.
